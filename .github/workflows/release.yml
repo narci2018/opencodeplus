@@ -386,7 +386,7 @@ jobs:
   # only then builds the zip, dmg and .app.tar.gz from the stapled apps.
   sign-macos:
     needs: [plan, build-npm, build-desktop]
-    if: ${{ !cancelled() && !failure() && (needs.plan.outputs.cli == 'true' || needs.plan.outputs.desktop == 'true') }}
+    if: ${{ !cancelled() && !failure() && (needs.plan.outputs.cli == 'true' || needs.plan.outputs.desktop == 'true') && needs.plan.outputs.channel != 'dev' }}
     runs-on: macos-26
     timeout-minutes: 90
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
@@ -443,7 +443,7 @@ jobs:
   # Signs the Windows CLI and every executable and native module of the unpacked desktop apps.
   sign-windows:
     needs: [plan, build-npm, build-desktop]
-    if: ${{ !cancelled() && !failure() && (needs.plan.outputs.cli == 'true' || needs.plan.outputs.desktop == 'true') }}
+    if: ${{ !cancelled() && !failure() && (needs.plan.outputs.cli == 'true' || needs.plan.outputs.desktop == 'true') && needs.plan.outputs.channel != 'dev' }}
     runs-on: windows-2025
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -513,7 +513,7 @@ jobs:
 
   sign-desktop-windows-installer:
     needs: [plan, build-desktop-windows-installer]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.desktop == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.desktop == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: windows-2025
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -719,13 +719,19 @@ jobs:
     env: *env
     steps:
       - *checkout-release
-      - name: Download
+      - name: Download signed artifacts
+        if: needs.plan.outputs.channel != 'dev'
         uses: ./.github/release/download
         with:
           pattern: "{build-archives,build-desktop-linux-*,sign-macos,sign-windows,sign-desktop-windows-installer}"
           digests: >-
             sign-macos=${{ needs.sign-macos.outputs.digest }} sign-windows=${{ needs.sign-windows.outputs.digest }}
             sign-desktop-windows-installer=${{ needs.sign-desktop-windows-installer.outputs.digest }}
+      - name: Download unsigned builds
+        if: needs.plan.outputs.channel == 'dev'
+        uses: ./.github/release/download
+        with:
+          pattern: "{build-archives,build-desktop-*}"
       - name: Publish
         run: bash .github/release/publish-github-release.sh "$RUNNER_TEMP"/in/*
         env:
