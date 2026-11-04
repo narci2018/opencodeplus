@@ -71,7 +71,7 @@ jobs:
           - name: linux
             host: ubuntu-latest
           - name: windows
-            host: blacksmith-4vcpu-windows-2025
+            host: windows-latest
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -157,7 +157,7 @@ jobs:
           - name: linux
             host: ubuntu-latest
           - name: windows
-            host: blacksmith-4vcpu-windows-2025
+            host: windows-latest
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -224,7 +224,7 @@ jobs:
       fail-fast: false
       matrix:
         # Beta PRs gate on Linux; Windows runs on pushes and manual runs (nightly-beta.yml dispatches beta).
-        settings: ${{ fromJSON(github.base_ref == 'beta' && '[{"name":"linux","host":"ubuntu-latest"}]' || '[{"name":"linux","host":"ubuntu-latest"},{"name":"windows","host":"blacksmith-4vcpu-windows-2025"}]') }}
+        settings: ${{ fromJSON(github.base_ref == 'beta' && '[{"name":"linux","host":"ubuntu-latest"}]' || '[{"name":"linux","host":"ubuntu-latest"},{"name":"windows","host":"windows-latest"}]') }}
         quarantine: ${{ fromJSON(inputs.quarantine && '[true]' || '[false]') }}
         # Playwright splits whole spec files across shards by test count, not duration. Every app-N
         # entry must use the same total, and the entries must cover 1..total. The service worker suite
