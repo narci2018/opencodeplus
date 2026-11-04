@@ -343,7 +343,7 @@ jobs:
   # Packs the NSIS installer around the signed app. This runs repository config, so it is a build job; the
   # installer is signed next.
   build-desktop-windows-installer:
-    needs: [plan, tag, sign-windows]
+    needs: [plan, tag, build-desktop]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.desktop == 'true' }}
     strategy:
       fail-fast: false
@@ -361,7 +361,14 @@ jobs:
         uses: ./.github/actions/setup-bun
         with:
           install-flags: ${{ matrix.install }}
-      - name: Download
+      - name: Download unsigned desktop build
+        if: needs.plan.outputs.channel == 'dev'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build-desktop-${{ matrix.target }}
+          path: ${{ runner.temp }}/app
+      - name: Download signed desktop build
+        if: needs.plan.outputs.channel != 'dev'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: sign-desktop-${{ matrix.target }}
