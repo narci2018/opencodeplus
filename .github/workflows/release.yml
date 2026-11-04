@@ -554,7 +554,7 @@ jobs:
   # Build provenance for the npm tarballs and Linux archives. No secrets; id-token only for Sigstore.
   publish-attestations:
     needs: [plan, build-npm]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' && needs.plan.outputs.dry_run != 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' && needs.plan.outputs.dry_run != 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -575,7 +575,7 @@ jobs:
 
   publish-npm:
     needs: [plan, sign-macos, sign-windows, publish-attestations]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -602,7 +602,7 @@ jobs:
 
   publish-cli:
     needs: [plan, sign-macos, sign-windows, publish-npm]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.cli == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -620,7 +620,7 @@ jobs:
 
   publish-desktop:
     needs: [plan, sign-macos, sign-desktop-windows-installer]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.desktop == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.desktop == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -642,7 +642,7 @@ jobs:
 
   publish-docker:
     needs: [plan, build-docker]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -662,7 +662,7 @@ jobs:
 
   publish-homebrew:
     needs: [plan, sign-macos, sign-windows, publish-cli]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -680,7 +680,7 @@ jobs:
   # The AUR package installs the published npm tarballs, so it follows the npm publish.
   publish-aur:
     needs: [plan, sign-macos, sign-windows, publish-npm]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
@@ -698,7 +698,7 @@ jobs:
   # WinGet manifests as data. Submission to microsoft/winget-pkgs stays paused until the packages are accepted.
   publish-winget:
     needs: [plan, sign-windows, sign-desktop-windows-installer]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     env: *env
     steps:
@@ -717,7 +717,7 @@ jobs:
           path: ${{ runner.temp }}/out
 
   publish-github-release:
-    needs: [plan, sign-macos, sign-windows, sign-desktop-windows-installer, publish-cli, publish-desktop]
+    needs: [plan, build-cli, build-node, build-npm, build-desktop, build-desktop-windows-installer, build-docker]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
@@ -748,7 +748,7 @@ jobs:
 
   publish-discord:
     needs: [plan, publish-github-release]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
     permissions:
