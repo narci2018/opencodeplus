@@ -126,17 +126,27 @@ const NOTHING_TO_COMPACT: Failure = { error: { type: "compaction.unavailable", m
 /** After each "too long" rejection, the next attempt aims at this share of the first rejected request's size. */
 const SHRINK_STEPS = [0.85, 0.7, 0.5, 0.35]
 // The least of the window kept free for the last reply before compaction and for the summary itself.
-const RESERVE_MIN = 16_000
+// 定点补丁 0002（解 L4-7）：这些比例与步进没有任何配置位，`compaction.buffer` 只能调"留多少"，
+// 调不了它们。这里用 env 覆盖，未设置时保持官方值。
+const envTokens = (name: string, value: number) => {
+  const input = Number(process.env[name])
+  return Number.isFinite(input) && input > 0 ? Math.floor(input) : value
+}
+const envShare = (name: string, value: number) => {
+  const input = Number(process.env[name])
+  return Number.isFinite(input) && input > 0 && input < 1 ? input : value
+}
+const RESERVE_MIN = envTokens("OPENCODE_COMPACTION_RESERVE_MIN", 16_000)
 /**
  * Share of the window kept free before automatic compaction. Above `RESERVE_MIN`, the margin between it and
  * `summaryRoom` absorbs a large step past the trigger, so the whole conversation still goes out unchanged and reuses
  * the cache. Single steps grew by up to ~22k tokens at p99 in real sessions.
  */
-const RESERVE_SHARE = 0.15
+const RESERVE_SHARE = envShare("OPENCODE_COMPACTION_RESERVE_SHARE", 0.15)
 /** A common window size, assumed for the compaction request when the model's window is unknown. */
-const UNKNOWN_WINDOW = 200_000
+const UNKNOWN_WINDOW = envTokens("OPENCODE_COMPACTION_UNKNOWN_WINDOW", 200_000)
 /** A summary gets at least this much output, or the room left if less, even when the estimate margin leaves less. */
-const SUMMARY_OUTPUT_FLOOR = 32_000
+const SUMMARY_OUTPUT_FLOOR = envTokens("OPENCODE_COMPACTION_SUMMARY_OUTPUT_FLOOR", 32_000)
 /**
  * How far one exchange of a summary transcript is shortened, in the order the levels apply: whole; tool outputs cut;
  * tool outputs left out and tool inputs cut; only the user's text, cut; omitted.

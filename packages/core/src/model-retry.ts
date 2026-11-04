@@ -9,7 +9,13 @@ interface Input {
 }
 
 /** Bound provider-requested delays so a hostile or buggy retry-after cannot stall a call for hours. */
-const RETRY_AFTER_MAX = Duration.toMillis("15 minutes")
+// 定点补丁 0003（解 L4-8）：次数与上限原本是纯常量，`session.retry` hook 只能改 delay 改不了次数
+// （session/runner/retry.ts:38-53）。这里全部改成 env 可覆盖，未设置时保持官方值。
+const envNumber = (name: string, value: number) => {
+  const input = Number(process.env[name])
+  return Number.isFinite(input) && input > 0 ? Math.floor(input) : value
+}
+const RETRY_AFTER_MAX = envNumber("OPENCODE_RETRY_AFTER_MAX_MS", Duration.toMillis("15 minutes"))
 
 const retryAfter = (input: Input) => {
   if (input.cause.reason._tag === "RateLimit" || input.cause.reason._tag === "ProviderInternal")
@@ -24,7 +30,7 @@ const retryAfter = (input: Input) => {
 // cap applies per gap; `max` with `recurs` bounds the count.
 const schedule = Schedule.max([
   Schedule.min([Schedule.exponential("2 seconds"), Schedule.spaced("10 seconds")]),
-  Schedule.recurs(10),
+  Schedule.recurs(envNumber("OPENCODE_RETRY_ATTEMPTS", 10)),
 ]).pipe(
   Schedule.jittered,
   Schedule.setInputType<Input>(),
@@ -37,7 +43,7 @@ const schedule = Schedule.max([
 
 // A timed-out attempt already waited minutes before failing, so the general allowance would let a
 // dead provider hold a call for most of an hour. Cap those attempts well below it.
-const MAX_TIMEOUT_RETRIES = 3
+const MAX_TIMEOUT_RETRIES = envNumber("OPENCODE_RETRY_TIMEOUT_MAX", 3)
 
 export const policy = Effect.gen(function* () {
   const step = yield* Schedule.toStep(schedule)
@@ -74,7 +80,7 @@ export const retry = <A, R>(effect: Effect.Effect<A, AIError, R>) =>
 
 // One-shot generations (stateless text, images, decisions) can be billed per attempt, so they retry only failures
 // the provider never ran, a few times, with the same backoff and retry-after handling.
-const ONE_SHOT_RETRIES = 3
+const ONE_SHOT_RETRIES = envNumber("OPENCODE_RETRY_ONE_SHOT_MAX", 3)
 const NOT_SENT_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"])
 
 const notRun = (error: AIError) => {

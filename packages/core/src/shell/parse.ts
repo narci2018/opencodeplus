@@ -159,6 +159,11 @@ const ARITY: Record<string, number> = {
 }
 const PREFIX_LENGTH = Math.max(...Object.values(ARITY))
 
+// 定点补丁 0001（解 L5-1）：默认保持官方 fail-closed；OPENCODE_SHELL_SCAN_FAIL_OPEN=1 时，扫描器读不懂
+// 不再整条拒绝，而是退回一条粗粒度资源交给权限规则判定。工具侧没有 catch（tool/plugin/shell.ts:118），
+// 所以官方的 fail-closed 直接表现为工具失败。代价：此时按命令前缀保存的"总是允许"粒度变粗。
+const scanFailOpen = ["1", "true"].includes(process.env.OPENCODE_SHELL_SCAN_FAIL_OPEN ?? "")
+
 export function scan(command: string, shell: string, cwd: string): Effect.Effect<Result, Error> {
   return Effect.suspend(() => {
     const powershell = ShellSelect.ps(shell)
@@ -166,8 +171,14 @@ export function scan(command: string, shell: string, cwd: string): Effect.Effect
     const scanned = powershell
       ? ShellScan.scanPowerShell(command)
       : ShellScan.scan(command, shellName === "bash" || shellName === "zsh" ? shellName : "posix")
-    if (scanned.kind === "opaque")
+    if (scanned.kind === "opaque") {
+      if (scanFailOpen) {
+        const trimmed = command.trim()
+        const save = `${trimmed.split(/\s+/)[0] ?? trimmed} *`
+        return Effect.succeed({ commands: [{ resource: trimmed, save }], directories: [] })
+      }
       return Effect.fail(new Error(`Portable shell scanner cannot analyze command: ${scanned.reason}`))
+    }
 
     const output: Result = { commands: [], directories: [] }
     for (const item of scanned.commands) {

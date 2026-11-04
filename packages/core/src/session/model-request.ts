@@ -41,6 +41,12 @@ import { SessionSystemPrompt } from "./system-prompt.js"
 import { toLLMMessages } from "./runner/to-llm-message.js"
 import type { SessionMessage } from "./message.js"
 
+/** 定点补丁 0002 的共用取值：只接受正有限数，否则退回官方默认。 */
+const envToken = (name: string, value: number) => {
+  const input = Number(process.env[name])
+  return Number.isFinite(input) && input > 0 ? Math.floor(input) : value
+}
+
 const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
 const IMAGE_BYTES_TARGET = 15 * 1024 * 1024 // 15 MiB
 const IMAGE_REMOVED =
@@ -49,7 +55,8 @@ const GENERATION_KEYS = new Set(Object.keys(GenerationOptions.fields))
 // Used when the catalog has no output limit for the model.
 const OUTPUT_TOKEN_FALLBACK = 32_000
 // No reply needs more, however much the model allows.
-const OUTPUT_TOKEN_MAX = 256_000
+// 定点补丁 0002（解 L4-1）：这个天花板是纯常量，配置面抬不动；用 env 覆盖，未设置时保持官方值。
+const OUTPUT_TOKEN_MAX = envToken("OPENCODE_OUTPUT_TOKEN_MAX", 256_000)
 // Prompt text is estimated at about 4 characters per token, which can run low on dense text such as code.
 const ESTIMATE_ERROR = 0.15
 // Share of the window a turn leaves unused when its output limit is fitted to the room left. Providers count a few
