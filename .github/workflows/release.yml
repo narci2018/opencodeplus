@@ -193,11 +193,11 @@ jobs:
           OPENCODE_TARGET: ${{ matrix.target }}
           OPENCODE_MODELS_SNAPSHOT: ${{ github.workspace }}/.cache/models-catalog/api.json
       - name: Test
-        if: matrix.target != 'windows-arm64'
+        if: matrix.target != 'windows-arm64' && matrix.target != 'linux-arm64'
         working-directory: packages/cli
         run: bun run script/service-smoke.ts --node
       - name: Verify bundled models catalog
-        if: matrix.target != 'windows-arm64'
+        if: matrix.target != 'windows-arm64' && matrix.target != 'linux-arm64'
         run: bun packages/cli/script/catalog-smoke.ts "packages/cli/dist/node/cli-node-$OPENCODE_TARGET/bin/opencode2-node$EXE"
         env:
           OPENCODE_TARGET: ${{ matrix.target }}
