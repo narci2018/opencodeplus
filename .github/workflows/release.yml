@@ -30,9 +30,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ (inputs.bump || inputs.version) && 'release' || 'build' }}
-  # Beta ships only the newest commit to the team. A cancelled beta run can leave unreferenced files in R2, but only
-  # publish-desktop records a release, in one request.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'beta' }}
+  # Beta and dev builds cancel any previous run in the same group to avoid queue buildup.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'beta' || github.ref_name == 'dev' }}
 
 permissions:
   contents: read
