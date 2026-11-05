@@ -42,9 +42,10 @@ export const appHandlers = AppRpcs.toLayer(
       AppGetSpellcheckEnabled: () => Effect.sync(getSpellcheckEnabled),
       AppSetSpellcheckEnabled: ({ enabled }) => Effect.sync(() => setSpellcheckEnabled(enabled)),
       AppGetNetworkProxy: () => Effect.sync(() => NetworkProxy.read() ?? null),
-      // Saving the proxy reaches every stack that can leave this machine: this process and the service it
-      // starts (environment), the renderer (Chromium), and a service started by the TUI or a later build
-      // (the service configuration). `service set env` stops the server, so it is brought back afterwards.
+      // Saving the proxy reaches the two stacks that make model requests: this process and the background
+      // service it starts (environment), plus a service started by the TUI or a later build (the service
+      // configuration). The renderer stays direct so the window keeps reaching its own local service.
+      // `service set env` stops the server, so it is brought back afterwards.
       AppSetNetworkProxy: ({ url }) =>
         Effect.gen(function* () {
           const proxy = yield* Effect.sync(() => NetworkProxy.parse(url ?? undefined))
@@ -53,7 +54,6 @@ export const appHandlers = AppRpcs.toLayer(
             NetworkProxy.write(proxy)
             NetworkProxy.applyEnvironment(proxy)
           })
-          yield* NetworkProxy.applySession(proxy)
           yield* NetworkProxy.applyToService((yield* desktopCli.resolve).command, proxy)
           yield* background.reconnect.pipe(Effect.asVoid)
 

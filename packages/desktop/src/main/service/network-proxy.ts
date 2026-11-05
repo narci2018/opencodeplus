@@ -3,7 +3,6 @@ export * as NetworkProxy from "./network-proxy"
 import { execFile } from "node:child_process"
 import http from "node:http"
 import { promisify } from "node:util"
-import { session } from "electron"
 import { Effect } from "effect"
 import { NETWORK_PROXY_KEY } from "../storage/keys"
 import { getStore } from "../storage/store"
@@ -14,6 +13,10 @@ const execute = promisify(execFile)
 // wherever model requests leave the process: this one, and the background service's. Only HTTP(S) proxies
 // work; a `socks5://` address fails with `UnsupportedProxyProtocol`, so the setting rejects it.
 const VARIABLES = ["HTTPS_PROXY", "HTTP_PROXY"]
+
+// The service keeps talking to this machine directly behind the proxy, so local MCP servers and sidecars
+// survive whoever launches it. Bun reads lowercase `no_proxy` alone, so both spellings are stored.
+const NO_PROXY_VARIABLES = ["NO_PROXY", "no_proxy"]
 
 /** The stored proxy URL, or nothing when the app should connect directly. */
 export function read() {
@@ -42,7 +45,8 @@ export function write(url: string | undefined) {
  * A proxy URL, or nothing to connect directly.
  *
  * Throws for an address the runtime cannot use: an unparseable URL, a scheme Bun rejects, or one that
- * carries a path, because the proxy variables take an origin only.
+ * carries a path, because the proxy variables take a server address only. The trailing slash `new URL()`
+ * adds to a bare host is dropped so the stored value matches what was typed.
  */
 export function parse(value: string | undefined) {
   const url = value?.trim()
@@ -57,26 +61,25 @@ export function parse(value: string | undefined) {
   if (parsed.hostname && (parsed.pathname !== "/" || parsed.search || parsed.hash))
     throw new Error("The proxy must be a server address without a path, such as http://127.0.0.1:7890.")
 
-  return parsed.href
+  return parsed.href.replace(/\/$/, "")
 }
 
-// Bun reads lowercase `no_proxy` alone whenever it is set, so both spellings get the same merged list.
-function ensureLoopbackNoProxy() {
-  const noProxy = [
+// Merged with whatever the launcher already set, so a corporate exclusion list survives.
+function loopbackNoProxy() {
+  return [
     ...new Set(
       [process.env.NO_PROXY, process.env.no_proxy, "127.0.0.1,localhost,::1"].flatMap((value) =>
         (value ?? "").split(",").flatMap((entry) => entry.trim() || []),
       ),
     ),
   ].join(",")
-
-  process.env.NO_PROXY = noProxy
-  process.env.no_proxy = noProxy
 }
 
 /** Read the proxy variables the environment already carries, keeping loopback direct. */
 export function prepareEnvironment() {
-  ensureLoopbackNoProxy()
+  const noProxy = loopbackNoProxy()
+  process.env.NO_PROXY = noProxy
+  process.env.no_proxy = noProxy
   // SAFETY: Electron 41.2 ships a Node with http.setGlobalProxyFromEnv, which the current @types/node lacks.
   const proxyAwareHttp = http as typeof http & { setGlobalProxyFromEnv(): void }
   proxyAwareHttp.setGlobalProxyFromEnv()
@@ -92,18 +95,15 @@ export function applyEnvironment(url: string | undefined) {
   prepareEnvironment()
 }
 
-/** The renderer's requests, the login flows and the update checks leave through Chromium's own stack. */
-export const applySession = (url: string | undefined) =>
-  Effect.tryPromise(() =>
-    session.defaultSession.setProxy(
-      url === undefined ? { mode: "system" } : { proxyRules: url, proxyBypassRules: "<-loopback>" },
-    ),
-  ).pipe(Effect.mapError((error) => new Error("Failed to update the Chromium proxy settings", { cause: error })))
-
 /**
  * Save the proxy in the background service's own configuration so the server starts with it whoever launches
  * it: the desktop, the TUI or a later build. `service set env` stops the running server, so the caller
  * reconnects afterwards to bring it back with the new environment.
+ *
+ * The renderer is deliberately not touched. Chromium's proxy covers every request the window makes, the
+ * local background service included, so a saved proxy would put the app's own control connection behind
+ * it; dev-24 shipped that and a configured proxy left the window unable to list providers or models.
+ * Model requests leave from the service process, which is what these variables cover.
  */
 export const applyToService = Effect.fn("NetworkProxy.applyToService")(function* (
   command: readonly string[],
@@ -113,13 +113,17 @@ export const applyToService = Effect.fn("NetworkProxy.applyToService")(function*
 
   if (program === undefined) return yield* Effect.fail(new Error("No CLI command to update the service configuration"))
 
-  for (const key of VARIABLES) {
-    yield* Effect.tryPromise(() =>
-      execute(program, [...args, "service", url === undefined ? "unset" : "set", "env", key, ...(url ? [url] : [])], {
-        timeout: 30_000,
-      }),
-    ).pipe(
-      Effect.mapError((error) => new Error(`Failed to update ${key} in the service configuration`, { cause: error })),
+  const entries =
+    url === undefined
+      ? [...VARIABLES, ...NO_PROXY_VARIABLES].map((key) => ["unset", "env", key] as const)
+      : [
+          ...VARIABLES.map((key) => ["set", "env", key, url] as const),
+          ...NO_PROXY_VARIABLES.map((key) => ["set", "env", key, loopbackNoProxy()] as const),
+        ]
+
+  for (const entry of entries) {
+    yield* Effect.tryPromise(() => execute(program, [...args, "service", ...entry], { timeout: 30_000 })).pipe(
+      Effect.mapError((error) => new Error("Failed to update the service environment", { cause: error })),
     )
   }
 })

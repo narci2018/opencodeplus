@@ -58,14 +58,6 @@ export const prepareDesktop = Effect.gen(function* () {
   registerRendererProtocol(paths.rendererRoot)
   setDockIcon(path, paths)
   applySpellcheck()
-
-  // Chromium keeps its own proxy configuration, and its session only exists once the app is ready.
-  const proxy = NetworkProxy.read()
-
-  if (proxy !== undefined)
-    yield* NetworkProxy.applySession(proxy).pipe(
-      Effect.catch((error) => Effect.logWarning("failed to apply the saved network proxy", { error })),
-    )
 })
 
 export const loadProxyEnvironment = Effect.try({
