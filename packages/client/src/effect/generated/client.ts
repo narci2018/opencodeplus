@@ -311,7 +311,7 @@ import type {
   WebsearchQueryOutput,
   ExperimentalUsageLimitsInput,
   ExperimentalUsageLimitsOutput,
-  ExperimentalUsageExperimentalNetworkEgressOutput,
+  ExperimentalNetworkEgressOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1918,14 +1918,15 @@ const EndpointExperimentalUsageLimits = (raw: RawClient["server.usage"]) => (inp
     raw["usage.limits"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
   )
 
-const EndpointExperimentalUsageExperimentalNetworkEgress = (raw: RawClient["server.usage"]) => () =>
-  preserveEffect<ExperimentalUsageExperimentalNetworkEgressOutput>()(
-    raw["network.egress"]({}).pipe(Effect.mapError(mapClientError)),
-  )
-
 const adaptGroupExperimentalUsage = (raw: RawClient["server.usage"]) => ({
   limits: EndpointExperimentalUsageLimits(raw),
-  experimental: { network: { egress: EndpointExperimentalUsageExperimentalNetworkEgress(raw) } },
+})
+
+const EndpointExperimentalNetworkEgress = (raw: RawClient["server.network"]) => () =>
+  preserveEffect<ExperimentalNetworkEgressOutput>()(raw["network.egress"]({}).pipe(Effect.mapError(mapClientError)))
+
+const adaptGroupExperimentalNetwork = (raw: RawClient["server.network"]) => ({
+  egress: EndpointExperimentalNetworkEgress(raw),
 })
 
 const EndpointConfigGet = (raw: RawClient["server.config"]) => (input?: ConfigGetInput) =>
@@ -1967,6 +1968,7 @@ const adaptClient = (raw: RawClient) => {
       file: adaptGroupExperimentalFile(raw["server.fs"]),
       migration: adaptGroupExperimentalMigration(raw["server.migration"]),
       usage: adaptGroupExperimentalUsage(raw["server.usage"]),
+      network: adaptGroupExperimentalNetwork(raw["server.network"]),
       config: adaptGroupExperimentalConfig(raw["server.config"]),
     },
     message: adaptGroupMessage(raw["server.message"]),
@@ -2080,14 +2082,11 @@ const adaptClient = (raw: RawClient) => {
     usage: {
       /** @deprecated Use `client.experimental.usage.limits`. Removed in the next minor. */
       limits: client.experimental.usage.limits,
-      /** @deprecated Use `client.experimental.usage.experimental`. Removed in the next minor. */
-      experimental: {
-        /** @deprecated Use `client.experimental.usage.experimental.network`. Removed in the next minor. */
-        network: {
-          /** @deprecated Use `client.experimental.usage.experimental.network.egress`. Removed in the next minor. */
-          egress: client.experimental.usage.experimental.network.egress,
-        },
-      },
+    },
+    /** @deprecated Use `client.experimental.network`. Removed in the next minor. */
+    network: {
+      /** @deprecated Use `client.experimental.network.egress`. Removed in the next minor. */
+      egress: client.experimental.network.egress,
     },
     config: {
       ...client.config,

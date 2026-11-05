@@ -4788,7 +4788,7 @@ export type ExperimentalUsageLimitsInput = {
 
 export type ExperimentalUsageLimitsOutput = { location: LocationPublicRef; data: UsageLimitsInfo | null }
 
-export type ExperimentalUsageExperimentalNetworkEgressOutput = {
+export type ExperimentalNetworkEgressOutput = {
   proxy: { https: string | null; http: string | null; noProxy: string | null }
   ip: string | null
 }
@@ -4947,8 +4947,8 @@ export type UsageLimitsInput = ExperimentalUsageLimitsInput
 /** @deprecated Use `ExperimentalUsageLimitsOutput`. Removed in the next minor. */
 export type UsageLimitsOutput = ExperimentalUsageLimitsOutput
 
-/** @deprecated Use `ExperimentalUsageExperimentalNetworkEgressOutput`. Removed in the next minor. */
-export type UsageExperimentalNetworkEgressOutput = ExperimentalUsageExperimentalNetworkEgressOutput
+/** @deprecated Use `ExperimentalNetworkEgressOutput`. Removed in the next minor. */
+export type NetworkEgressOutput = ExperimentalNetworkEgressOutput
 
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput

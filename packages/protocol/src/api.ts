@@ -28,6 +28,7 @@ import { makeLocationGroup } from "./groups/location.js"
 import { IntegrationGroup } from "./groups/integration.js"
 import { WebSearchGroup } from "./groups/websearch.js"
 import { UsageGroup } from "./groups/usage.js"
+import { NetworkGroup } from "./groups/network.js"
 import { makeMcpGroup } from "./groups/mcp.js"
 import { CredentialGroup } from "./groups/credential.js"
 import { ProjectGroup } from "./groups/project.js"
@@ -101,6 +102,7 @@ type ApiGroups<
   | typeof GenerateGroup
   | typeof VoiceGroup
   | typeof ExperimentalGroup
+  | typeof NetworkGroup
   | typeof CredentialGroup
   | typeof ProjectGroup
   | LocationGroups<LocationId>
@@ -196,6 +198,7 @@ const makeApiFromGroup = <
     .add(MigrationGroup)
     .add(WebSearchGroup.middleware(locationMiddleware))
     .add(UsageGroup.middleware(locationMiddleware))
+    .add(NetworkGroup)
     .add(ConfigGroup.middleware(locationMiddleware))
     .annotateMerge(
       OpenApi.annotations({

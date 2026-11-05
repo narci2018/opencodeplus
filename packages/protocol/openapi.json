@@ -15523,7 +15523,7 @@
     },
     "/api/experimental/network/egress": {
       "get": {
-        "tags": ["usage"],
+        "tags": ["network"],
         "operationId": "experimental.network.egress",
         "parameters": [],
         "security": [],
@@ -15605,16 +15605,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "LocationNotFoundError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
                 }
               }
             }
@@ -30657,7 +30647,11 @@
     },
     {
       "name": "usage",
-      "description": "Experimental usage limit and network egress routes."
+      "description": "Experimental usage limit routes."
+    },
+    {
+      "name": "network",
+      "description": "Experimental network egress routes."
     },
     {
       "name": "config",
