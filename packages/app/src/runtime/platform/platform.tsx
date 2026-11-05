@@ -114,6 +114,12 @@ type PlatformBase = {
   /** Turn the native spellchecker on or off (desktop only) */
   setSpellcheckEnabled?(enabled: boolean): Promise<void>
 
+  /** The HTTP(S) proxy the desktop routes outbound requests through, or nothing when it connects directly (desktop only) */
+  getNetworkProxy?(): Promise<string | null>
+
+  /** Route outbound requests through an HTTP(S) proxy, or clear it to connect directly (desktop only) */
+  setNetworkProxy?(url: string | null): Promise<string | null>
+
   /** Run a desktop-only menu action from the app chrome */
   runDesktopMenuAction?(action: DesktopMenuAction): Promise<void> | void
 

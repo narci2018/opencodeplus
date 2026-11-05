@@ -1,8 +1,8 @@
-import http from "node:http"
 import { getCACertificates, setDefaultCACertificates } from "node:tls"
 import { app } from "electron"
 import { Effect, Path } from "effect"
 import { DesktopPaths } from "../paths"
+import { NetworkProxy } from "../service/network-proxy"
 import { getUserShell, loadShellEnv } from "../service/shell-env"
 import { registerRendererProtocol, setDockIcon, setProtocolReporter } from "../windows"
 import { scoped } from "../native/logging"
@@ -36,6 +36,12 @@ export const preferApplicationEnvironment = Effect.gen(function* () {
       OPENCODE_EXPERIMENTAL_FILEWATCHER: "true",
       OPENCODE_CLIENT: "desktop",
     })
+
+    // The saved proxy wins over the shell's, and setting it here puts it in the environment the
+    // background service inherits when this process starts it.
+    const proxy = NetworkProxy.read()
+
+    if (proxy !== undefined) NetworkProxy.applyEnvironment(proxy)
   })
 })
 
@@ -52,16 +58,20 @@ export const prepareDesktop = Effect.gen(function* () {
   registerRendererProtocol(paths.rendererRoot)
   setDockIcon(path, paths)
   applySpellcheck()
+
+  // Chromium keeps its own proxy configuration, and its session only exists once the app is ready.
+  const proxy = NetworkProxy.read()
+
+  if (proxy !== undefined)
+    yield* NetworkProxy.applySession(proxy).pipe(
+      Effect.catch((error) => Effect.logWarning("failed to apply the saved network proxy", { error })),
+    )
 })
 
-export const loadProxyEnvironment = Effect.gen(function* () {
-  yield* Effect.try(() => {
-    ensureLoopbackNoProxy()
-    // SAFETY: Electron 41.2 ships a Node with http.setGlobalProxyFromEnv, which the current @types/node lacks.
-    const proxyAwareHttp = http as typeof http & { setGlobalProxyFromEnv(): void }
-    proxyAwareHttp.setGlobalProxyFromEnv()
-  }).pipe(Effect.catch((error) => Effect.logWarning("failed to load proxy environment", { error })))
-})
+export const loadProxyEnvironment = Effect.try({
+  try: NetworkProxy.prepareEnvironment,
+  catch: (error) => error,
+}).pipe(Effect.catch((error) => Effect.logWarning("failed to load proxy environment", { error })))
 
 const loadSystemCertificates = Effect.try({
   try: () => {
@@ -69,17 +79,3 @@ const loadSystemCertificates = Effect.try({
   },
   catch: (error) => error,
 }).pipe(Effect.catch((error) => Effect.logWarning("failed to load system certificates", { error })))
-
-// Bun reads lowercase `no_proxy` alone whenever it is set, so both spellings get the same merged list.
-function ensureLoopbackNoProxy() {
-  const noProxy = [
-    ...new Set(
-      [process.env.NO_PROXY, process.env.no_proxy, "127.0.0.1,localhost,::1"].flatMap((value) =>
-        (value ?? "").split(",").flatMap((entry) => entry.trim() || []),
-      ),
-    ),
-  ].join(",")
-
-  process.env.NO_PROXY = noProxy
-  process.env.no_proxy = noProxy
-}

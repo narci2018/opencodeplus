@@ -73,6 +73,8 @@ export type ElectronAPI = {
   setForceFocus(enabled: boolean): Promise<void>
   getSpellcheckEnabled(): Promise<boolean>
   setSpellcheckEnabled(enabled: boolean): Promise<void>
+  getNetworkProxy(): Promise<string | null>
+  setNetworkProxy(url: string | null): Promise<string | null>
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
 }

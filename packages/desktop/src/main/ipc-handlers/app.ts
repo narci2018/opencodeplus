@@ -15,6 +15,7 @@ import { ApplicationLifecycle } from "../lifecycle"
 import { finishFirstLaunchOnboarding, isFirstLaunchOnboardingPending } from "../lifecycle/onboarding"
 import { BackgroundService } from "../service/background-service"
 import { DesktopCli } from "../service/desktop-cli"
+import { NetworkProxy } from "../service/network-proxy"
 import { SidecarCredentials } from "../service/sidecar-credentials"
 import { getLastFocusedWindow, setBackgroundColor } from "../windows"
 import { sender } from "./context"
@@ -40,6 +41,24 @@ export const appHandlers = AppRpcs.toLayer(
       AppSetBackgroundColor: ({ color }) => Effect.sync(() => setBackgroundColor(color)),
       AppGetSpellcheckEnabled: () => Effect.sync(getSpellcheckEnabled),
       AppSetSpellcheckEnabled: ({ enabled }) => Effect.sync(() => setSpellcheckEnabled(enabled)),
+      AppGetNetworkProxy: () => Effect.sync(() => NetworkProxy.read() ?? null),
+      // Saving the proxy reaches every stack that can leave this machine: this process and the service it
+      // starts (environment), the renderer (Chromium), and a service started by the TUI or a later build
+      // (the service configuration). `service set env` stops the server, so it is brought back afterwards.
+      AppSetNetworkProxy: ({ url }) =>
+        Effect.gen(function* () {
+          const proxy = yield* Effect.sync(() => NetworkProxy.parse(url ?? undefined))
+
+          yield* Effect.sync(() => {
+            NetworkProxy.write(proxy)
+            NetworkProxy.applyEnvironment(proxy)
+          })
+          yield* NetworkProxy.applySession(proxy)
+          yield* NetworkProxy.applyToService((yield* desktopCli.resolve).command, proxy)
+          yield* background.reconnect.pipe(Effect.asVoid)
+
+          return proxy ?? null
+        }).pipe(Effect.orDie),
       AppExportDebugLogs: () => logging.exportDebug,
       AppSetForceFocus: ({ enabled }, context) => promise(() => setForceFocus(sender(handoff, context), enabled)),
       AppRecordFatalRendererError: ({ error }) =>

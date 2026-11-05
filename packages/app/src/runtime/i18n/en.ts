@@ -1024,6 +1024,15 @@ export const dict = {
   "settings.general.row.pinchZoom.description": "Allow trackpad pinch and Ctrl-scroll gestures to zoom",
   "settings.general.row.spellcheck.title": "Spellcheck",
   "settings.general.row.spellcheck.description": "Underline misspelled words while typing",
+  "settings.general.row.networkProxy.title": "Network proxy",
+  "settings.general.row.networkProxy.description":
+    "Send model requests through an HTTP(S) proxy. Saving restarts the background server.",
+  "settings.general.row.networkProxy.placeholder": "http://127.0.0.1:7890",
+  "settings.general.row.networkProxy.invalid":
+    "Use an http:// or https:// server address without a path, such as http://127.0.0.1:7890. SOCKS proxies are not supported.",
+  "settings.general.row.networkProxy.applied": "Proxy saved. The background server restarted.",
+  "settings.general.row.networkProxy.cleared": "Proxy cleared. The background server restarted.",
+  "settings.general.row.networkProxy.failed": "The proxy could not be saved",
 
   "sound.option.none": "None",
   "sound.option.alert01": "Alert 01",

@@ -19,6 +19,7 @@ import { SettingsRow } from "@/settings/row"
 import { createShellOptions } from "./behavior"
 import type { ShellSettingsController } from "./controllers"
 import { InterfaceModeSetting } from "./interface-mode"
+import { NetworkProxySetting } from "./network-proxy"
 import "@/settings/settings.css"
 
 const AutoApprovePermissionsSetting: Component = () => {
@@ -301,6 +302,7 @@ export const SettingsGeneral: Component = () => {
               <Switch checked={spellcheck.latest} onChange={onSpellcheckChange} />
             </div>
           </SettingsRow>
+          <NetworkProxySetting />
         </Show>
 
         <PluginSettingsSections page="general" section="general" />

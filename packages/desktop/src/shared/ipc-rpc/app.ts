@@ -60,6 +60,13 @@ export const AppSetSpellcheckEnabled = Rpc.make("AppSetSpellcheckEnabled", {
   payload: { enabled: Schema.Boolean },
 })
 
+export const AppGetNetworkProxy = Rpc.make("AppGetNetworkProxy", { success: Schema.NullOr(Schema.String) })
+
+export const AppSetNetworkProxy = Rpc.make("AppSetNetworkProxy", {
+  payload: { url: Schema.NullOr(Schema.String) },
+  success: Schema.NullOr(Schema.String),
+})
+
 export const AppSetNativeTranslations = Rpc.make("AppSetNativeTranslations", {
   payload: { value: Schema.Unknown },
 })
@@ -79,6 +86,8 @@ export const AppRpcs = RpcGroup.make(
   AppSetForceFocus,
   AppGetSpellcheckEnabled,
   AppSetSpellcheckEnabled,
+  AppGetNetworkProxy,
+  AppSetNetworkProxy,
   AppRecordFatalRendererError,
   AppSetNativeTranslations,
   AppRelaunch,

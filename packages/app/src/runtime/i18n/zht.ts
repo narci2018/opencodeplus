@@ -435,6 +435,14 @@ export const dict = {
 
   "settings.general.row.pinchZoom.title": "雙指縮放",
   "settings.general.row.pinchZoom.description": "允許使用觸控板雙指開合和 Ctrl-捲動手勢縮放",
+  "settings.general.row.networkProxy.title": "網路代理",
+  "settings.general.row.networkProxy.description": "透過 HTTP(S) 代理傳送模型請求。儲存後背景服務會重啟。",
+  "settings.general.row.networkProxy.placeholder": "http://127.0.0.1:7890",
+  "settings.general.row.networkProxy.invalid":
+    "請填寫不含路徑的 http:// 或 https:// 伺服器位址，例如 http://127.0.0.1:7890。暫不支援 SOCKS 代理。",
+  "settings.general.row.networkProxy.applied": "代理已儲存，背景服務已重啟。",
+  "settings.general.row.networkProxy.cleared": "代理已清除，背景服務已重啟。",
+  "settings.general.row.networkProxy.failed": "代理儲存失敗",
 
   "sound.option.none": "無",
   "sound.option.alert01": "警報 01",

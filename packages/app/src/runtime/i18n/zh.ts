@@ -442,6 +442,14 @@ export const dict = {
   "settings.general.row.showCustomAgents.description": "在输入框中切换智能体。隐藏时默认使用 Build 智能体。",
   "settings.general.row.pinchZoom.title": "双指缩放",
   "settings.general.row.pinchZoom.description": "允许使用触控板双指捏合和 Ctrl+滚轮手势缩放",
+  "settings.general.row.networkProxy.title": "网络代理",
+  "settings.general.row.networkProxy.description": "通过 HTTP(S) 代理发送模型请求。保存后后台服务会重启。",
+  "settings.general.row.networkProxy.placeholder": "http://127.0.0.1:7890",
+  "settings.general.row.networkProxy.invalid":
+    "请填写不带路径的 http:// 或 https:// 服务地址，例如 http://127.0.0.1:7890。暂不支持 SOCKS 代理。",
+  "settings.general.row.networkProxy.applied": "代理已保存，后台服务已重启。",
+  "settings.general.row.networkProxy.cleared": "代理已清除，后台服务已重启。",
+  "settings.general.row.networkProxy.failed": "代理保存失败",
 
   "sound.option.none": "无",
   "sound.option.alert01": "警报 01",
