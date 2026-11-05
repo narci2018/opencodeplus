@@ -15521,6 +15521,119 @@
         "summary": "Get usage limits"
       }
     },
+    "/api/experimental/network/egress": {
+      "get": {
+        "tags": ["usage"],
+        "operationId": "experimental.network.egress",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "proxy": {
+                      "type": "object",
+                      "properties": {
+                        "https": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "http": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "noProxy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": ["https", "http", "noProxy"],
+                      "additionalProperties": false
+                    },
+                    "ip": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["proxy", "ip"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Report the proxy variables this service process runs with and the public IP it reaches through them. Model requests leave from this process, so this is the path a real model request takes: the proxy variables decide whether it goes through the configured proxy or direct.",
+        "summary": "Check network egress"
+      }
+    },
     "/api/config": {
       "get": {
         "tags": ["config"],
@@ -30544,7 +30657,7 @@
     },
     {
       "name": "usage",
-      "description": "Experimental usage limit routes."
+      "description": "Experimental usage limit and network egress routes."
     },
     {
       "name": "config",
