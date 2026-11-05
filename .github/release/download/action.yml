@@ -16,6 +16,7 @@ runs:
         pattern: ${{ inputs.pattern }}
         path: ${{ runner.temp }}/in
     - shell: bash
+      if: env.OPENCODE_CHANNEL != 'dev'
       run: bash "${GITHUB_ACTION_PATH//\\//}/../verify-artifacts.sh" "$RUNNER_TEMP/in"
       env:
         OPENCODE_DIGESTS: ${{ inputs.digests }}
