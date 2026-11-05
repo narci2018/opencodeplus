@@ -223,8 +223,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Beta PRs gate on Linux; Windows runs on pushes and manual runs (nightly-beta.yml dispatches beta).
-        settings: ${{ fromJSON(github.base_ref == 'beta' && '[{"name":"linux","host":"ubuntu-latest"}]' || '[{"name":"linux","host":"ubuntu-latest"},{"name":"windows","host":"windows-latest"}]') }}
+        # Playwright's browser download has no build for `ubuntu-latest` once it rolls to a new Ubuntu release
+        # (26.04 fails with "Playwright does not support chromium on ubuntu26.04-x64"), so the Linux e2e legs stay
+        # pinned to the last image Playwright supports. Beta PRs gate on Linux; Windows runs on pushes and manual
+        # runs (nightly-beta.yml dispatches beta).
+        settings: ${{ fromJSON(github.base_ref == 'beta' && '[{"name":"linux","host":"ubuntu-24.04"}]' || '[{"name":"linux","host":"ubuntu-24.04"},{"name":"windows","host":"windows-latest"}]') }}
         quarantine: ${{ fromJSON(inputs.quarantine && '[true]' || '[false]') }}
         # Playwright splits whole spec files across shards by test count, not duration. Every app-N
         # entry must use the same total, and the entries must cover 1..total. The service worker suite
