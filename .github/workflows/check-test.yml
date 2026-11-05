@@ -92,6 +92,46 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Provide ripgrep for the search tests
+        shell: bash
+        # packages/core's glob and grep tests run a real rg, and the binary resolver's download fallback is refused
+        # in the test sandbox, so a rg has to be on PATH before the suite starts. Runner images don't guarantee one,
+        # and installing the release the resolver pins keeps behavior identical to a downloaded binary.
+        run: |
+          if command -v rg >/dev/null 2>&1; then
+            echo "Using the runner's $(rg --version | head -1)"
+            exit 0
+          fi
+          case "$(uname -s)" in
+            Linux)
+              archive="ripgrep-15.1.0-x86_64-unknown-linux-musl.tar.gz"
+              directory="ripgrep-15.1.0-x86_64-unknown-linux-musl"
+              executable="rg"
+              ;;
+            MINGW* | MSYS* | CYGWIN*)
+              archive="ripgrep-15.1.0-x86_64-pc-windows-msvc.zip"
+              directory="ripgrep-15.1.0-x86_64-pc-windows-msvc"
+              executable="rg.exe"
+              ;;
+            *)
+              echo "No pinned ripgrep release for $(uname -s)" >&2
+              exit 1
+              ;;
+          esac
+          curl -fsSL --retry 3 "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/${archive}" -o "${RUNNER_TEMP}/${archive}"
+          if [ "$executable" = "rg.exe" ]; then
+            # Same workaround as the resolver: Git's GNU tar comes first on PATH and cannot read a zip, so call the
+            # bsdtar in System32, from inside the temp directory with the ASCII archive name.
+            (cd "$RUNNER_TEMP" && "${SYSTEMROOT:-C:\\Windows}/System32/tar.exe" -xf "$archive")
+          else
+            tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP"
+          fi
+          mkdir -p "${RUNNER_TEMP}/bin"
+          cp "${RUNNER_TEMP}/${directory}/${executable}" "${RUNNER_TEMP}/bin/${executable}"
+          chmod +x "${RUNNER_TEMP}/bin/${executable}"
+          echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
+          echo "Installed pinned ripgrep as ${RUNNER_TEMP}/bin/${executable}"
+
       - name: Test Effect simplification rules
         if: runner.os == 'Linux'
         run: bun run test:effect-simplification-rules
