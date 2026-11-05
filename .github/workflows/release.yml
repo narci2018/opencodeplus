@@ -297,9 +297,10 @@ jobs:
           #   install: ${{ (needs.plan.outputs.channel == 'dev' || needs.plan.outputs.channel == 'beta') && '--os=darwin --cpu=*' || '--os=darwin --cpu=x64' }}
           # - { target: darwin-arm64, host: macos-26, install: --os=darwin --cpu=arm64 }
           # github-hosted: blacksmith lacks the ARM64 MSVC cross-compilation toolchain
-          - target: windows-arm64
-            host: windows-latest
-            install: --cpu=*
+          # TEMP (windows-only releases): the arm64 desktop leg is off; the release page takes the x64 installer only.
+          # - target: windows-arm64
+          #   host: windows-latest
+          #   install: --cpu=*
           - { target: windows-x64, host: windows-latest }
           # TEMP (windows-only builds): the Linux desktop packages (AppImage, deb, rpm) are the slowest non-Windows
           # legs. Uncomment both to restore them; publish-desktop and the dev release glob pick them up automatically.
@@ -360,9 +361,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: windows-arm64
-            host: windows-latest
-            install: --cpu=*
+          # TEMP (windows-only releases): no arm64 installer is published, so it is not built either.
+          # - target: windows-arm64
+          #   host: windows-latest
+          #   install: --cpu=*
           - { target: windows-x64, host: windows-latest }
     runs-on: ${{ matrix.host }}
     env: *env
@@ -749,9 +751,12 @@ jobs:
             sign-desktop-windows-installer=${{ needs.sign-desktop-windows-installer.outputs.digest }}
       - name: Download unsigned builds
         if: needs.plan.outputs.channel == 'dev'
+        # TEMP (windows-only releases): the dev release carries the Windows x64 installer alone. Wider this glob, the
+        # CLI archives (`build-archives`, off for dev now through plan) and the raw `build-desktop-*` bundles come
+        # back -- the latter also leaks the unpacked `OpenCode Dev.exe` out of `win-unpacked`.
         uses: ./.github/release/download
         with:
-          pattern: "{build-archives,build-desktop-*,build-desktop-windows-installer-*}"
+          pattern: build-desktop-windows-installer-windows-x64
       - name: Publish
         run: bash .github/release/publish-github-release.sh "$RUNNER_TEMP"/in/*
         env:

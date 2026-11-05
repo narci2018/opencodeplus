@@ -60,9 +60,12 @@ if [ "$channel" = latest ]; then
 fi
 
 # What each channel builds and publishes.
+# TEMP (windows-only builds): dev no longer builds the CLI archives (`cli`) or the Node CLI (`node`), because its
+# release publishes a single Windows desktop installer. Restore `cli=true node=true` on the dev line to bring the
+# npm tarballs and Linux archives back into that release.
 case "$channel" in
   latest) npm_tag=latest cli=true desktop=true node=false release=true ;;
-  dev) npm_tag=dev cli=true desktop=true node=true release=true ;;
+  dev) npm_tag=dev cli=false desktop=true node=false release=true ;;
   beta) npm_tag="" cli=false desktop=true node=false release=false ;;
   pr) npm_tag=pr cli=true desktop=true node=true release=true ;;
 esac
