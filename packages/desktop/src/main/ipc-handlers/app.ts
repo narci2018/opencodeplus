@@ -1,7 +1,8 @@
 import { BrowserWindow } from "electron"
 import { parseDesktopNativeBundle } from "@opencode/app/i18n/desktop-native"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { AppRpcs } from "../../shared/ipc-rpc"
+import { EgressData } from "../../shared/ipc-rpc/app"
 import { openExternalURL } from "../files"
 import { checkAppExists, resolveAppPath } from "../files/apps"
 import { setForceFocus } from "../native/debug"
@@ -59,6 +60,30 @@ export const appHandlers = AppRpcs.toLayer(
 
           return proxy ?? null
         }).pipe(Effect.orDie),
+      // The service process makes the model requests, so ask it for its own proxy variables and the public IP
+      // it reaches through them. This is the egress a real request takes, not a separate probe from the window.
+      AppCheckEgress: () =>
+        background.connection.pipe(
+          Effect.flatMap((credentials) =>
+            Effect.tryPromise(async () => {
+              const response = await fetch(`${credentials.url}/api/experimental/network/egress`, {
+                headers: { Authorization: SidecarCredentials.authorization(credentials, credentials.url) ?? "" },
+                signal: AbortSignal.timeout(15_000),
+              })
+
+              if (!response.ok) throw new Error(`Egress check failed: ${response.status}`)
+
+              // SAFETY: the server responds with the EgressData schema it declares for this route, so the
+              // structured clone is decoded against that exact schema and validated at the boundary.
+              return Schema.decodeUnknownSync(EgressData)((await response.json()) as unknown)
+            }),
+          ),
+          Effect.catch((error) =>
+            Effect.logWarning("egress check failed", {
+              error: error instanceof Error ? error.message : String(error),
+            }).pipe(Effect.as(null)),
+          ),
+        ),
       AppExportDebugLogs: () => logging.exportDebug,
       AppSetForceFocus: ({ enabled }, context) => promise(() => setForceFocus(sender(handoff, context), enabled)),
       AppRecordFatalRendererError: ({ error }) =>

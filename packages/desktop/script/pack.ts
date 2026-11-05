@@ -2,7 +2,7 @@
 import { $ } from "bun"
 import { cp, mkdir, readdir, rm } from "node:fs/promises"
 import path from "node:path"
-import { getConfig } from "../electron-builder.config"
+import { updatePublish } from "../electron-builder.config"
 import { getCurrentCli, resolveChannel } from "./utils"
 
 // Packages the built app (out/) for OPENCODE_TARGET into dist/desktop at the repository root, unsigned:
@@ -37,6 +37,14 @@ if (app) {
   await $`bun ./script/copy-icons.ts ${resolveChannel()}`
   await $`bunx electron-builder ${flags} --prepackaged ${app}`
   await cp(`dist/opencode-desktop-win-${cli.cpu}.exe`, path.join(out, `opencode-desktop-win-${cli.cpu}.exe`))
+
+  // electron-builder writes the update manifest next to the installer even for `--publish never`; the release
+  // must carry it, because electron-updater's github provider reads `latest.yml` from the release's assets.
+  const updateFile = path.join("dist", "latest.yml")
+
+  if (await Bun.file(updateFile).exists()) {
+    await cp(updateFile, path.join(out, "latest.yml"))
+  }
 }
 
 if (!app && os === "linux") {
@@ -63,16 +71,15 @@ if (!app && os === "win") {
 }
 
 // electron-builder writes resources/app-update.yml only for dmg, zip and nsis targets, not for --dir builds.
-// electron-updater reads its feed from that file, so write the one those targets would.
+// electron-updater reads its feed from that file, so write the one those targets would. A local pack falls
+// back to the fork's release page, so the feed it writes matches what a CI pack from this repository gets.
 async function writeUpdateConfig(resources: string) {
-  const publish = getConfig().publish
+  const publish = updatePublish()
   const name: string = (await Bun.file("package.json").json()).name
   await Bun.write(
     path.join(resources, "app-update.yml"),
     [
-      `provider: ${publish.provider}`,
-      `url: ${publish.url}`,
-      `channel: ${publish.channel}`,
+      ...Object.entries(publish).map(([key, value]) => `${key}: ${JSON.stringify(value)}`),
       `updaterCacheDirName: '${name.replace(/[/\\:*?"<>|]/g, "").toLowerCase()}-updater'`,
     ].join("\n") + "\n",
   )

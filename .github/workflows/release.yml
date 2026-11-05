@@ -87,6 +87,7 @@ jobs:
       OPENCODE_CHANNEL: ${{ needs.plan.outputs.channel }}
       OPENCODE_NPM_TAG: ${{ needs.plan.outputs.npm_tag }}
       OPENCODE_DRY_RUN: ${{ needs.plan.outputs.dry_run }}
+      OPENCODE_UPDATE_REPO: ${{ github.repository }}
     outputs:
       sha: ${{ steps.tag.outputs.sha || github.sha }}
     steps:
@@ -153,7 +154,13 @@ jobs:
           OPENCODE_MODELS_SNAPSHOT: ${{ github.workspace }}/.cache/models-catalog/api.json
           OPENCODE_RELEASE_NOTES: ${{ needs.plan.outputs.channel == 'latest' && inputs.release_notes || '' }}
           GH_TOKEN: ${{ github.token }} # read-only; raises the rate limit for Bun release downloads
+          # TEMP (windows-only releases): dev ships one Windows installer, so its CLI builds only the x64 pair the
+          # desktop bundles (the plain and the baseline variant). Beta and prod still build every target.
+          OPENCODE_TARGET: ${{ needs.plan.outputs.channel == 'dev' && 'windows-x64' || '' }}
       - name: Verify bundled models catalog
+        # TEMP (windows-only releases): the smoke spawns a Linux binary, which a windows-only dev build does not
+        # produce. Beta and prod keep the check; the same code path embeds the catalog in every target.
+        if: needs.plan.outputs.channel != 'dev'
         run: bun packages/cli/script/catalog-smoke.ts packages/cli/dist/cli-linux-x64/bin/opencode
         env:
           OPENCODE_MODELS_SNAPSHOT: ${{ github.workspace }}/.cache/models-catalog/api.json

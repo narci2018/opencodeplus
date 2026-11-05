@@ -46,6 +46,18 @@ const APP_IDS = {
   prod: "ai.opencode.desktop",
 } as const
 
+// Builds update from this repository's own GitHub releases. Upstream's opencode.ai feed serves official
+// binaries, so an auto-update from it silently replaces the fork with a build that has none of its
+// changes. CI passes the repository it runs in; a local pack falls back to the fork's release page.
+// The github provider reads `latest.yml` from the release, so the release has to carry that file too.
+// electron-updater defaults the channel to "latest" when this config omits it, so the update file stays
+// `latest.yml` and the provider compares semver tags across the release list.
+export function updatePublish() {
+  const repo = (process.env.OPENCODE_UPDATE_REPO || "narci2018/opencodeplus").split("/")
+
+  return { provider: "github" as const, owner: repo[0] || "narci2018", repo: repo[1] || "opencodeplus" }
+}
+
 // libappimage (used by AppImageLauncher) resolves the .desktop entry inside an
 // AppImage by globbing `*.desktop` at the squashfs root. If the main
 // executable itself ends in `.desktop` (prod appId `ai.opencode.desktop`), the
@@ -219,11 +231,7 @@ export function getConfig() {
         ...base,
         appId,
         productName: "OpenCode Dev",
-        publish: {
-          provider: "generic",
-          url: "https://opencode.ai/update/api/dev/desktop/opencode/",
-          channel: "latest",
-        },
+        publish: updatePublish(),
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
         rpm: {
           packageName: "opencode-dev",
@@ -238,11 +246,7 @@ export function getConfig() {
         appId,
         productName: "OpenCode Beta",
         protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
-        publish: {
-          provider: "generic",
-          url: "https://opencode.ai/update/api/beta/desktop/opencode/",
-          channel: "latest",
-        },
+        publish: updatePublish(),
         deb: { fpm: [...previewCompressionFpm("deb"), metainfoFpm(appId)] },
         rpm: {
           packageName: "opencode-beta",
@@ -262,11 +266,7 @@ export function getConfig() {
         mac: { ...base.mac, icon: "resources/icons/icon.icon" },
         // The DMG volume icon would otherwise use the same actool-generated ICNS.
         dmg: { icon: "resources/icons/icon.icns" },
-        publish: {
-          provider: "generic",
-          url: "https://opencode.ai/update/api/latest/desktop/opencode/",
-          channel: "latest",
-        },
+        publish: updatePublish(),
         deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
         rpm: { packageName: "opencode", fpm: [rpmNoBuildIdLinksFpm, metainfoFpm(appId), legacyDesktopEntryFpm] },
       }

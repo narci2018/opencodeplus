@@ -4788,6 +4788,11 @@ export type ExperimentalUsageLimitsInput = {
 
 export type ExperimentalUsageLimitsOutput = { location: LocationPublicRef; data: UsageLimitsInfo | null }
 
+export type ExperimentalUsageExperimentalNetworkEgressOutput = {
+  proxy: { https: string | null; http: string | null; noProxy: string | null }
+  ip: string | null
+}
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 
 export type ConfigGetOutput = Array<ConfigEntry>
@@ -4941,6 +4946,9 @@ export type UsageLimitsInput = ExperimentalUsageLimitsInput
 
 /** @deprecated Use `ExperimentalUsageLimitsOutput`. Removed in the next minor. */
 export type UsageLimitsOutput = ExperimentalUsageLimitsOutput
+
+/** @deprecated Use `ExperimentalUsageExperimentalNetworkEgressOutput`. Removed in the next minor. */
+export type UsageExperimentalNetworkEgressOutput = ExperimentalUsageExperimentalNetworkEgressOutput
 
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput

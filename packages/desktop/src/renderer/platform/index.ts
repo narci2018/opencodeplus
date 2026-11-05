@@ -47,6 +47,7 @@ export function createDesktopPlatform(api: ElectronAPI, windowState: DesktopWind
     setSpellcheckEnabled: (enabled) => api.setSpellcheckEnabled(enabled),
     getNetworkProxy: () => api.getNetworkProxy(),
     setNetworkProxy: (url) => api.setNetworkProxy(url),
+    checkEgress: () => api.checkEgress(),
     onDragCancel: (callback) => {
       window.addEventListener(DragCancelEvent, callback)
 

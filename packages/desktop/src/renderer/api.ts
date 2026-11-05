@@ -98,6 +98,7 @@ export const api: ElectronAPI = {
   setSpellcheckEnabled: (enabled) => invoke("AppSetSpellcheckEnabled", { enabled }),
   getNetworkProxy: () => invoke("AppGetNetworkProxy"),
   setNetworkProxy: (url) => invoke("AppSetNetworkProxy", { url }),
+  checkEgress: () => invoke("AppCheckEgress"),
   recordFatalRendererError: (error) => invoke("AppRecordFatalRendererError", { error }),
   setNativeTranslations: (bundle) => invoke("AppSetNativeTranslations", { value: bundle }),
 }

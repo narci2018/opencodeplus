@@ -29,7 +29,7 @@ await rm(outdir, { recursive: true, force: true })
 
 const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
-const requestedTarget = process.env.OPENCODE_TARGET
+const requestedTarget = process.env.OPENCODE_TARGET || undefined
 const skipInstall = process.argv.includes("--skip-install")
 const skipWebUi = process.argv.includes("--skip-web-ui")
 const solidPlugin = createSolidTransformPlugin()
@@ -57,9 +57,16 @@ const allTargets: {
   { os: "win32", arch: "x64", avx2: false },
 ]
 
+// A desktop build for `windows-x64` bundles the CLI from its baseline package (`cli-windows-x64-baseline`),
+// so requesting a target also builds the baseline variant that goes into that package. An empty string is
+// treated as unset so a dev release can trim the build to one platform without the filter failing.
 const targets =
   requestedTarget !== undefined
-    ? allTargets.filter((item) => targetName(item) === `${binary}-${requestedTarget}`)
+    ? allTargets.filter(
+        (item) =>
+          targetName(item) === `${binary}-${requestedTarget}` ||
+          targetName(item) === `${binary}-${requestedTarget}-baseline`,
+      )
     : singleFlag
       ? allTargets.filter((item) => {
           if (item.os !== process.platform || item.arch !== process.arch) return false

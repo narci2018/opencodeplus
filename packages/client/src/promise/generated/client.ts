@@ -313,6 +313,7 @@ import type {
   WebsearchQueryOutput,
   ExperimentalUsageLimitsInput,
   ExperimentalUsageLimitsOutput,
+  ExperimentalUsageExperimentalNetworkEgressOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1709,6 +1710,21 @@ export function make(options: ClientOptions) {
             },
             requestOptions,
           ),
+        experimental: {
+          network: {
+            egress: (requestOptions?: RequestOptions) =>
+              request<ExperimentalUsageExperimentalNetworkEgressOutput>(
+                {
+                  method: "GET",
+                  path: `/api/experimental/network/egress`,
+                  successStatus: 200,
+                  declaredStatuses: [400, 401, 404, 503],
+                  empty: false,
+                },
+                requestOptions,
+              ),
+          },
+        },
       },
       config: {
         update: (input: ExperimentalConfigUpdateInput, requestOptions?: RequestOptions) =>
@@ -2758,6 +2774,14 @@ export function make(options: ClientOptions) {
     usage: {
       /** @deprecated Use `client.experimental.usage.limits`. Removed in the next minor. */
       limits: client.experimental.usage.limits,
+      /** @deprecated Use `client.experimental.usage.experimental`. Removed in the next minor. */
+      experimental: {
+        /** @deprecated Use `client.experimental.usage.experimental.network`. Removed in the next minor. */
+        network: {
+          /** @deprecated Use `client.experimental.usage.experimental.network.egress`. Removed in the next minor. */
+          egress: client.experimental.usage.experimental.network.egress,
+        },
+      },
     },
     config: {
       ...client.config,

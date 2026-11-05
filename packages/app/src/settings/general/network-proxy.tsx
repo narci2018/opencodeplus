@@ -1,7 +1,8 @@
 import { Component, createEffect, createResource, createSignal, Show } from "solid-js"
+import { Button } from "@opencode/ui/button"
 import { TextInput } from "@opencode/ui/text-input"
 import { useLanguage } from "@/runtime/i18n/language"
-import { usePlatform } from "@/runtime/platform/platform"
+import { usePlatform, type NetworkEgress } from "@/runtime/platform/platform"
 import { showToast } from "@/shell/notifications/toast"
 import { SettingsRow } from "@/settings/row"
 import "@/settings/settings.css"
@@ -19,6 +20,9 @@ export const NetworkProxySetting: Component = () => {
   const [proxy, { refetch: reloadProxy }] = createResource(() => platform.getNetworkProxy?.())
   const [value, setValue] = createSignal("")
   const [saving, setSaving] = createSignal(false)
+  const [egress, setEgress] = createSignal<NetworkEgress | null>(null)
+  const [egressError, setEgressError] = createSignal<string | null>(null)
+  const [checking, setChecking] = createSignal(false)
 
   createEffect(() => setValue(proxy() ?? ""))
 
@@ -60,6 +64,21 @@ export const NetworkProxySetting: Component = () => {
     }
   }
 
+  const check = async () => {
+    if (!platform.checkEgress) return
+    setChecking(true)
+    setEgressError(null)
+
+    try {
+      setEgress(await platform.checkEgress())
+    } catch (error) {
+      setEgress(null)
+      setEgressError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setChecking(false)
+    }
+  }
+
   return (
     <Show when={platform.setNetworkProxy}>
       <SettingsRow
@@ -84,6 +103,34 @@ export const NetworkProxySetting: Component = () => {
             autocapitalize="off"
             aria-label={language.t("settings.general.row.networkProxy.title")}
           />
+          <Show when={platform.checkEgress}>
+            <div class="mt-2 flex items-center gap-2">
+              <Button
+                size="small"
+                variant="outline"
+                disabled={checking()}
+                onClick={check}
+                data-action="settings-network-proxy-egress"
+              >
+                {language.t(
+                  checking()
+                    ? "settings.general.row.networkProxy.egress.checking"
+                    : "settings.general.row.networkProxy.egress.check",
+                )}
+              </Button>
+              <Show when={egress()}>
+                <span class="min-w-0 text-xs text-[var(--text-weak)]">
+                  {language.t("settings.general.row.networkProxy.egress.ip")}:{" "}
+                  <code>{egress()?.ip ?? language.t("settings.general.row.networkProxy.egress.unavailable")}</code>
+                </span>
+              </Show>
+            </div>
+            <Show when={egressError()}>
+              <p class="mt-1 text-xs text-[var(--text-error)]">
+                {language.t("settings.general.row.networkProxy.egress.failed")}: {egressError()}
+              </p>
+            </Show>
+          </Show>
         </div>
       </SettingsRow>
     </Show>

@@ -75,6 +75,13 @@ export type ElectronAPI = {
   setSpellcheckEnabled(enabled: boolean): Promise<void>
   getNetworkProxy(): Promise<string | null>
   setNetworkProxy(url: string | null): Promise<string | null>
+  checkEgress(): Promise<NetworkEgress | null>
   recordFatalRendererError(error: FatalRendererError): Promise<void>
   setNativeTranslations(bundle: DesktopNativeBundle): Promise<void>
+}
+
+/** What the background service reports about its outbound path; mirrors the app's `NetworkEgress`. */
+type NetworkEgress = {
+  proxy: { https: string | null; http: string | null; noProxy: string | null }
+  ip: string | null
 }

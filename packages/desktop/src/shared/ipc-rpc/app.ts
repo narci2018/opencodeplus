@@ -67,6 +67,19 @@ export const AppSetNetworkProxy = Rpc.make("AppSetNetworkProxy", {
   success: Schema.NullOr(Schema.String),
 })
 
+const EgressProxy = Schema.Struct({
+  https: Schema.NullOr(Schema.String),
+  http: Schema.NullOr(Schema.String),
+  noProxy: Schema.NullOr(Schema.String),
+})
+
+export const EgressData = Schema.Struct({
+  proxy: EgressProxy,
+  ip: Schema.NullOr(Schema.String),
+})
+
+export const AppCheckEgress = Rpc.make("AppCheckEgress", { success: Schema.NullOr(EgressData) })
+
 export const AppSetNativeTranslations = Rpc.make("AppSetNativeTranslations", {
   payload: { value: Schema.Unknown },
 })
@@ -88,6 +101,7 @@ export const AppRpcs = RpcGroup.make(
   AppSetSpellcheckEnabled,
   AppGetNetworkProxy,
   AppSetNetworkProxy,
+  AppCheckEgress,
   AppRecordFatalRendererError,
   AppSetNativeTranslations,
   AppRelaunch,

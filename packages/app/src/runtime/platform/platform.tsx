@@ -33,6 +33,14 @@ export type FatalRendererErrorLog = {
   os?: DesktopOS
 }
 
+/** What the background service reports about its outbound path: the proxy variables it runs with, and the
+ * public IP it reaches through them. Model requests leave from that process, so this is the path a real
+ * request takes rather than a separate probe. */
+export type NetworkEgress = {
+  proxy: { https: string | null; http: string | null; noProxy: string | null }
+  ip: string | null
+}
+
 type PlatformBase = {
   requestMicrophone?(): Promise<boolean>
   setVoiceCallActive?(active: boolean): Promise<void>
@@ -119,6 +127,9 @@ type PlatformBase = {
 
   /** Route outbound requests through an HTTP(S) proxy, or clear it to connect directly (desktop only) */
   setNetworkProxy?(url: string | null): Promise<string | null>
+
+  /** The proxy variables the background service runs with and the public IP it reaches (desktop only) */
+  checkEgress?(): Promise<NetworkEgress | null>
 
   /** Run a desktop-only menu action from the app chrome */
   runDesktopMenuAction?(action: DesktopMenuAction): Promise<void> | void

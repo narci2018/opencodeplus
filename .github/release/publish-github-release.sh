@@ -13,7 +13,9 @@ done
 echo "=== DEBUG: Searching for assets ==="
 for dir in "$@"; do
   echo "Searching in: $dir"
-  find "$dir" -maxdepth 2 -type f \( -name 'opencode-*.zip' -o -name 'opencode-*.tar.gz' -o -name 'opencode-desktop-*' -o -name '*.exe' \) \
+  # `latest*.yml` carries the electron-updater manifest (latest.yml for the nsis build); the github update
+  # provider reads it from the release's assets, so without it a user's app can never find a new build.
+  find "$dir" -maxdepth 2 -type f \( -name 'opencode-*.zip' -o -name 'opencode-*.tar.gz' -o -name 'opencode-desktop-*' -o -name '*.exe' -o -name 'latest*.yml' \) \
     ! -name '*.tgz' ! -name '*.app.tar' -exec cp -v {} "$assets/" \;
 done
 

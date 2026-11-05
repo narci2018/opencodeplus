@@ -808,7 +808,8 @@ export const dict = {
   "settings.experimental.row.newIcons.title": "New icons",
   "settings.experimental.row.newIcons.description": "Preview the updated icon set",
   "settings.experimental.row.foldUserMessages.title": "Fold long messages",
-  "settings.experimental.row.foldUserMessages.description": "Fold your messages past 12 lines behind a Read more button",
+  "settings.experimental.row.foldUserMessages.description":
+    "Fold your messages past 12 lines behind a Read more button",
   "settings.experimental.row.newQuestionUI.title": "New question UI",
   "settings.experimental.row.newQuestionUI.description": "Preview the keyboard-first question dock",
   "settings.plugins.reload": "Reload",
@@ -1033,6 +1034,14 @@ export const dict = {
   "settings.general.row.networkProxy.applied": "Proxy saved. The background server restarted.",
   "settings.general.row.networkProxy.cleared": "Proxy cleared. The background server restarted.",
   "settings.general.row.networkProxy.failed": "The proxy could not be saved",
+  "settings.general.row.networkProxy.egress.check": "Check egress IP",
+  "settings.general.row.networkProxy.egress.checking": "Checking…",
+  "settings.general.row.networkProxy.egress.title": "Egress check",
+  "settings.general.row.networkProxy.egress.description":
+    "Shows the proxy the background service runs with and the public IP it reaches through it. Turn the proxy off and check again: a different IP means traffic really leaves through the proxy.",
+  "settings.general.row.networkProxy.egress.ip": "Egress IP",
+  "settings.general.row.networkProxy.egress.failed": "Egress check failed",
+  "settings.general.row.networkProxy.egress.unavailable": "Unavailable",
 
   "sound.option.none": "None",
   "sound.option.alert01": "Alert 01",

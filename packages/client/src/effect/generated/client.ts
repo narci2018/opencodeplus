@@ -311,6 +311,7 @@ import type {
   WebsearchQueryOutput,
   ExperimentalUsageLimitsInput,
   ExperimentalUsageLimitsOutput,
+  ExperimentalUsageExperimentalNetworkEgressOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1917,8 +1918,14 @@ const EndpointExperimentalUsageLimits = (raw: RawClient["server.usage"]) => (inp
     raw["usage.limits"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointExperimentalUsageExperimentalNetworkEgress = (raw: RawClient["server.usage"]) => () =>
+  preserveEffect<ExperimentalUsageExperimentalNetworkEgressOutput>()(
+    raw["network.egress"]({}).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupExperimentalUsage = (raw: RawClient["server.usage"]) => ({
   limits: EndpointExperimentalUsageLimits(raw),
+  experimental: { network: { egress: EndpointExperimentalUsageExperimentalNetworkEgress(raw) } },
 })
 
 const EndpointConfigGet = (raw: RawClient["server.config"]) => (input?: ConfigGetInput) =>
@@ -2073,6 +2080,14 @@ const adaptClient = (raw: RawClient) => {
     usage: {
       /** @deprecated Use `client.experimental.usage.limits`. Removed in the next minor. */
       limits: client.experimental.usage.limits,
+      /** @deprecated Use `client.experimental.usage.experimental`. Removed in the next minor. */
+      experimental: {
+        /** @deprecated Use `client.experimental.usage.experimental.network`. Removed in the next minor. */
+        network: {
+          /** @deprecated Use `client.experimental.usage.experimental.network.egress`. Removed in the next minor. */
+          egress: client.experimental.usage.experimental.network.egress,
+        },
+      },
     },
     config: {
       ...client.config,

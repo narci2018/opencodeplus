@@ -111,7 +111,6 @@ export const dict = {
 
   "command.input.focus": "聚焦输入框",
 
-
   "command.review.toggle": "切换审查",
 
   "command.message.previous": "上一条消息",
@@ -201,7 +200,6 @@ export const dict = {
   "provider.connect.toast.connected.title": "{{provider}} 已连接",
   "provider.connect.toast.connected.description": "现在可以使用 {{provider}} 模型了。",
 
-
   "provider.disconnect.toast.disconnected.title": "{{provider}} 已断开连接",
   "provider.disconnect.toast.disconnected.description": "{{provider}} 模型已不再可用。",
   "provider.disconnect.toast.noCredentials.description": "未找到 {{provider}} 的可移除凭据。",
@@ -265,7 +263,6 @@ export const dict = {
 
   "dialog.mcp.title": "MCP 服务器",
   "dialog.mcp.empty": "未配置 MCP 服务器",
-
 
   "dialog.fork.empty": "没有可用于创建新会话的消息",
 
@@ -450,6 +447,14 @@ export const dict = {
   "settings.general.row.networkProxy.applied": "代理已保存，后台服务已重启。",
   "settings.general.row.networkProxy.cleared": "代理已清除，后台服务已重启。",
   "settings.general.row.networkProxy.failed": "代理保存失败",
+  "settings.general.row.networkProxy.egress.check": "检测出口 IP",
+  "settings.general.row.networkProxy.egress.checking": "检测中…",
+  "settings.general.row.networkProxy.egress.title": "出口检测",
+  "settings.general.row.networkProxy.egress.description":
+    "显示后台服务运行的代理变量及其实际访问的公网 IP。关闭代理后再检测一次：两次 IP 不同，说明请求确实走了代理。",
+  "settings.general.row.networkProxy.egress.ip": "出口 IP",
+  "settings.general.row.networkProxy.egress.failed": "出口检测失败",
+  "settings.general.row.networkProxy.egress.unavailable": "不可用",
 
   "sound.option.none": "无",
   "sound.option.alert01": "警报 01",

@@ -2749,8 +2749,20 @@ export type ExperimentalUsageLimitsOperation<E = never> = (
   input?: ExperimentalUsageLimitsInput,
 ) => Effect.Effect<ExperimentalUsageLimitsOutput, E>
 
+export type ExperimentalUsageExperimentalNetworkEgressOutput = {
+  readonly proxy: { readonly https: string | null; readonly http: string | null; readonly noProxy: string | null }
+  readonly ip: string | null
+}
+export type ExperimentalUsageExperimentalNetworkEgressOperation<E = never> = () => Effect.Effect<
+  ExperimentalUsageExperimentalNetworkEgressOutput,
+  E
+>
+
 export interface ExperimentalUsageApi<E = never> {
   readonly limits: ExperimentalUsageLimitsOperation<E>
+  readonly experimental: {
+    readonly network: { readonly egress: ExperimentalUsageExperimentalNetworkEgressOperation<E> }
+  }
 }
 
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
@@ -2992,6 +3004,12 @@ export type UsageLimitsOutput = ExperimentalUsageLimitsOutput
 /** @deprecated Use `ExperimentalUsageLimitsOperation`. Removed in the next minor. */
 export type UsageLimitsOperation<E = never> = ExperimentalUsageLimitsOperation<E>
 
+/** @deprecated Use `ExperimentalUsageExperimentalNetworkEgressOutput`. Removed in the next minor. */
+export type UsageExperimentalNetworkEgressOutput = ExperimentalUsageExperimentalNetworkEgressOutput
+
+/** @deprecated Use `ExperimentalUsageExperimentalNetworkEgressOperation`. Removed in the next minor. */
+export type UsageExperimentalNetworkEgressOperation<E = never> = ExperimentalUsageExperimentalNetworkEgressOperation<E>
+
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput
 
@@ -3087,5 +3105,14 @@ export interface AppApi<E = never> {
   readonly usage: {
     /** @deprecated Use `client.experimental.usage.limits`. Removed in the next minor. */
     readonly limits: ExperimentalUsageLimitsOperation<E>
+
+    /** @deprecated Use `client.experimental.usage.experimental`. Removed in the next minor. */
+    readonly experimental: {
+      /** @deprecated Use `client.experimental.usage.experimental.network`. Removed in the next minor. */
+      readonly network: {
+        /** @deprecated Use `client.experimental.usage.experimental.network.egress`. Removed in the next minor. */
+        readonly egress: ExperimentalUsageExperimentalNetworkEgressOperation<E>
+      }
+    }
   }
 }

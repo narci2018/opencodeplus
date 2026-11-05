@@ -13,9 +13,9 @@ import { CLI_BINARIES, nodePtyPackage } from "./script/utils"
 const { FileMatcher } = createRequire(import.meta.resolve("electron-builder"))("app-builder-lib/out/fileMatcher")
 
 const channels = [
-  { channel: "dev", appId: "ai.opencode.desktop.dev", feed: "dev" },
-  { channel: "beta", appId: "ai.opencode.desktop.beta", feed: "beta" },
-  { channel: "prod", appId: "ai.opencode.desktop", feed: "latest" },
+  { channel: "dev", appId: "ai.opencode.desktop.dev" },
+  { channel: "beta", appId: "ai.opencode.desktop.beta" },
+  { channel: "prod", appId: "ai.opencode.desktop" },
 ] as const
 
 function load(channel: string, target?: string): Configuration {
@@ -47,15 +47,14 @@ function trimFilter(dir: string, config: Configuration) {
   ]).createFilter()
 }
 
-test.each(channels)("channel identity for $channel", ({ channel, appId, feed }) => {
+test.each(channels)("channel identity for $channel", ({ channel, appId }) => {
   const config = load(channel)
   expect(config.appId).toBe(appId)
-  // Every published channel updates from its own feed on the update service.
-  expect(config.publish).toEqual({
-    provider: "generic",
-    url: `https://opencode.ai/update/api/${feed}/desktop/opencode/`,
-    channel: "latest",
-  })
+  // Every channel updates from this fork's own GitHub releases. The generic provider's per-channel feed
+  // on opencode.ai would silently replace the fork with an official binary, so the github provider is used
+  // everywhere instead. The local fallback below matches a CI pack from this repository; the test runs with
+  // the environment's default because CI passes OPENCODE_UPDATE_REPO.
+  expect(config.publish).toEqual({ provider: "github", owner: "narci2018", repo: "opencodeplus" })
   expect(config.extraMetadata?.desktopName).toBe(`${appId}.desktop`)
   // The executable must never end in `.desktop`: libappimage resolves the
   // AppImage's desktop entry by globbing `*.desktop`, and an ELF matching
