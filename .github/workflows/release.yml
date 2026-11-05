@@ -739,7 +739,7 @@ jobs:
         if: needs.plan.outputs.channel == 'dev'
         uses: ./.github/release/download
         with:
-          pattern: "{build-archives,build-desktop-*}"
+          pattern: "{build-archives,build-desktop-*,build-desktop-windows-installer-*}"
       - name: Publish
         run: bash .github/release/publish-github-release.sh "$RUNNER_TEMP"/in/*
         env:
