@@ -9,6 +9,16 @@ for dir in "$@"; do
   find "$dir" -maxdepth 1 -type f \( -name 'opencode-*.zip' -o -name 'opencode-*.tar.gz' -o -name 'opencode-desktop-*' \) \
     ! -name '*.tgz' ! -name '*.app.tar' -exec cp {} "$assets/" \;
 done
+echo "Assets found: $(ls -la "$assets/")"
+if [ -z "$(ls -A "$assets")" ]; then
+  echo "ERROR: No assets found matching patterns"
+  echo "Directories received: $@"
+  for dir in "$@"; do
+    echo "Contents of $dir:"
+    ls -la "$dir/" 2>&1 | head -20
+  done
+  exit 1
+fi
 (cd "$assets" && sha256 -- * > SHA256SUMS && cat SHA256SUMS)
 printf '%s\n' "${OPENCODE_RELEASE_NOTES:-}" > "$assets.md"
 if dry_run; then exit 0; fi
