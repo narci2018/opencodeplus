@@ -38,7 +38,7 @@ export const UsageHandler = HttpApiBuilder.group(Api, "server.usage", (handlers)
               }),
             ),
             Effect.map((value) => value.data.ip),
-            Effect.catch(() => Effect.succeed(null)),
+            Effect.orElseSucceed(() => null),
           )
 
           const proxy = (name: string) => process.env[name] || process.env[name.toLowerCase()] || null
