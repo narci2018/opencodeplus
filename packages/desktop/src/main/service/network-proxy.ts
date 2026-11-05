@@ -18,7 +18,12 @@ const VARIABLES = ["HTTPS_PROXY", "HTTP_PROXY"]
 // survive whoever launches it. Bun reads lowercase `no_proxy` alone, so both spellings are stored.
 const NO_PROXY_VARIABLES = ["NO_PROXY", "no_proxy"]
 
-/** The stored proxy URL, or nothing when the app should connect directly. */
+/**
+ * The stored proxy URL, or nothing when the app should connect directly.
+ *
+ * The trailing slash is dropped here as well as in `parse`, so an address saved by an older build reads
+ * the same as one typed today.
+ */
 export function read() {
   const value = getStore().get(NETWORK_PROXY_KEY)
 
@@ -26,7 +31,7 @@ export function read() {
   // oxlint-disable-next-line anti-slop/no-runtime-typeof -- see SAFETY above
   if (typeof value !== "string") return undefined
 
-  const url = value.trim()
+  const url = value.trim().replace(/\/$/, "")
 
   return url.length ? url : undefined
 }
