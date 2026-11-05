@@ -10,7 +10,7 @@ const GO_UPSELL_FREE_TIER_LAST_SEEN_AT = "go_upsell_last_seen_at"
 
 const GO_UPSELL_FREE_TIER_DONT_SHOW = "go_upsell_dont_show"
 
-const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
+const SAME_DAY_WINDOW = 86_400_000 // 24 hrs
 
 const MAX_RETRY_AFTER_MS = 7 * 86_400_000
 
@@ -31,7 +31,7 @@ export function formatLimitReset(locale: string, created: number, retryAfterMs: 
   if (Number.isNaN(new Date(at).getTime())) return undefined
 
   const now = Date.now()
-  const sameDay = new Date(at).toDateString() === new Date(now).toDateString() && at - now < GO_UPSELL_WINDOW
+  const sameDay = new Date(at).toDateString() === new Date(now).toDateString() && at - now < SAME_DAY_WINDOW
 
   return new Intl.DateTimeFormat(
     locale,
@@ -39,6 +39,7 @@ export function formatLimitReset(locale: string, created: number, retryAfterMs: 
   ).format(at)
 }
 
+/** Preferences the retired free-tier Go upsell wrote; kept so an existing record decodes instead of failing. */
 export const GoUpsellState = Persistence.struct({
   [GO_UPSELL_FREE_TIER_LAST_SEEN_AT]: Schema.NullOr(Schema.Finite),
   [GO_UPSELL_FREE_TIER_DONT_SHOW]: Schema.NullOr(Schema.Finite),
@@ -47,9 +48,10 @@ export const GoUpsellState = Persistence.struct({
 /**
  * Limit dialogs for this session screen.
  *
- * Fork policy: OpenCode Zen's free allowance is enforced in opencode.ai's cloud, and this build never upsells it.
- * A `provider.free-limit` refusal therefore stays a plain timeline error — the composer still recalls the blocked
- * prompt so switching models and resending is one step — instead of opening the "subscribe to OpenCode Go" dialog.
+ * Fork policy: OpenCode Zen's free allowance is counted in opencode.ai's cloud, so no local setting can lift it, and
+ * the app never upsells it here. A `provider.free-limit` refusal therefore stays the timeline's own quiet notice —
+ * the composer still recalls the blocked prompt, so switching models and resending is one step — instead of opening
+ * the "subscribe to OpenCode Go" dialog. The TUI keeps its separate upsell for now.
  */
 export function useUsageExceededDialogs() {
   const sdk = useWorkspaceLocation()
