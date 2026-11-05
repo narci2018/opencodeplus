@@ -15,7 +15,8 @@ if dry_run; then exit 0; fi
 
 tag="v$OPENCODE_VERSION"
 # OpenCode 1 update paths (CLI upgrade, electron-updater, Scoop) follow GitHub's Latest release, which must stay on 1.x.
-gh release view "$tag" > /dev/null 2>&1 ||
-  gh release create "$tag" --draft --verify-tag --latest=false --title "$tag" --notes-file "$assets.md"
+# Delete existing draft/release for this tag to avoid conflicts
+gh release view "$tag" > /dev/null 2>&1 && gh release delete "$tag" --yes --cleanup-tag || true
+gh release create "$tag" --draft --verify-tag --latest=false --title "$tag" --notes-file "$assets.md"
 gh release upload "$tag" "$assets"/* --clobber
 gh release edit "$tag" --draft=false --latest=false
