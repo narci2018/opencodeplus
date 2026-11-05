@@ -170,9 +170,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: linux-arm64, host: ubuntu-latest }
-          - { target: linux-x64, host: ubuntu-latest }
-          - { target: darwin-arm64, host: macos-26 }
+          # TEMP (windows-only builds): every non-Windows leg is commented out to cut release wall time and runner
+          # queue. Uncomment the targets below to restore the other platforms; nothing else in this file needs to
+          # change, because `bun run pack` and the publish jobs only package the artifacts that exist.
+          # Until they are back, only the dev channel is expected to pass: `sign-macos`, and the npm, Homebrew and AUR
+          # publishing jobs behind it, look for the darwin and Linux artifacts this trim no longer produces.
+          # - { target: linux-arm64, host: ubuntu-latest }
+          # - { target: linux-x64, host: ubuntu-latest }
+          # - { target: darwin-arm64, host: macos-26 }
           - { target: windows-arm64, host: windows-latest }
           - { target: windows-x64, host: windows-latest }
     runs-on: ${{ matrix.host }}
@@ -247,28 +252,31 @@ jobs:
           name: build-archives
           path: dist/archives
 
-  build-docker:
-    needs: [plan, tag, build-cli]
-    if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
-    env: *env
-    steps:
-      - *checkout
-      - *download-cli
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      - name: Set up Bun
-        uses: ./.github/actions/setup-bun
-      - name: Pack
-        working-directory: packages/cli
-        run: bun run pack:docker
-      - name: Upload
-        uses: ./.github/release/upload
-        with:
-          name: build-docker
-          path: dist/docker
+  # TEMP (windows-only builds): the Linux container image costs a QEMU + buildx job and is not part of the Windows
+  # package. Uncomment this job and `publish-docker` below (and add `build-docker` back to the `needs` list of
+  # `publish-github-release`) to restore Docker publishing.
+  # build-docker:
+  #   needs: [plan, tag, build-cli]
+  #   if: needs.plan.outputs.release == 'true'
+  #   runs-on: ubuntu-latest
+  #   env: *env
+  #   steps:
+  #     - *checkout
+  #     - *download-cli
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+  #     - name: Set up Buildx
+  #       uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+  #     - name: Set up Bun
+  #       uses: ./.github/actions/setup-bun
+  #     - name: Pack
+  #       working-directory: packages/cli
+  #       run: bun run pack:docker
+  #     - name: Upload
+  #       uses: ./.github/release/upload
+  #       with:
+  #         name: build-docker
+  #         path: dist/docker
 
   # macOS and Windows pack an unsigned app; Linux packs the final AppImage, deb and rpm.
   # Dev and beta package macOS x64 on Apple Silicon and Windows arm64 on Blacksmith for speed. electron-builder's
@@ -293,8 +301,10 @@ jobs:
             host: windows-latest
             install: --cpu=*
           - { target: windows-x64, host: windows-latest }
-          - { target: linux-x64, host: ubuntu-latest }
-          - { target: linux-arm64, host: ubuntu-latest }
+          # TEMP (windows-only builds): the Linux desktop packages (AppImage, deb, rpm) are the slowest non-Windows
+          # legs. Uncomment both to restore them; publish-desktop and the dev release glob pick them up automatically.
+          # - { target: linux-x64, host: ubuntu-latest }
+          # - { target: linux-arm64, host: ubuntu-latest }
     runs-on: ${{ matrix.host }}
     env: *env
     steps:
@@ -641,25 +651,26 @@ jobs:
             "$RUNNER_TEMP/in/build-desktop-linux-x64" "$RUNNER_TEMP/in/build-desktop-linux-arm64"
         env: *cloudflare
 
-  publish-docker:
-    needs: [plan, build-docker]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
-    runs-on: ubuntu-24.04
-    environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
-    permissions:
-      contents: read
-      packages: write
-    env: *env
-    steps:
-      - *checkout-release
-      - name: Download
-        uses: ./.github/release/download
-        with:
-          pattern: build-docker
-      - name: Publish
-        run: bash .github/release/publish-docker.sh "$RUNNER_TEMP/in/build-docker"
-        env:
-          GH_TOKEN: ${{ github.token }}
+  # TEMP (windows-only builds): disabled together with `build-docker` above.
+  # publish-docker:
+  #   needs: [plan, build-docker]
+  #   if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' && needs.plan.outputs.channel != 'dev' }}
+  #   runs-on: ubuntu-24.04
+  #   environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   env: *env
+  #   steps:
+  #     - *checkout-release
+  #     - name: Download
+  #       uses: ./.github/release/download
+  #       with:
+  #         pattern: build-docker
+  #     - name: Publish
+  #       run: bash .github/release/publish-docker.sh "$RUNNER_TEMP/in/build-docker"
+  #       env:
+  #         GH_TOKEN: ${{ github.token }}
 
   publish-homebrew:
     needs: [plan, sign-macos, sign-windows, publish-cli]
@@ -718,7 +729,8 @@ jobs:
           path: ${{ runner.temp }}/out
 
   publish-github-release:
-    needs: [plan, build-cli, build-node, build-npm, build-desktop, build-desktop-windows-installer, build-docker]
+    # TEMP (windows-only builds): `build-docker` is removed from this list while that job stays commented out.
+    needs: [plan, build-cli, build-node, build-npm, build-desktop, build-desktop-windows-installer]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.release == 'true' }}
     runs-on: ubuntu-24.04
     environment: ${{ needs.plan.outputs.dry_run != 'true' && 'release' || '' }}
