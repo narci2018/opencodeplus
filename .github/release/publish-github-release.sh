@@ -33,14 +33,14 @@ if dry_run; then exit 0; fi
 tag="v$OPENCODE_VERSION"
 echo "=== Creating release for tag: $tag ==="
 
-# Delete existing release if exists
+# Delete existing release if exists (but keep the tag)
 gh release view "$tag" > /dev/null 2>&1 && {
   echo "Deleting existing release..."
-  gh release delete "$tag" --yes --cleanup-tag || true
+  gh release delete "$tag" --yes || true
 }
 
 echo "Creating new release..."
-gh release create "$tag" --draft --verify-tag --latest=false --title "$tag" --notes-file "$assets.md"
+gh release create "$tag" --draft --latest=false --title "$tag" --notes-file "$assets.md"
 
 echo "Uploading assets..."
 gh release upload "$tag" "$assets"/* --clobber
