@@ -1328,7 +1328,7 @@ test("providers: OpenCode Go connects with its own methods, not the Console sign
   expect(attempts).toEqual([])
 })
 
-test("providers: the free tier upsell opens Go on its own, sized to its content", async ({ page }) => {
+test("providers: the free tier refusal never opens the Go upsell", async ({ page }) => {
   const view = await openSession(page, { name: "FreeTier", integrations: consoleIntegrations })
   await view.push([
     {
@@ -1344,17 +1344,9 @@ test("providers: the free tier upsell opens Go on its own, sized to its content"
       },
     },
   ])
-  await page
-    .getByRole("dialog", { name: "Free limit reached" })
-    .getByRole("button", { name: "Subscribe", exact: true })
-    .click()
 
-  const dialog = page.getByRole("dialog", { name: "Connect OpenCode Go", exact: true })
-  const container = page.locator('[data-slot="dialog-container"]')
-  await expect(dialog.getByPlaceholder("API key")).toBeVisible()
-  // Nothing to go back to: the upsell opened the dialog straight on Go.
-  await expect(dialog.getByRole("button", { name: "Navigate back", exact: true })).toHaveCount(0)
-  await expect.poll(async () => (await container.boundingBox())?.height).toBeLessThan(512)
+  // This build doesn't sell OpenCode Go: the refusal never opens a dialog.
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 })
 
 test("providers: the connect dialog lists connected providers and manages their accounts", async ({ page }) => {

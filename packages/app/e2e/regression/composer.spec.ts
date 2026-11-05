@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { NO_PROVIDER, SERVER, T0, expectPath, holdRoute, provider, sessionHref } from "../utils/app"
+import { NO_PROVIDER, SERVER, T0, holdRoute, provider, sessionHref } from "../utils/app"
 import { mockWorkspace, openDraft, openSession } from "../utils/workspace"
 import { mockPluginsActivating, type MockServerConfig } from "../utils/mock-server"
 
@@ -87,7 +87,7 @@ test("a bare @ lists sessions, and a multi-word title matches while file search 
   expect(prompts[1]?.text).toBe("@home now")
 })
 
-test("the free usage limit opens the Go dialog once, leaves a readable notice, and restores the prompt", async ({
+test("the free usage limit leaves a readable notice, restores the prompt, and never upsells", async ({
   page,
   context,
 }) => {
@@ -187,26 +187,14 @@ test("the free usage limit opens the Go dialog once, leaves a readable notice, a
   ])
 
   const upsell = page.getByRole("dialog", { name: "Free limit reached" })
-  await expect(upsell).toContainText("Your free messages reset at")
-  await expect(page.getByText(/^You've used today's free messages\. They reset at /)).toBeVisible()
+  // This build never upsells OpenCode Go: the refusal stays the quiet timeline notice, with no dialog at any point.
+  await expect(upsell).toHaveCount(0)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(page.getByRole("status").filter({ hasText: "You've used today's free messages." })).toBeVisible()
   await expect(view.editor).toHaveText("Refactor the parser")
   await expect(page.getByText("Free usage limit reached.")).toHaveCount(0)
 
-  // Subscribe -> Go API key -> Continue switches the model in the current session without opening a new draft tab.
-  await upsell.getByRole("button", { name: "Subscribe", exact: true }).click()
-  const connect = page.getByRole("dialog", { name: "Connect OpenCode Go", exact: true })
-  await connect.getByPlaceholder("API key").fill("sk-go-test")
-  await connect.getByRole("button", { name: "Continue", exact: true }).click()
-  const connected = page.getByRole("dialog", { name: "Connected to OpenCode Go" })
-  await expect(connected.getByRole("radio", { name: "GLM-5 Go", exact: true })).toHaveAttribute("aria-checked", "true")
-  await connected.getByRole("button", { name: "Continue", exact: true }).click()
-  await expect(page.getByRole("dialog")).toHaveCount(0)
-  await expectPath(page, sessionHref(sessionID))
-  await expect(page.locator("[data-titlebar-tab-slot]")).toHaveCount(1)
-  await expect(page.locator('[data-action="composer-model"]')).toContainText("GLM-5 Go")
-  await expect(view.editor).toHaveText("Refactor the parser")
-
-  // After the 24-hour window, "Don't show again" permanently suppresses the dialog across reloads, and an attachment-only draft survives.
+  // A second refusal on a later day behaves the same, and an attachment-only draft survives it.
   const day2 = T0 + 2 * 86_400_000
   await page.clock.setFixedTime(day2)
 
@@ -229,8 +217,8 @@ test("the free usage limit opens the Go dialog once, leaves a readable notice, a
     },
   ])
 
-  await upsell.getByRole("button", { name: "Don't show again", exact: true }).click()
   await expect(upsell).toHaveCount(0)
+  await expect(view.editor).toHaveText("Refactor the parser")
 
   const later = T0 + 4 * 86_400_000
   await page.clock.setFixedTime(later)
