@@ -74,22 +74,24 @@ export const CustomModels: Component = () => {
   }
 
   return (
-    <Show when={entries().length > 0}>
-      <div class="settings-models-group" data-component="custom-models-section">
-        <h3 class="settings-models-group-header">
-          <div class="settings-models-group-header-copy">
-            <Icon name="sparkles" size="small" />
-            <span>{language.t("settings.models.custom.section.title")}</span>
-          </div>
-          <div class="settings-models-group-header-actions">
-            <Button size="normal" variant="ghost-muted" icon="plus" onClick={() => open()}>
-              {language.t("settings.models.custom.add")}
-            </Button>
+    <div class="settings-models-group" data-component="custom-models-section">
+      <h3 class="settings-models-group-header">
+        <div class="settings-models-group-header-copy">
+          <Icon name="sparkles" size="small" />
+          <span>{language.t("settings.models.custom.section.title")}</span>
+        </div>
+        <div class="settings-models-group-header-actions">
+          <Button size="normal" variant="ghost-muted" icon="plus" onClick={() => open()}>
+            {language.t("settings.models.custom.add")}
+          </Button>
+          <Show when={entries().length > 0}>
             <Button size="normal" variant="ghost-muted" onClick={() => void load()}>
               {language.t("common.refresh")}
             </Button>
-          </div>
-        </h3>
+          </Show>
+        </div>
+      </h3>
+      <Show when={entries().length > 0}>
         <div class="settings-models-group-items">
           <For each={entries()}>
             {(entry) => (
@@ -119,7 +121,7 @@ export const CustomModels: Component = () => {
             )}
           </For>
         </div>
-      </div>
-    </Show>
+      </Show>
+    </div>
   )
 }
