@@ -1158,6 +1158,7 @@ export const dict = {
   "settings.models.disableAll": "Disable all models",
   "settings.models.custom.add": "Add custom model",
   "settings.models.custom.title": "Add custom model",
+  "settings.models.custom.edit.title": "Edit custom model",
   "settings.models.custom.description": "Connect a model from any mainstream LLM protocol by entering its endpoint and API key.",
   "settings.models.custom.protocol.label": "Protocol",
   "settings.models.custom.protocol.openaiCompatible": "OpenAI compatible",
@@ -1180,6 +1181,8 @@ export const dict = {
   "settings.models.custom.removed.description": "{{name}} was removed from the model picker.",
   "settings.models.custom.section.title": "Custom models",
   "settings.models.custom.section.manage": "Manage",
+  "settings.models.custom.test.button": "Test connection",
+  "settings.models.custom.test.success": "Connection successful",
 
   "settings.permissions.tool.read.title": "Read",
   "settings.permissions.tool.read.description": "Reading a file (matches the file path)",

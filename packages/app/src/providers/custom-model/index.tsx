@@ -8,8 +8,6 @@ import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
 import { showToast } from "@/shell/notifications/toast"
 import { formatServerError } from "@/runtime/server/errors"
-import { SettingsList } from "@/settings/list"
-import { SettingsRow } from "@/settings/row"
 import { CustomModelDialog } from "./dialog"
 import { readProviderEntries, type CustomProviderEntry } from "./presets"
 import "@/settings/settings.css"
@@ -41,11 +39,12 @@ export const CustomModels: Component = () => {
     await Promise.all([data.location.provider.sync(), data.location.model.sync()]).catch(() => undefined)
   }
 
-  const open = () => {
+  const open = (existing?: CustomProviderEntry) => {
     void dialog.show(
       () => (
         <CustomModelDialog
           existing={entries()}
+          editing={existing}
           onSaved={() => void refresh()}
           onClose={() => dialog.close()}
         />
@@ -75,41 +74,52 @@ export const CustomModels: Component = () => {
   }
 
   return (
-    <>
-      <Button size="normal" variant="neutral" icon="plus" onClick={open}>
-        {language.t("settings.models.custom.add")}
-      </Button>
-      <Show when={entries().length > 0}>
-        <div class="settings-section" data-component="custom-models-section">
-          <div class="settings-section-header">
-            <h3 class="settings-section-title">{language.t("settings.models.custom.section.title")}</h3>
+    <Show when={entries().length > 0}>
+      <div class="settings-models-group" data-component="custom-models-section">
+        <h3 class="settings-models-group-header">
+          <div class="settings-models-group-header-copy">
+            <Icon name="sparkles" size="small" />
+            <span>{language.t("settings.models.custom.section.title")}</span>
+          </div>
+          <div class="settings-models-group-header-actions">
+            <Button size="normal" variant="ghost-muted" icon="plus" onClick={() => open()}>
+              {language.t("settings.models.custom.add")}
+            </Button>
             <Button size="normal" variant="ghost-muted" onClick={() => void load()}>
               {language.t("common.refresh")}
             </Button>
           </div>
-          <SettingsList variant="catalog">
-            <For each={entries()}>
-              {(entry) => (
-                <SettingsRow title={entry.name ?? entry.id} description={entry.baseURL ?? ""}>
-                  <Menu placement="bottom-end" gutter={6}>
-                    <Menu.Trigger as={Button} size="normal" variant="ghost-muted">
-                      {language.t("settings.models.custom.section.manage")}
-                    </Menu.Trigger>
-                    <Menu.Portal>
-                      <Menu.Content>
-                        <Menu.Item onSelect={() => void remove(entry)}>
-                          <Icon name="trash" size="small" />
-                          {language.t("common.delete")}
-                        </Menu.Item>
-                      </Menu.Content>
-                    </Menu.Portal>
-                  </Menu>
-                </SettingsRow>
-              )}
-            </For>
-          </SettingsList>
+        </h3>
+        <div class="settings-models-group-items">
+          <For each={entries()}>
+            {(entry) => (
+              <div class="settings-models-row">
+                <div class="settings-models-row-copy">
+                  <span class="settings-models-row-title">{entry.name ?? entry.id}</span>
+                  <span class="settings-models-row-description">{entry.baseURL ?? ""}</span>
+                </div>
+                <Menu placement="bottom-end" gutter={6}>
+                  <Menu.Trigger as={Button} size="normal" variant="ghost-muted">
+                    {language.t("settings.models.custom.section.manage")}
+                  </Menu.Trigger>
+                  <Menu.Portal>
+                    <Menu.Content>
+                      <Menu.Item onSelect={() => open(entry)}>
+                        <Icon name="pencil" size="small" />
+                        {language.t("common.edit")}
+                      </Menu.Item>
+                      <Menu.Item onSelect={() => void remove(entry)}>
+                        <Icon name="trash" size="small" />
+                        {language.t("common.delete")}
+                      </Menu.Item>
+                    </Menu.Content>
+                  </Menu.Portal>
+                </Menu>
+              </div>
+            )}
+          </For>
         </div>
-      </Show>
-    </>
+      </div>
+    </Show>
   )
 }

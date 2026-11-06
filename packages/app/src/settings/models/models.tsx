@@ -149,10 +149,7 @@ export const SettingsModels: Component<{
             <h2 class="settings-tab-title">{language.t("settings.models.title")}</h2>
             <span class="text-11-regular text-v2-text-text-muted">{language.t("settings.models.description")}</span>
           </div>
-          <div class="settings-tab-header-actions">
-            <CustomModels />
-            {props.headerAction}
-          </div>
+          <div class="settings-tab-header-actions">{props.headerAction}</div>
         </div>
         <SettingsSearchField
           value={list.filter()}
@@ -195,6 +192,7 @@ export const SettingsModels: Component<{
               ref={(providerID, element) => sections.set(providerID, element)}
               rows={(items) => <ModelRows items={items} />}
             />
+            <CustomModels />
           </Show>
         </Show>
       </div>

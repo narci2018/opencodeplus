@@ -46,6 +46,16 @@ Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributi
 
 For user-facing `feat`, `fix` and `perf` PRs, add a small looping animated SVG of the change under `### Visual` in the PR body (a `svg` code block, 240×72, for example a dock growing out of the composer or spinners turning in step). Draw with `currentColor` and opacity so it works in light and dark, make the unanimated state a good still (it is shown under reduced motion), animate with CSS or SMIL only, and keep it under 8 KB with no scripts or external references. The desktop beta's "What's new" dialog shows it.
 
+## Changelog
+
+Every feature change, bug fix, or release must include a changelog entry. Maintain a complete history in `CHANGELOG.md` at the repository root.
+
+- Add entries under the appropriate version section (or create a new section for a release).
+- Group entries by area: `Core`, `TUI`, `Desktop`, `App`, etc.
+- Within each area, separate `Improvements` and `Bug fixes`.
+- Use concise, user-facing language. Include PR numbers when available.
+- Do not skip changelog updates for "small" changes—if it's worth committing, it's worth documenting.
+
 ## Style Guide
 
 ### General Principles
