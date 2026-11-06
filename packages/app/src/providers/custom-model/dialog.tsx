@@ -125,8 +125,10 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
 
   const onResizeMouseDown = (event: MouseEvent) => {
     event.preventDefault()
+    event.stopPropagation()
     const handle = event.currentTarget as HTMLElement
-    const container = handle.parentElement
+    // Go up to dialog-container (handle -> dialog-content -> dialog-container)
+    const container = handle.parentElement?.parentElement
     if (!container) return
     resizeStart.x = event.clientX
     resizeStart.y = event.clientY
@@ -137,10 +139,11 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const dx = moveEvent.clientX - resizeStart.x
       const dy = moveEvent.clientY - resizeStart.y
-      setDialogSize({
-        width: Math.max(480, resizeStart.width + dx),
-        height: Math.max(400, resizeStart.height + dy),
-      })
+      const newWidth = Math.max(480, resizeStart.width + dx)
+      const newHeight = Math.max(400, resizeStart.height + dy)
+      container.style.width = `${newWidth}px`
+      container.style.height = `${newHeight}px`
+      setDialogSize({ width: newWidth, height: newHeight })
     }
 
     const onMouseUp = () => {

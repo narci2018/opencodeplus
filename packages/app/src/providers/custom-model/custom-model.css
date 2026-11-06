@@ -2,7 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 0 24px 8px;
+  padding: 8px 24px 16px !important;
+}
+
+/* Override dialog's nested selector specificity */
+[data-component="dialog-v2"] [data-slot="dialog-content"] .custom-model-dialog-body {
+  padding: 8px 24px 16px;
 }
 
 .custom-model-dialog-field {
@@ -70,10 +75,9 @@
   background: linear-gradient(135deg, transparent 50%, var(--v2-state-bg-accent) 50%);
 }
 
-/* Override dialog size when resized */
+/* Override dialog size when resized - inline styles take precedence */
 .custom-model-dialog-resized [data-slot="dialog-container"] {
-  width: auto !important;
-  height: auto !important;
+  /* Width/height set via inline styles in resize handler */
 }
 
 /* Custom models section styled like provider groups */
