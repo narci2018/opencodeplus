@@ -1153,6 +1153,8 @@ export const dict = {
   "settings.providers.tag.account": "Account",
   "settings.providers.tag.other": "Other",
   "settings.models.title": "Models",
+  "settings.agents.title": "Agents",
+  "settings.agents.description": "Manage your custom agents — define role, system prompt, model and visibility for each agent.",
   "settings.models.description": "Choose which models appear in model picker",
   "settings.models.enableAll": "Enable all models",
   "settings.models.disableAll": "Disable all models",

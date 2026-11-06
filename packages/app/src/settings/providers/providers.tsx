@@ -18,7 +18,6 @@ import { CONSOLE_INTEGRATION } from "@/providers/connect/controller"
 import { DialogConnectProvider, useProviderConnectController } from "@/providers/connect/dialog"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
 import { CustomModels } from "@/providers/custom-model"
-import { CustomAgents } from "@/providers/custom-agent"
 import { SettingsList } from "@/settings/list"
 import { activeProviderAccount, providerAccounts, type ProviderAccount } from "./accounts"
 import { AccountNameInput } from "./account-name"
@@ -588,8 +587,6 @@ export const SettingsProviders: Component<{
           </SettingsList>
 
           <CustomModels />
-
-          <CustomAgents />
 
           <button type="button" class="settings-providers-view-all" onClick={() => connect()}>
             {language.t("dialog.provider.viewAll")}
