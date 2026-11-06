@@ -116,8 +116,32 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   experimental: ConfigExperimental.Info.pipe(optional),
 }) {}
 
+export const ProviderPatch = Schema.Struct({
+  /** The id this custom provider is registered under, e.g. `my-llm`. */
+  id: Schema.String,
+  /** The provider carrier package, e.g. `@opencode/ai/providers/openai-compatible`. */
+  package: Schema.String.pipe(optional),
+  /** The carrier's canonical provider id, e.g. `openai-compatible`. */
+  canonical: Schema.String.pipe(optional),
+  name: Schema.String.pipe(optional),
+  settings: Schema.Struct({
+    baseURL: Schema.String,
+    apiKey: Schema.String.pipe(optional),
+  }).pipe(optional),
+  /** Model ids to register under this provider, each with an optional display name. */
+  models: Schema.Record(
+    Schema.String,
+    Schema.Struct({ name: Schema.String.pipe(optional) }),
+  ).pipe(optional),
+  /** When true, remove the entry instead of upserting it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.ProviderPatch" })
+export type ProviderPatch = Schema.Schema.Type<typeof ProviderPatch>
+
 export const Patch = Schema.Struct({
-  shell: Schema.NullOr(Schema.String),
+  shell: Schema.NullOr(Schema.String).pipe(optional),
+  /** Sets, updates, or removes one custom provider entry in the `providers` field. */
+  provider: ProviderPatch.pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

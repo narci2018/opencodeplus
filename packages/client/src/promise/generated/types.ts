@@ -4799,7 +4799,20 @@ export type ConfigGetOutput = Array<ConfigEntry>
 
 export type ConfigShellsOutput = Array<ConfigShellOption>
 
-export type ExperimentalConfigUpdateInput = { readonly shell: string | null }
+export type ExperimentalConfigUpdateInput = {
+  readonly shell?: string | null | undefined
+  readonly provider?:
+    | {
+        readonly id: string
+        readonly package?: string
+        readonly canonical?: string
+        readonly name?: string
+        readonly settings?: { readonly baseURL: string; readonly apiKey?: string }
+        readonly models?: { readonly [x: string]: { readonly name?: string } }
+        readonly remove?: true
+      }
+    | undefined
+}
 
 export type ExperimentalConfigUpdateOutput = void
 

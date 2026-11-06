@@ -468,15 +468,36 @@ export const layer = (options?: Options) =>
           const candidates = ConfigDiscovery.names.map((name) => path.join(directory, name))
           const filepath =
             (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "opencode.jsonc")
-          const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
+          let text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
+          const formattingOptions = { tabSize: 2, insertSpaces: true } as const
           const updated = yield* Effect.try({
-            try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
-                  formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
-              ),
+            try: () => {
+              // Apply each patch field as its own disjoint edit on the evolving document. jsonc-parser's
+              // `modify` returns edits relative to one text, so disjoint top-level fields must be applied
+              // sequentially (combining them into one `applyEdits` call throws "Overlapping edit").
+              if (patch.shell !== undefined)
+                text = applyEdits(text, modify(text, ["shell"], patch.shell ?? undefined, { formattingOptions }))
+              if (patch.provider !== undefined) {
+                const provider = patch.provider
+                const value = provider.remove
+                  ? undefined
+                  : {
+                      ...(provider.package !== undefined ? { package: provider.package } : {}),
+                      ...(provider.canonical !== undefined ? { canonical: provider.canonical } : {}),
+                      ...(provider.name !== undefined ? { name: provider.name } : {}),
+                      ...(provider.settings !== undefined ? { settings: provider.settings } : {}),
+                      ...(provider.models !== undefined ? { models: provider.models } : {}),
+                    }
+                text = applyEdits(text, modify(text, ["providers", provider.id], value, { formattingOptions }))
+                // Removing the last provider leaves an empty `providers` map; drop the key for a clean document.
+                if (provider.remove) {
+                  const parsed = parse(text) as { providers?: Record<string, unknown> } | undefined
+                  if (parsed?.providers && Object.keys(parsed.providers).length === 0)
+                    text = applyEdits(text, modify(text, ["providers"], undefined, { formattingOptions }))
+                }
+              }
+              return text
+            },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })
           yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)

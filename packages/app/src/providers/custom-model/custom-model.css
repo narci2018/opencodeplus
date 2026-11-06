@@ -1,0 +1,37 @@
+.custom-model-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.custom-model-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-model-dialog-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v2-text-text-muted);
+}
+
+.custom-model-dialog-hint {
+  font-size: 11px;
+  color: var(--v2-text-text-faint);
+}
+
+.custom-model-dialog-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--v2-state-fg-danger);
+  background: var(--v2-state-bg-danger);
+}
+
+.custom-model-dialog-spinner {
+  color: currentColor;
+}

@@ -17066,9 +17066,11 @@
                 "type": "null"
               }
             ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/Config.ProviderPatch"
           }
         },
-        "required": ["shell"],
         "additionalProperties": false
       },
       "Config.Plugin.EntryEncoded": {
@@ -17187,6 +17189,54 @@
             }
           }
         },
+        "additionalProperties": false
+      },
+      "Config.ProviderPatch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "canonical": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "baseURL": {
+                "type": "string"
+              },
+              "apiKey": {
+                "type": "string"
+              }
+            },
+            "required": ["baseURL"],
+            "additionalProperties": false
+          },
+          "models": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["id"],
         "additionalProperties": false
       },
       "Config.Reference.GitEncoded": {
