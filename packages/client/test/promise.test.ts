@@ -157,6 +157,7 @@ test("nests a method under client.experimental exactly when its route is experim
     "mcp.remove",
     "migration.v1.status",
     "network.egress",
+    "network.proxy",
     "session.export",
     "session.import",
     "session.instructions.entry.list",
