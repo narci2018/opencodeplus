@@ -8,6 +8,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Redesigned the custom-agent dialog with a TRAE-style creation flow: an optional natural-language brief with a Generate button that fills the form via one stateless model call, a "Callable by other agents" switch (with the required when-to-call description stored as the agent description), a model picker fed by the provider catalog, and a Tools section with MCP server checkboxes and built-in tool groups. Unchecked groups and unselected MCP servers are written as permission deny rules on the agent entry, and `Config.AgentPatch` now accepts `permissions`.
 - Added custom-agent settings dialog on the Providers page. Users can define their own agents by name, description, system prompt, model, and visibility (primary/all/subagent). Custom agents appear in the composer agent selector alongside Build and Plan.
 - Fixed the composer agent selector not auto-appearing when a custom agent exists. Agent definitions now carry a `native` flag (`true` for built-in agents, `false` for user-defined ones), and `hasCustomAgent` uses it to decide whether to show the selector. Previously every agent read as custom, so the selector stayed hidden unless manually toggled.
 - Added custom-model settings dialog supporting mainstream LLM protocols (OpenAI-compatible, Anthropic-compatible, Google Gemini, Ollama, OpenRouter). The dialog includes a test-connection button, drag-to-resize, and edit support for existing custom providers.

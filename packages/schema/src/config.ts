@@ -153,6 +153,8 @@ export const AgentPatch = Schema.Struct({
   mode: Schema.Literals(["subagent", "primary", "all"]).pipe(optional),
   /** Hide the agent from the composer selector. */
   hidden: Schema.Boolean.pipe(optional),
+  /** Ordered permission rules appended to the agent's default ruleset, e.g. denying tools. */
+  permissions: Permission.Ruleset.pipe(optional),
   /** When true, remove the entry instead of upserting it. */
   remove: Schema.Literal(true).pipe(optional),
 }).annotate({ identifier: "Config.AgentPatch" })

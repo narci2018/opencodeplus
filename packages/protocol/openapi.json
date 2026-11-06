@@ -16328,6 +16328,9 @@
           "hidden": {
             "type": "boolean"
           },
+          "permissions": {
+            "$ref": "#/components/schemas/Permission.Ruleset"
+          },
           "remove": {
             "type": "boolean",
             "enum": [true]

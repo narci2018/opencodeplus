@@ -88,6 +88,8 @@ describe("config update agent refresh", () => {
               system: "You review code.",
               mode: "primary",
             })
+            // An agent saved without tool restrictions carries no permissions of its own.
+            expect((yield* readAgents())?.permissions).toBeUndefined()
 
             // Edit: change the description. The dialog resolves `config.update` and
             // immediately refetches agents; the config entries must already show the new value.
@@ -102,6 +104,30 @@ describe("config update agent refresh", () => {
 
             expect(yield* readAgents()).toMatchObject({
               description: "Reviews code and tests",
+            })
+
+            // The redesigned dialog writes tool restrictions as permission deny rules:
+            // one per unchecked built-in action and one wildcard per unselected MCP server.
+            yield* update({
+              agent: {
+                id: "reviewer",
+                description: "Reviews code and tests",
+                system: "You review code.",
+                mode: "all",
+                permissions: [
+                  { action: "shell", resource: "*", effect: "deny" },
+                  { action: "github_*", resource: "*", effect: "deny" },
+                ],
+              },
+            })
+
+            expect(yield* readAgents()).toMatchObject({
+              description: "Reviews code and tests",
+              mode: "all",
+              permissions: [
+                { action: "shell", resource: "*", effect: "deny" },
+                { action: "github_*", resource: "*", effect: "deny" },
+              ],
             })
           }).pipe(Effect.provide(layer))
         }),

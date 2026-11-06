@@ -4831,6 +4831,11 @@ export type ExperimentalConfigUpdateInput = {
         readonly model?: string | { readonly providerID: string; readonly model: string; readonly variant?: string }
         readonly mode?: "subagent" | "primary" | "all"
         readonly hidden?: boolean
+        readonly permissions?: ReadonlyArray<{
+          readonly action: string
+          readonly resource: string
+          readonly effect: "allow" | "deny" | "ask"
+        }>
         readonly remove?: true
       }
     | undefined

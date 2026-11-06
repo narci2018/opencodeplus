@@ -507,6 +507,7 @@ export const layer = (options?: Options) =>
                       ...(agent.model !== undefined ? { model: agent.model } : {}),
                       ...(agent.mode !== undefined ? { mode: agent.mode } : {}),
                       ...(agent.hidden !== undefined ? { hidden: agent.hidden } : {}),
+                      ...(agent.permissions !== undefined ? { permissions: agent.permissions } : {}),
                     }
                 text = applyEdits(text, modify(text, ["agents", agent.id], value, { formattingOptions }))
                 // Removing the last agent leaves an empty `agents` map; drop the key for a clean document.

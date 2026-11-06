@@ -22,9 +22,71 @@
   color: var(--v2-text-text-muted);
 }
 
+.custom-agent-dialog-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .custom-agent-dialog-hint {
   font-size: 11px;
   color: var(--v2-text-text-faint);
+}
+
+.custom-agent-dialog-counter {
+  align-self: flex-end;
+  font-size: 11px;
+  color: var(--v2-text-text-faint);
+}
+
+.custom-agent-dialog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--v2-border-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.custom-agent-dialog-card-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v2-text-text-base);
+}
+
+.custom-agent-dialog-card-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--v2-text-text-muted);
+}
+
+.custom-agent-dialog-card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--v2-border-border);
+  padding-top: 12px;
+}
+
+.custom-agent-dialog-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-agent-dialog-mcp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.custom-agent-dialog-mcp-explain {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--v2-text-text-muted);
 }
 
 .custom-agent-dialog-textarea {
