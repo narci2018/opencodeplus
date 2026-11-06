@@ -15977,6 +15977,9 @@
           },
           "permissions": {
             "$ref": "#/components/schemas/Permission.Ruleset"
+          },
+          "native": {
+            "type": "boolean"
           }
         },
         "required": ["id", "name", "request", "mode", "hidden", "permissions"],
@@ -16274,6 +16277,63 @@
             "$ref": "#/components/schemas/Permission.Ruleset"
           }
         },
+        "additionalProperties": false
+      },
+      "Config.AgentPatch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "system": {
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[^/#]+\\/[^#]+(?:#[^#]+)?$"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "providerID": {
+                    "type": "string",
+                    "pattern": "^[^/#]+$"
+                  },
+                  "model": {
+                    "type": "string",
+                    "pattern": "^[^#]+$"
+                  },
+                  "variant": {
+                    "type": "string",
+                    "pattern": "^[^#]+$"
+                  }
+                },
+                "required": ["providerID", "model"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["subagent", "primary", "all"]
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["id"],
         "additionalProperties": false
       },
       "Config.CommandEncoded": {
@@ -17183,6 +17243,9 @@
           },
           "provider": {
             "$ref": "#/components/schemas/Config.ProviderPatch"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/Config.AgentPatch"
           }
         },
         "additionalProperties": false
