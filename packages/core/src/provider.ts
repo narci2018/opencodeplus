@@ -14,6 +14,7 @@ import { Integration } from "./integration.js"
 import { State } from "./state.js"
 import { IntegrationConnection } from "./integration/connection.js"
 import { Credential } from "@opencode/schema/credential"
+import { Config } from "@opencode/schema/config"
 import { Location } from "./location.js"
 import { freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
@@ -526,8 +527,12 @@ const layer = Layer.effect(
         },
       )
     })
-    yield* bus.subscribe([Integration.Event.Updated, Credential.Event.Switched]).pipe(
-      Stream.runForEach(() => notify),
+    yield* bus.subscribe([Integration.Event.Updated, Credential.Event.Switched, Config.Event.Updated]).pipe(
+      Stream.runForEach((event) =>
+        // Config changes must rebuild the provider state from the new config file; the other
+        // events only re-filter the already-built catalog against new integration state.
+        event.type === "config.updated" ? state.reload() : notify,
+      ),
       Effect.forkScoped({ startImmediately: true }),
     )
     return Service.of({

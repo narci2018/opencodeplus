@@ -501,7 +501,10 @@ export const layer = (options?: Options) =>
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })
           yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)
-          yield* requestReload
+          // Reload synchronously so callers observe the new config state before the request resolves.
+          // `requestReload` only publishes an event that a background consumer debounces by 100ms;
+          // returning before that reload would let clients read stale config data after a write.
+          yield* reload().pipe(Effect.provide(context))
         },
         (effect) => updateLock.withPermit(effect),
       )

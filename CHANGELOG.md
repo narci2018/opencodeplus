@@ -18,6 +18,8 @@ Release notes for OpenCode V2, newest first.
 - Custom models section with "Add custom model" button is now always visible, even when no custom providers exist.
 - Fixed test-connection "Failed to fetch" CORS error. The dialog now routes the request through a new server-side proxy endpoint (`POST /api/experimental/network/proxy`) instead of direct browser fetch.
 - Moved custom-models section from Models settings page to Providers settings page, above "View more providers", matching the provider/model architecture.
+- Fixed editing a custom model not persisting. `Config.update` now reloads config synchronously before returning, so the provider catalog reflects the new config immediately instead of after a debounced reload; `Provider` now also subscribes to config updates so a config change always rebuilds its catalog.
+- Removed the redundant "Custom models" section header and manual refresh button; the custom-model list now refreshes automatically after add, edit, and delete.
 
 ## v2.2.5 — 2026-10-30
 
