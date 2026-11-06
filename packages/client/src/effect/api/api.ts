@@ -2801,6 +2801,7 @@ export interface ConfigApi<E = never> {
 export type ExperimentalConfigUpdateInput = {
   readonly shell?: string | null | undefined
   readonly provider?: Config.ProviderPatch | undefined
+  readonly agent?: Config.AgentPatch | undefined
 }
 export type ExperimentalConfigUpdateOutput = void
 export type ExperimentalConfigUpdateOperation<E = never> = (

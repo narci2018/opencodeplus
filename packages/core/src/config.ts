@@ -496,6 +496,26 @@ export const layer = (options?: Options) =>
                     text = applyEdits(text, modify(text, ["providers"], undefined, { formattingOptions }))
                 }
               }
+              if (patch.agent !== undefined) {
+                const agent = patch.agent
+                const value = agent.remove
+                  ? undefined
+                  : {
+                      ...(agent.name !== undefined ? { name: agent.name } : {}),
+                      ...(agent.description !== undefined ? { description: agent.description } : {}),
+                      ...(agent.system !== undefined ? { system: agent.system } : {}),
+                      ...(agent.model !== undefined ? { model: agent.model } : {}),
+                      ...(agent.mode !== undefined ? { mode: agent.mode } : {}),
+                      ...(agent.hidden !== undefined ? { hidden: agent.hidden } : {}),
+                    }
+                text = applyEdits(text, modify(text, ["agents", agent.id], value, { formattingOptions }))
+                // Removing the last agent leaves an empty `agents` map; drop the key for a clean document.
+                if (agent.remove) {
+                  const parsed = parse(text) as { agents?: Record<string, unknown> } | undefined
+                  if (parsed?.agents && Object.keys(parsed.agents).length === 0)
+                    text = applyEdits(text, modify(text, ["agents"], undefined, { formattingOptions }))
+                }
+              }
               return text
             },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),

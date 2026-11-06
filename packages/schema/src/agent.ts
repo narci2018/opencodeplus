@@ -32,6 +32,10 @@ export const Info = Schema.Struct({
   color: Color.pipe(optional),
   steps: PositiveInt.pipe(optional),
   permissions: Permission.Ruleset,
+  // Built-in agents (registered by core plugins) are `true`; a user-defined agent is `false`.
+  // Absent means unknown, which the app treats as not custom so the composer switcher stays hidden
+  // unless a real custom agent exists or the user opts in via settings.
+  native: Schema.Boolean.pipe(optional),
 })
   .annotate({ identifier: "Agent.Info" })
   .pipe(
@@ -43,6 +47,7 @@ export const Info = Schema.Struct({
           request: { settings: {}, headers: {}, body: {} },
           mode: "primary",
           hidden: false,
+          native: false,
           permissions: [
             { action: "*", resource: "*", effect: "allow" },
             { action: "read", resource: "*.env", effect: "ask" },

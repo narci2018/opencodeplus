@@ -787,4 +787,26 @@ describe("ConfigNormalize", () => {
     })
     expect(result.encoded.share).toBeUndefined()
   })
+
+  test("does not turn legacy agent value wrappers into agents", () => {
+    // `agent.defaultModel` / `agent.maxResponseTokens` are not agent definitions; they are
+    // settings mistakenly nested under the legacy `agent` map. A `{ value }`-only entry is not a
+    // legacy agent (which needs at least one recognized agent field), so it must be dropped
+    // rather than surfacing as an agent named `DefaultModel` / `MaxResponseTokens` in the UI.
+    const result = normalized({
+      agent: {
+        defaultModel: { value: "ollama:qwen2.5-coder:14b-32k" },
+        maxResponseTokens: { value: 2048 },
+        build: { description: "the build agent" },
+      },
+      providers: {},
+    })
+    const agents = Schema.decodeUnknownSync(Info)(result.encoded).agents
+    expect(Object.keys(agents ?? {})).toEqual(["build"])
+    expect(agents?.build?.description).toBe("the build agent")
+    expect(result.diagnostics.map((diagnostic) => diagnostic.path)).toEqual([
+      ["agent", "defaultModel"],
+      ["agent", "maxResponseTokens"],
+    ])
+  })
 })

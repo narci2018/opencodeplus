@@ -138,10 +138,32 @@ export const ProviderPatch = Schema.Struct({
 }).annotate({ identifier: "Config.ProviderPatch" })
 export type ProviderPatch = Schema.Schema.Type<typeof ProviderPatch>
 
+export const AgentPatch = Schema.Struct({
+  /** The id this custom agent is registered under, e.g. `reviewer`. */
+  id: Schema.String,
+  /** Display name of the agent. */
+  name: Schema.String.pipe(optional),
+  /** Short description shown in the composer selector and agent list. */
+  description: Schema.String.pipe(optional),
+  /** The agent system prompt; the agent's role and instructions. */
+  system: Schema.String.pipe(optional),
+  /** The model this agent uses, overriding the configured default. */
+  model: ConfigModel.Selection.pipe(optional),
+  /** Whether the agent is selectable in the composer (`primary`/`all`) or a subagent. */
+  mode: Schema.Literals(["subagent", "primary", "all"]).pipe(optional),
+  /** Hide the agent from the composer selector. */
+  hidden: Schema.Boolean.pipe(optional),
+  /** When true, remove the entry instead of upserting it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.AgentPatch" })
+export type AgentPatch = Schema.Schema.Type<typeof AgentPatch>
+
 export const Patch = Schema.Struct({
   shell: Schema.NullOr(Schema.String).pipe(optional),
   /** Sets, updates, or removes one custom provider entry in the `providers` field. */
   provider: ProviderPatch.pipe(optional),
+  /** Sets, updates, or removes one custom agent entry in the `agents` field. */
+  agent: AgentPatch.pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

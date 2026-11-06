@@ -8,6 +8,8 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Added custom-agent settings dialog on the Providers page. Users can define their own agents by name, description, system prompt, model, and visibility (primary/all/subagent). Custom agents appear in the composer agent selector alongside Build and Plan.
+- Fixed the composer agent selector not auto-appearing when a custom agent exists. Agent definitions now carry a `native` flag (`true` for built-in agents, `false` for user-defined ones), and `hasCustomAgent` uses it to decide whether to show the selector. Previously every agent read as custom, so the selector stayed hidden unless manually toggled.
 - Added custom-model settings dialog supporting mainstream LLM protocols (OpenAI-compatible, Anthropic-compatible, Google Gemini, Ollama, OpenRouter). The dialog includes a test-connection button, drag-to-resize, and edit support for existing custom providers.
 
 #### Bug fixes

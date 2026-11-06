@@ -2628,6 +2628,7 @@ export type AgentInfo = {
   color?: AgentColor
   steps?: number
   permissions: PermissionRuleset
+  native?: boolean
 }
 
 export type SessionsResponse = {
@@ -4818,6 +4819,18 @@ export type ExperimentalConfigUpdateInput = {
         readonly name?: string
         readonly settings?: { readonly baseURL: string; readonly apiKey?: string }
         readonly models?: { readonly [x: string]: { readonly name?: string } }
+        readonly remove?: true
+      }
+    | undefined
+  readonly agent?:
+    | {
+        readonly id: string
+        readonly name?: string
+        readonly description?: string
+        readonly system?: string
+        readonly model?: string | { readonly providerID: string; readonly model: string; readonly variant?: string }
+        readonly mode?: "subagent" | "primary" | "all"
+        readonly hidden?: boolean
         readonly remove?: true
       }
     | undefined

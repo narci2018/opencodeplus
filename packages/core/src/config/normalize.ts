@@ -53,6 +53,28 @@ const unsupportedExperimental = [
 const unsupportedProvider = ["id", "whitelist", "blacklist"] as const
 const unsupportedModel = ["release_date", "attachment", "reasoning", "temperature", "experimental"] as const
 const LegacyAutoupdate = Schema.Literals([true, false, "notify"])
+// A legacy `agent` map entry is a real agent only if it has at least one recognized field. A
+// `{ value }`-only entry is a settings wrapper mistakenly nested under `agent` (e.g. a user's
+// `agent.defaultModel` or `agent.maxResponseTokens`), not an agent definition, so it must be
+// dropped instead of surfacing as an agent in the composer.
+const legacyAgentKeys = new Set([
+  "name",
+  "model",
+  "variant",
+  "temperature",
+  "top_p",
+  "prompt",
+  "tools",
+  "disable",
+  "description",
+  "mode",
+  "hidden",
+  "options",
+  "color",
+  "steps",
+  "maxSteps",
+  "permission",
+])
 
 export function normalize(input: unknown): Result {
   if (!isRecord(input))
@@ -131,7 +153,13 @@ export function normalize(input: unknown): Result {
   )
 
   const legacyAgents = mapValues(
-    decodeMap(input.agent, ConfigAgentV1.Info, ["agent"], diagnostics, decodeValue),
+    decodeMap(
+      omitNonAgentEntries(input.agent, ["agent"], diagnostics),
+      ConfigAgentV1.Info,
+      ["agent"],
+      diagnostics,
+      decodeValue,
+    ),
     (value) => canonical(ConfigAgent.Info, ConfigMigrateV1.migrateAgent(value)),
   )
   const legacySmallModel = own(input, "small_model")
@@ -749,6 +777,19 @@ function decodeMap<S extends Schema.Codec<unknown, unknown, never>, A>(
     Object.entries(value).flatMap(([name, raw]): [string, A][] => {
       const decoded = decode(schema, raw, [...path, name], diagnostics)
       return decoded === undefined ? [] : [[name, decoded]]
+    }),
+  )
+}
+
+function omitNonAgentEntries(value: unknown, path: string[], diagnostics: Diagnostic[]) {
+  if (!isRecord(value)) return value
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([name, raw]) => {
+      if (isRecord(raw) && !Object.keys(raw).some((key) => legacyAgentKeys.has(key))) {
+        diagnostics.push({ kind: "unsupported", path: [...path, name], message: "omitted non-agent setting" })
+        return []
+      }
+      return [[name, raw]]
     }),
   )
 }

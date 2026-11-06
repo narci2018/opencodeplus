@@ -21,6 +21,7 @@ export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Ag
     name: agent.id,
     description: agent.description,
     mode: agent.mode,
+    native: agent.native,
     hidden: agent.hidden,
     temperature: Number.isFinite(agent.request.settings.temperature)
       ? Number(agent.request.settings.temperature)
