@@ -127,8 +127,7 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
     event.preventDefault()
     event.stopPropagation()
     const handle = event.currentTarget as HTMLElement
-    // Go up to dialog-container (handle -> dialog-content -> dialog-container)
-    const container = handle.parentElement?.parentElement
+    const container = handle.closest('[data-slot="dialog-container"]') as HTMLElement | null
     if (!container) return
     resizeStart.x = event.clientX
     resizeStart.y = event.clientY
@@ -217,7 +216,7 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
           description={language.t("settings.models.custom.description")}
         />
       </DialogHeader>
-      <DialogBody class="custom-model-dialog-body">
+      <DialogBody class="custom-model-dialog-body" style={{ padding: "8px 24px 16px" }}>
         <div class="custom-model-dialog-field">
           <label class="custom-model-dialog-label" for="custom-model-protocol">
             {language.t("settings.models.custom.protocol.label")}

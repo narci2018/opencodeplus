@@ -2,6 +2,21 @@
 
 Release notes for OpenCode V2, newest first.
 
+## Unreleased
+
+### App
+
+#### Improvements
+
+- Added custom-model settings dialog supporting mainstream LLM protocols (OpenAI-compatible, Anthropic-compatible, Google Gemini, Ollama, OpenRouter). The dialog includes a test-connection button, drag-to-resize, and edit support for existing custom providers.
+
+#### Bug fixes
+
+- Fixed API key field in custom-model dialog intercepting clicks and preventing copy/paste. The TextField `copyable` prop no longer triggers a clipboard write on every input click.
+- Fixed custom-model dialog padding not applying due to CSS specificity. DialogBody now accepts a `style` prop for inline overrides, and the custom-model dialog sets explicit padding.
+- Fixed custom-model dialog resize handle not reliably finding the dialog container. The handler now uses `closest('[data-slot="dialog-container"]')` instead of fragile parent traversal.
+- Custom models section with "Add custom model" button is now always visible, even when no custom providers exist.
+
 ## v2.2.5 — 2026-10-30
 
 ### Highlights

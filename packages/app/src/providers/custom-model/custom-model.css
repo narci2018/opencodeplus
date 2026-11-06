@@ -64,11 +64,12 @@
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   cursor: nwse-resize;
   background: linear-gradient(135deg, transparent 50%, var(--v2-border-border) 50%);
   border-bottom-right-radius: 6px;
+  z-index: 10;
 }
 
 .custom-model-dialog-resize-handle[data-resizing] {

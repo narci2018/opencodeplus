@@ -43,11 +43,11 @@ export function DialogFooter(props: ParentProps) {
   return <div data-slot="dialog-footer">{props.children}</div>
 }
 
-export function DialogBody(props: ParentProps & { class?: ComponentProps<"div">["class"] }) {
-  const [local] = splitProps(props, ["class", "children"])
+export function DialogBody(props: ParentProps & { class?: ComponentProps<"div">["class"]; style?: ComponentProps<"div">["style"] }) {
+  const [local] = splitProps(props, ["class", "style", "children"])
 
   return (
-    <div data-slot="dialog-body" class={local.class}>
+    <div data-slot="dialog-body" class={local.class} style={local.style}>
       {local.children}
     </div>
   )
