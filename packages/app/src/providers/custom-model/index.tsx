@@ -2,7 +2,7 @@ import { Button } from "@opencode/ui/button"
 import { Menu } from "@opencode/ui/menu"
 import { Icon } from "@opencode/ui/icon"
 import { useDialog } from "@opencode/ui/context/dialog"
-import { createSignal, For, Show, type Component } from "solid-js"
+import { createSignal, For, onMount, Show, type Component } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
@@ -22,6 +22,8 @@ export const CustomModels: Component = () => {
   const dialog = useDialog()
 
   const [entries, setEntries] = createSignal<CustomProviderEntry[]>([])
+
+  onMount(() => void load())
 
   const load = async () => {
     try {
