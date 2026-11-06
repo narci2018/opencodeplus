@@ -62,10 +62,13 @@ describe("config update provider refresh", () => {
 
           return yield* Effect.gen(function* () {
             const config = yield* Config.Service
+            // The configured layer always provides `update`; the optional signature is for
+            // interface compatibility (test/in-memory layers may omit it).
+            const update = config.update!
 
             // Write an initial provider, then edit its model id through Config.update,
             // exactly as the custom-model dialog does on save.
-            yield* config.update({
+            yield* update({
               provider: {
                 id: "demo",
                 package: "@opencode/ai/providers/openai-compatible",
@@ -91,7 +94,7 @@ describe("config update provider refresh", () => {
 
             // Edit: change the model id. The dialog resolves `config.update` and immediately
             // refetches providers; the config entries must already show the new model.
-            yield* config.update({
+            yield* update({
               provider: {
                 id: "demo",
                 package: "@opencode/ai/providers/openai-compatible",
