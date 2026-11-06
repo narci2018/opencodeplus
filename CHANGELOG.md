@@ -16,6 +16,8 @@ Release notes for OpenCode V2, newest first.
 - Fixed custom-model dialog padding not applying due to CSS specificity. DialogBody now accepts a `style` prop for inline overrides, and the custom-model dialog sets explicit padding.
 - Fixed custom-model dialog resize handle not reliably finding the dialog container. The handler now uses `closest('[data-slot="dialog-container"]')` instead of fragile parent traversal.
 - Custom models section with "Add custom model" button is now always visible, even when no custom providers exist.
+- Fixed test-connection "Failed to fetch" CORS error. The dialog now routes the request through a new server-side proxy endpoint (`POST /api/experimental/network/proxy`) instead of direct browser fetch.
+- Moved custom-models section from Models settings page to Providers settings page, above "View more providers", matching the provider/model architecture.
 
 ## v2.2.5 — 2026-10-30
 

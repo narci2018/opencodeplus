@@ -312,6 +312,8 @@ import type {
   ExperimentalUsageLimitsInput,
   ExperimentalUsageLimitsOutput,
   ExperimentalNetworkEgressOutput,
+  ExperimentalNetworkProxyInput,
+  ExperimentalNetworkProxyOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1925,8 +1927,16 @@ const adaptGroupExperimentalUsage = (raw: RawClient["server.usage"]) => ({
 const EndpointExperimentalNetworkEgress = (raw: RawClient["server.network"]) => () =>
   preserveEffect<ExperimentalNetworkEgressOutput>()(raw["network.egress"]({}).pipe(Effect.mapError(mapClientError)))
 
+const EndpointExperimentalNetworkProxy = (raw: RawClient["server.network"]) => (input: ExperimentalNetworkProxyInput) =>
+  preserveEffect<ExperimentalNetworkProxyOutput>()(
+    raw["network.proxy"]({
+      payload: { url: input["url"], method: input["method"], headers: input["headers"], timeout: input["timeout"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupExperimentalNetwork = (raw: RawClient["server.network"]) => ({
   egress: EndpointExperimentalNetworkEgress(raw),
+  proxy: EndpointExperimentalNetworkProxy(raw),
 })
 
 const EndpointConfigGet = (raw: RawClient["server.config"]) => (input?: ConfigGetInput) =>
@@ -2089,6 +2099,8 @@ const adaptClient = (raw: RawClient) => {
     network: {
       /** @deprecated Use `client.experimental.network.egress`. Removed in the next minor. */
       egress: client.experimental.network.egress,
+      /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
+      proxy: client.experimental.network.proxy,
     },
     config: {
       ...client.config,

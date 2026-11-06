@@ -2759,8 +2759,24 @@ export type ExperimentalNetworkEgressOutput = {
 }
 export type ExperimentalNetworkEgressOperation<E = never> = () => Effect.Effect<ExperimentalNetworkEgressOutput, E>
 
+export type ExperimentalNetworkProxyInput = {
+  readonly url: string
+  readonly method: "GET" | "POST"
+  readonly headers: { readonly [x: string]: string }
+  readonly timeout?: number | undefined
+}
+export type ExperimentalNetworkProxyOutput = {
+  readonly status: number
+  readonly statusText: string
+  readonly body: string
+}
+export type ExperimentalNetworkProxyOperation<E = never> = (
+  input: ExperimentalNetworkProxyInput,
+) => Effect.Effect<ExperimentalNetworkProxyOutput, E>
+
 export interface ExperimentalNetworkApi<E = never> {
   readonly egress: ExperimentalNetworkEgressOperation<E>
+  readonly proxy: ExperimentalNetworkProxyOperation<E>
 }
 
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
@@ -3011,6 +3027,15 @@ export type NetworkEgressOutput = ExperimentalNetworkEgressOutput
 /** @deprecated Use `ExperimentalNetworkEgressOperation`. Removed in the next minor. */
 export type NetworkEgressOperation<E = never> = ExperimentalNetworkEgressOperation<E>
 
+/** @deprecated Use `ExperimentalNetworkProxyInput`. Removed in the next minor. */
+export type NetworkProxyInput = ExperimentalNetworkProxyInput
+
+/** @deprecated Use `ExperimentalNetworkProxyOutput`. Removed in the next minor. */
+export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
+
+/** @deprecated Use `ExperimentalNetworkProxyOperation`. Removed in the next minor. */
+export type NetworkProxyOperation<E = never> = ExperimentalNetworkProxyOperation<E>
+
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput
 
@@ -3116,5 +3141,8 @@ export interface AppApi<E = never> {
   readonly network: {
     /** @deprecated Use `client.experimental.network.egress`. Removed in the next minor. */
     readonly egress: ExperimentalNetworkEgressOperation<E>
+
+    /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
+    readonly proxy: ExperimentalNetworkProxyOperation<E>
   }
 }

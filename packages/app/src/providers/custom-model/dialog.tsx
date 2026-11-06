@@ -82,7 +82,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
       const endpointURL = baseURL().trim() || preset.defaultBaseURL || preset.baseURL
       const key = apiKey().trim()
 
-      // Build headers
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       }
@@ -90,29 +89,21 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
         headers.Authorization = `Bearer ${key}`
       }
 
-      // Make a minimal request based on protocol
-      let response: Response
-      if (protocol() === "google") {
-        // Google Gemini: use models endpoint
-        response = await fetch(`${endpointURL}/models?key=${key}`, {
-          method: "GET",
-          headers,
-        })
-      } else {
-        // OpenAI-compatible, Anthropic-compatible, Ollama, OpenRouter: use /models
-        response = await fetch(`${endpointURL}/models`, {
-          method: "GET",
-          headers,
-        })
-      }
+      const modelsURL = protocol() === "google" ? `${endpointURL}/models?key=${key}` : `${endpointURL}/models`
 
-      if (response.ok) {
+      const result = await sdk.api.experimental.network.proxy({
+        url: modelsURL,
+        method: "GET",
+        headers,
+      })
+
+      if (result.status >= 200 && result.status < 300) {
         setTestResult({ success: true, message: language.t("settings.models.custom.test.success") })
       } else {
-        const text = await response.text().catch(() => "")
+        const body = result.body.slice(0, 200)
         setTestResult({
           success: false,
-          message: `${response.status} ${response.statusText}${text ? `: ${text.slice(0, 200)}` : ""}`,
+          message: `${result.status} ${result.statusText}${body ? `: ${body}` : ""}`,
         })
       }
     } catch (cause) {

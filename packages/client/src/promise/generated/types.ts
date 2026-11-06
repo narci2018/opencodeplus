@@ -4793,6 +4793,15 @@ export type ExperimentalNetworkEgressOutput = {
   ip: string | null
 }
 
+export type ExperimentalNetworkProxyInput = {
+  readonly url: string
+  readonly method: "GET" | "POST"
+  readonly headers: { readonly [x: string]: string }
+  readonly timeout?: number | undefined
+}
+
+export type ExperimentalNetworkProxyOutput = { status: number; statusText: string; body: string }
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 
 export type ConfigGetOutput = Array<ConfigEntry>
@@ -4962,6 +4971,12 @@ export type UsageLimitsOutput = ExperimentalUsageLimitsOutput
 
 /** @deprecated Use `ExperimentalNetworkEgressOutput`. Removed in the next minor. */
 export type NetworkEgressOutput = ExperimentalNetworkEgressOutput
+
+/** @deprecated Use `ExperimentalNetworkProxyInput`. Removed in the next minor. */
+export type NetworkProxyInput = ExperimentalNetworkProxyInput
+
+/** @deprecated Use `ExperimentalNetworkProxyOutput`. Removed in the next minor. */
+export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
 
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput

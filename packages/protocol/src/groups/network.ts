@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
-import { ServiceUnavailableError } from "../errors.js"
+import { ServiceUnavailableError, InvalidRequestError } from "../errors.js"
 
 export const EgressInfo = Schema.Struct({
   proxy: Schema.Struct({
@@ -9,6 +9,19 @@ export const EgressInfo = Schema.Struct({
     noProxy: Schema.NullOr(Schema.String),
   }),
   ip: Schema.NullOr(Schema.String),
+})
+
+export const ProxyRequest = Schema.Struct({
+  url: Schema.String,
+  method: Schema.Union([Schema.Literal("GET"), Schema.Literal("POST")]),
+  headers: Schema.Record(Schema.String, Schema.String),
+  timeout: Schema.optional(Schema.Number),
+})
+
+export const ProxyResponse = Schema.Struct({
+  status: Schema.Number,
+  statusText: Schema.String,
+  body: Schema.String,
 })
 
 export const NetworkGroup = HttpApiGroup.make("server.network")
@@ -22,6 +35,20 @@ export const NetworkGroup = HttpApiGroup.make("server.network")
         summary: "Check network egress",
         description:
           "Report the proxy variables this service process runs with and the public IP it reaches through them. Model requests leave from this process, so this is the path a real model request takes: the proxy variables decide whether it goes through the configured proxy or direct.",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.post("network.proxy", "/api/experimental/network/proxy", {
+      payload: ProxyRequest,
+      success: ProxyResponse,
+      error: [InvalidRequestError, ServiceUnavailableError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "experimental.network.proxy",
+        summary: "Proxy an HTTP request",
+        description:
+          "Experimental: may change without compatibility guarantees. Make an HTTP request from the service process on behalf of the renderer, avoiding browser CORS restrictions. Used by the custom-model test-connection flow.",
       }),
     ),
   )

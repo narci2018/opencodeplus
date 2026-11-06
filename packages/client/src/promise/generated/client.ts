@@ -314,6 +314,8 @@ import type {
   ExperimentalUsageLimitsInput,
   ExperimentalUsageLimitsOutput,
   ExperimentalNetworkEgressOutput,
+  ExperimentalNetworkProxyInput,
+  ExperimentalNetworkProxyOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1723,6 +1725,23 @@ export function make(options: ClientOptions) {
             },
             requestOptions,
           ),
+        proxy: (input: ExperimentalNetworkProxyInput, requestOptions?: RequestOptions) =>
+          request<ExperimentalNetworkProxyOutput>(
+            {
+              method: "POST",
+              path: `/api/experimental/network/proxy`,
+              body: {
+                url: input["url"],
+                method: input["method"],
+                headers: input["headers"],
+                timeout: input["timeout"],
+              },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 503],
+              empty: false,
+            },
+            requestOptions,
+          ),
       },
       config: {
         update: (input?: ExperimentalConfigUpdateInput, requestOptions?: RequestOptions) =>
@@ -2777,6 +2796,8 @@ export function make(options: ClientOptions) {
     network: {
       /** @deprecated Use `client.experimental.network.egress`. Removed in the next minor. */
       egress: client.experimental.network.egress,
+      /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
+      proxy: client.experimental.network.proxy,
     },
     config: {
       ...client.config,

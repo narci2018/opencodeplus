@@ -15,7 +15,6 @@ import { CONSOLE_GROUP_KEY, consoleModelGroup, ProviderModelSections } from "@/p
 import { SettingsSearchEmpty } from "@/settings/search-empty"
 import { SettingsSearchField } from "@/settings/search-field"
 import { settingsScroller } from "@/settings/scroller"
-import { CustomModels } from "@/providers/custom-model"
 
 import "@/settings/settings.css"
 
@@ -192,7 +191,6 @@ export const SettingsModels: Component<{
               ref={(providerID, element) => sections.set(providerID, element)}
               rows={(items) => <ModelRows items={items} />}
             />
-            <CustomModels />
           </Show>
         </Show>
       </div>
