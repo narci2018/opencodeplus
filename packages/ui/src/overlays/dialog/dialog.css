@@ -17,6 +17,7 @@
   pointer-events: none;
 
   [data-slot="dialog-container"] {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -124,6 +125,33 @@
           }
         }
 
+        [data-slot="dialog-maximize-button"] {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 20px;
+          height: 20px;
+          margin-top: -2px;
+          margin-inline-end: -2px;
+          margin-inline-start: auto;
+          padding: 0;
+          border: none;
+          border-radius: 4px;
+          flex-shrink: 0;
+          cursor: pointer;
+          color: var(--v2-icon-icon-muted);
+          background: transparent;
+
+          &:hover {
+            background: var(--v2-overlay-simple-overlay-hover);
+          }
+        }
+
+        /* Two auto margins would split the free space, so the close button yields its push to the maximize button. */
+        [data-slot="dialog-maximize-button"] + [data-slot="dialog-close-button"] {
+          margin-inline-start: 4px;
+        }
+
         &[data-hide-close] [data-slot="dialog-close-button"] {
           display: none;
         }
@@ -154,6 +182,31 @@
       }
       &:focus-visible {
         outline: none;
+      }
+    }
+
+    [data-slot="dialog-resize-handle"] {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      border-bottom-right-radius: 6px;
+      cursor: nwse-resize;
+      z-index: 10;
+      background: linear-gradient(135deg, transparent 50%, var(--v2-border-border) 50%);
+
+      &:hover,
+      &[data-resizing] {
+        background: linear-gradient(135deg, transparent 50%, var(--v2-state-bg-accent) 50%);
+      }
+    }
+
+    &[data-maximized] {
+      border-radius: 0;
+
+      [data-slot="dialog-resize-handle"] {
+        display: none;
       }
     }
   }

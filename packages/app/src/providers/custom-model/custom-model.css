@@ -60,27 +60,6 @@
   background: var(--v2-state-bg-danger);
 }
 
-.custom-model-dialog-resize-handle {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, var(--v2-border-border) 50%);
-  border-bottom-right-radius: 6px;
-  z-index: 10;
-}
-
-.custom-model-dialog-resize-handle[data-resizing] {
-  background: linear-gradient(135deg, transparent 50%, var(--v2-state-bg-accent) 50%);
-}
-
-/* Override dialog size when resized - inline styles take precedence */
-.custom-model-dialog-resized [data-slot="dialog-container"] {
-  /* Width/height set via inline styles in resize handler */
-}
-
 /* Custom models section styled like provider groups */
 [data-component="custom-models-section"] {
   margin-top: 16px;

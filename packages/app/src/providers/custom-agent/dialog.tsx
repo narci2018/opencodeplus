@@ -230,7 +230,14 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   })
 
   return (
-    <Dialog size="x-large" variant="settings" preventBackdropDismiss={saving() || generating()} class="custom-agent-dialog">
+    <Dialog
+      size="x-large"
+      variant="settings"
+      preventBackdropDismiss={saving() || generating()}
+      resizable
+      maximizable
+      class="custom-agent-dialog"
+    >
       <DialogHeader>
         <DialogTitleGroup
           title={

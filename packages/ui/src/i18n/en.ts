@@ -263,6 +263,8 @@ const source = {
   "ui.common.confirm": "Confirm",
   "ui.common.dismiss": "Dismiss",
   "ui.common.close": "Close",
+  "ui.dialog.maximize": "Maximize",
+  "ui.dialog.restore": "Restore",
   "ui.common.next": "Next",
   "ui.common.submit": "Submit",
   "ui.common.showMore": "Show more",

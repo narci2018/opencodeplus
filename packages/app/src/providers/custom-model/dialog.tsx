@@ -48,9 +48,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   const [testing, setTesting] = createSignal(false)
   const [testResult, setTestResult] = createSignal<{ success: boolean; message: string } | undefined>(undefined)
   const [error, setError] = createSignal<string | undefined>(undefined)
-  const [dialogSize, setDialogSize] = createSignal<{ width: number; height: number } | undefined>(undefined)
-  const [resizing, setResizing] = createSignal(false)
-  const resizeStart = { x: 0, y: 0, width: 0, height: 0 }
 
   const preset = createMemo(() => PROTOCOL_PRESETS[protocol()])
   const editing = createMemo(() => props.existing.find((entry) => entry.id === providerID(name())))
@@ -114,38 +111,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
     }
   }
 
-  const onResizeMouseDown = (event: MouseEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
-    const handle = event.currentTarget as HTMLElement
-    const container = handle.closest('[data-slot="dialog-container"]') as HTMLElement | null
-    if (!container) return
-    resizeStart.x = event.clientX
-    resizeStart.y = event.clientY
-    resizeStart.width = container.offsetWidth
-    resizeStart.height = container.offsetHeight
-    setResizing(true)
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - resizeStart.x
-      const dy = moveEvent.clientY - resizeStart.y
-      const newWidth = Math.max(480, resizeStart.width + dx)
-      const newHeight = Math.max(400, resizeStart.height + dy)
-      container.style.width = `${newWidth}px`
-      container.style.height = `${newHeight}px`
-      setDialogSize({ width: newWidth, height: newHeight })
-    }
-
-    const onMouseUp = () => {
-      setResizing(false)
-      document.removeEventListener("mousemove", onMouseMove)
-      document.removeEventListener("mouseup", onMouseUp)
-    }
-
-    document.addEventListener("mousemove", onMouseMove)
-    document.addEventListener("mouseup", onMouseUp)
-  }
-
   const save = async () => {
     if (!canSave() || saving()) return
     setSaving(true)
@@ -191,12 +156,7 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   )
 
   return (
-    <Dialog
-      size="x-large"
-      variant="settings"
-      preventBackdropDismiss={saving()}
-      class={dialogSize() ? "custom-model-dialog-resized" : undefined}
-    >
+    <Dialog size="x-large" variant="settings" preventBackdropDismiss={saving()} resizable maximizable>
       <DialogHeader>
         <DialogTitleGroup
           title={
@@ -315,12 +275,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
           <span>{testResult()?.message}</span>
         </div>
       </Show>
-      <div
-        class="custom-model-dialog-resize-handle"
-        data-resizing={resizing() ? "" : undefined}
-        onMouseDown={onResizeMouseDown}
-        aria-label="Resize dialog"
-      />
     </Dialog>
   )
 }

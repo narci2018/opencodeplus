@@ -1,12 +1,17 @@
 import { CloseButton, Content, Description, Title } from "@kobalte/core/dialog"
 import {
+  type Accessor,
   type ComponentProps,
+  createContext,
   type JSXElement,
   type ParentProps,
   Show,
   children,
   createEffect,
+  createSignal,
+  onCleanup,
   splitProps,
+  useContext,
 } from "solid-js"
 import { useDialogLayer } from "../../context/dialog"
 import { useI18n } from "../../context/i18n"
@@ -27,6 +32,22 @@ export interface DialogProps extends ParentProps {
   fit?: boolean
   onCloseAutoFocus?: ComponentProps<typeof Content>["onCloseAutoFocus"]
   preventBackdropDismiss?: boolean
+  /** Adds a corner drag handle so the user can resize the dialog. */
+  resizable?: boolean
+  /** Adds a maximize/restore button to the header. The dialog starts resizable when maximizable. */
+  maximizable?: boolean
+}
+
+interface DialogMaximize {
+  maximized: Accessor<boolean>
+  toggle: () => void
+}
+
+const DialogMaximizeContext = createContext<DialogMaximize>()
+
+/** The maximize state of the enclosing `Dialog`; undefined unless that dialog rendered `maximizable`. */
+export function useDialogMaximize() {
+  return useContext(DialogMaximizeContext)
 }
 
 export interface DialogHeaderProps extends ParentProps {
@@ -71,12 +92,37 @@ export function DialogTitleGroup(props: DialogTitleGroupProps) {
 
 export function DialogHeader(props: DialogHeaderProps) {
   const i18n = useI18n()
+  const maximize = useDialogMaximize()
   const [local] = splitProps(props, ["closeLabel", "hideClose", "children"])
   const hideClose = () => local.hideClose === true
 
   return (
     <div data-slot="dialog-header" data-hide-close={hideClose() ? "" : undefined}>
       {local.children}
+      <Show when={maximize}>
+        {(current) => (
+          <button
+            type="button"
+            data-slot="dialog-maximize-button"
+            aria-label={current().maximized() ? i18n.t("ui.dialog.restore") : i18n.t("ui.dialog.maximize")}
+            onClick={() => current().toggle()}
+          >
+            <Show
+              when={current().maximized()}
+              fallback={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="9" height="9" rx="1" stroke="currentColor" />
+                </svg>
+              }
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="5.5" y="3.5" width="7" height="7" rx="1" stroke="currentColor" />
+                <rect x="3.5" y="5.5" width="7" height="7" rx="1" stroke="currentColor" fill="var(--v2-background-bg-layer-01)" />
+              </svg>
+            </Show>
+          </button>
+        )}
+      </Show>
       <Show when={!hideClose()}>
         <CloseButton data-slot="dialog-close-button" aria-label={local.closeLabel ?? i18n.t("ui.common.close")}>
           <svg
@@ -99,6 +145,9 @@ export function DialogHeader(props: DialogHeaderProps) {
   )
 }
 
+const MIN_RESIZE_WIDTH = 480
+const MIN_RESIZE_HEIGHT = 400
+
 export function Dialog(props: DialogProps) {
   const [local] = splitProps(props, [
     "size",
@@ -110,10 +159,95 @@ export function Dialog(props: DialogProps) {
     "children",
     "onCloseAutoFocus",
     "preventBackdropDismiss",
+    "resizable",
+    "maximizable",
   ])
 
   const layer = useDialogLayer()
   createEffect(() => layer?.setBackdropDismiss(!local.preventBackdropDismiss))
+
+  const maximizable = () => local.maximizable === true
+  const resizable = () => local.resizable === true || maximizable()
+
+  let container: HTMLDivElement | undefined
+  const [maximized, setMaximized] = createSignal(false)
+  const [resizing, setResizing] = createSignal(false)
+  // The inline size the dialog had before it was maximized; empty strings mean the CSS default size.
+  let restored: { width: string; height: string } | undefined
+  // Active drag listeners, removed by cleanup if the dialog unmounts mid-drag.
+  let dragging: { move: (event: MouseEvent) => void; up: () => void } | undefined
+
+  onCleanup(() => {
+    if (!dragging) return
+    document.removeEventListener("mousemove", dragging.move)
+    document.removeEventListener("mouseup", dragging.up)
+    dragging = undefined
+  })
+
+  const toggleMaximize = () => {
+    if (!container) return
+    if (maximized()) {
+      if (restored?.width) {
+        container.style.width = restored.width
+        container.style.height = restored.height
+      } else {
+        container.style.width = ""
+        container.style.height = ""
+      }
+      container.style.marginLeft = ""
+      container.style.marginTop = ""
+      restored = undefined
+      setMaximized(false)
+      return
+    }
+    restored = { width: container.style.width, height: container.style.height }
+    container.style.width = "calc(100vw - 24px)"
+    container.style.height = "calc(100vh - 24px)"
+    setMaximized(true)
+  }
+
+  const startResize = (event: MouseEvent) => {
+    if (!container || maximized() || dragging) return
+    event.preventDefault()
+    event.stopPropagation()
+    // Pin the top-left corner while dragging: with the pinned margins, auto margins on the other
+    // sides absorb the flex centering space, so the dialog grows toward the bottom-right instead
+    // of around its center.
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      width: container.offsetWidth,
+      height: container.offsetHeight,
+      left: container.offsetLeft,
+      top: container.offsetTop,
+    }
+    const previousUserSelect = document.body.style.userSelect
+    const previousCursor = document.body.style.cursor
+    document.body.style.userSelect = "none"
+    document.body.style.cursor = "nwse-resize"
+    setResizing(true)
+
+    const move = (moveEvent: MouseEvent) => {
+      if (!container) return
+      const width = Math.max(MIN_RESIZE_WIDTH, start.width + moveEvent.clientX - start.x)
+      const height = Math.max(MIN_RESIZE_HEIGHT, start.height + moveEvent.clientY - start.y)
+      container.style.width = `${width}px`
+      container.style.height = `${height}px`
+      container.style.marginLeft = `${start.left}px`
+      container.style.marginTop = `${start.top}px`
+    }
+    const up = () => {
+      setResizing(false)
+      document.body.style.userSelect = previousUserSelect
+      document.body.style.cursor = previousCursor
+      document.removeEventListener("mousemove", move)
+      document.removeEventListener("mouseup", up)
+      dragging = undefined
+    }
+    dragging = { move, up }
+    document.addEventListener("mousemove", move)
+    document.addEventListener("mouseup", up)
+  }
 
   return (
     <div
@@ -122,7 +256,7 @@ export function Dialog(props: DialogProps) {
       data-fit={local.fit ? true : undefined}
       data-size={local.size || "normal"}
     >
-      <div data-slot="dialog-container" class={local.containerClass}>
+      <div data-slot="dialog-container" class={local.containerClass} data-maximized={maximized() ? "" : undefined} ref={(el) => (container = el)}>
         <Content
           data-slot="dialog-content"
           onCloseAutoFocus={local.onCloseAutoFocus}
@@ -168,8 +302,22 @@ export function Dialog(props: DialogProps) {
             })
           }}
         >
-          {local.children}
+          {maximizable() ? (
+            <DialogMaximizeContext.Provider value={{ maximized, toggle: toggleMaximize }}>
+              {local.children}
+            </DialogMaximizeContext.Provider>
+          ) : (
+            local.children
+          )}
         </Content>
+        <Show when={resizable()}>
+          <div
+            data-slot="dialog-resize-handle"
+            data-resizing={resizing() ? "" : undefined}
+            onMouseDown={startResize}
+            aria-hidden="true"
+          />
+        </Show>
       </div>
     </div>
   )

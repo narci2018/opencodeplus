@@ -346,4 +346,52 @@ describe("CustomAgentDialog driver", () => {
     expect(state.toasts[0].variant).toBe("error")
     expect(state.toasts[0].title).toBe("settings.agents.custom.generate.failed.title")
   })
+
+  test("maximizes and restores the dialog", () => {
+    const host = mountDialog()
+
+    const container = host.querySelector<HTMLElement>('[data-slot="dialog-container"]')
+    const maximize = host.querySelector<HTMLButtonElement>('[data-slot="dialog-maximize-button"]')
+    expect(container).toBeTruthy()
+    expect(maximize).toBeTruthy()
+
+    maximize!.click()
+    expect(container!.hasAttribute("data-maximized")).toBe(true)
+    expect(container!.style.width).toBe("calc(100vw - 24px)")
+    expect(container!.style.height).toBe("calc(100vh - 24px)")
+
+    maximize!.click()
+    expect(container!.hasAttribute("data-maximized")).toBe(false)
+    // The dialog had no inline size before maximizing, so restoring clears back to the CSS default.
+    expect(container!.style.width).toBe("")
+    expect(container!.style.height).toBe("")
+  })
+
+  test("resizes the dialog from the corner handle", () => {
+    const host = mountDialog()
+
+    const container = host.querySelector<HTMLElement>('[data-slot="dialog-container"]')
+    const handle = host.querySelector<HTMLElement>('[data-slot="dialog-resize-handle"]')
+    expect(container).toBeTruthy()
+    expect(handle).toBeTruthy()
+
+    handle!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }))
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 700, clientY: 600 }))
+    document.dispatchEvent(new MouseEvent("mouseup"))
+
+    // happy-dom has no layout, so the drag clamps against the minimums from a zero-size start.
+    expect(container!.style.width).toBe("600px")
+    expect(container!.style.height).toBe("500px")
+    // The pinned margins keep the top-left corner fixed instead of re-centering.
+    expect(container!.style.marginLeft).toBe("0px")
+    expect(container!.style.marginTop).toBe("0px")
+
+    // A drag with a delta below the minimum clamps instead of shrinking. happy-dom has no layout,
+    // so the second drag again starts from a zero-size read and lands on the 480px floor.
+    handle!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 0, clientY: 0 }))
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 40, clientY: 0 }))
+    document.dispatchEvent(new MouseEvent("mouseup"))
+
+    expect(container!.style.width).toBe("480px")
+  })
 })

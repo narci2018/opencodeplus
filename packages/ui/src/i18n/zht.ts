@@ -170,6 +170,8 @@ export const dict = {
   "ui.common.confirm": "確認",
   "ui.common.dismiss": "忽略",
   "ui.common.close": "關閉",
+  "ui.dialog.maximize": "最大化",
+  "ui.dialog.restore": "還原",
   "ui.common.next": "下一步",
   "ui.common.submit": "提交",
   "ui.common.showMore": "顯示更多",
