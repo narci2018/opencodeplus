@@ -19,7 +19,7 @@ import { showToast } from "@/shell/notifications/toast"
 import { getRelativeTime } from "@/shell/time"
 import { sessionLabel } from "@/session/title"
 import { pathKey } from "@/workspaces/path-key"
-import { worktreeInventoryKey } from "@/workspaces/inventory"
+import { worktreeInventoryKey, worktreeInventoryViewKey } from "@/workspaces/inventory"
 import { SettingsList } from "@/settings/list"
 import { useTabs } from "@/shell/tabs/tabs"
 import { useHostApis } from "@/runtime/plugin/root"
@@ -38,6 +38,7 @@ import {
 import { listAllSessions } from "@/session/list"
 import type { ServerScope } from "@/runtime/server/scope"
 import { workspaceInventoryQuery } from "./queries"
+import { DialogCreateWorkspace } from "./create-dialog"
 import "@/settings/settings.css"
 
 type Workspace = {
@@ -384,6 +385,23 @@ export const SettingsWorkspaces: Component<{
     )
   }
 
+  const openCreate = () => {
+    void dialog.show(
+      () => (
+        <DialogCreateWorkspace
+          projects={projectQuery.data ?? []}
+          data={data}
+          onCreated={async (projectID) => {
+            await queryClient.invalidateQueries({ queryKey: worktreeInventoryKey(serverSDK.scope, projectID) })
+            await queryClient.invalidateQueries({ queryKey: worktreeInventoryViewKey(serverSDK.scope, undefined) })
+          }}
+          onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
+  }
+
   return (
     <>
       <div class="settings-tab-header settings-workspaces-header">
@@ -392,7 +410,12 @@ export const SettingsWorkspaces: Component<{
             <h2 class="settings-tab-title">{language.t("settings.tab.workspaces")}</h2>
             <span class="text-11-regular text-v2-text-text-muted">{language.t("settings.workspaces.description")}</span>
           </div>
-          <div class="settings-tab-header-actions">{props.headerAction}</div>
+          <div class="settings-tab-header-actions">
+            <Button size="small" variant="ghost-muted" icon="plus" onClick={openCreate}>
+              {language.t("settings.workspaces.create")}
+            </Button>
+            {props.headerAction}
+          </div>
         </div>
       </div>
 
