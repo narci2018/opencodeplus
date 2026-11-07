@@ -19,6 +19,15 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Reorganized the "Usage statistics" settings page with a tabbed view: "By project" and "By model" tabs now mirror the range selector. The standalone "Daily activity" bar has been removed from the overview, and "Sessions" is now organized directly as a linked sub-group under the "By project" tab with project selection and filter reset.
+- Added advanced visual analytics: horizontal cost share distribution bars for projects and models, plus a 4-color stacked Token composition breakdown (Input, Output, Reasoning, Cache) with interactive legend.
+- Added interactive column sorting for all numeric columns across project, model, session, and dialog tables, with toggleable ascending/descending indicators (▲ / ▼).
+- Drastically accelerated "Usage statistics" page loading by increasing the session batch size to 500, dropping redundant cursor order parameters, and immediately short-circuiting pagination once sessions exceed the requested time window (e.g. 7d or 30d).
+
+#### Bug fixes
+
+- Fixed session detail dialog failing with "Usage statistics could not be loaded" error when opening sessions with many messages. The paginated message fetch no longer sends conflicting `order` parameters alongside `cursor`.
+
 - The custom-agent and custom-model dialogs can now be maximized from a header button and resized by dragging the bottom-right corner. The corner drag pins the top-left of the dialog instead of growing it around the center, and maximizing hides the handle until restored.
 - Redesigned the custom-agent dialog with a TRAE-style creation flow: an optional natural-language brief with a Generate button that fills the form via one stateless model call, a "Callable by other agents" switch (with the required when-to-call description stored as the agent description), a model picker fed by the provider catalog, and a Tools section with MCP server checkboxes and built-in tool groups. Unchecked groups and unselected MCP servers are written as permission deny rules on the agent entry, and `Config.AgentPatch` now accepts `permissions`.
 - Added custom-agent settings dialog on the Providers page. Users can define their own agents by name, description, system prompt, model, and visibility (primary/all/subagent). Custom agents appear in the composer agent selector alongside Build and Plan.

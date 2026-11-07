@@ -198,7 +198,6 @@ describe("SettingsUsage driver", () => {
     // Overview cards come from the stats endpoint.
     expect(text(host)).toContain("settings.usage.card.cost")
     expect(text(host)).toContain("$1.23")
-    expect(text(host)).toContain("settings.usage.section.activity")
 
     // Projects are grouped by name with summed costs: Alpha = 1.0 + 0.5.
     expect(text(host)).toContain("Alpha")
@@ -206,10 +205,18 @@ describe("SettingsUsage driver", () => {
     expect(text(host)).toContain("Beta")
     expect(text(host)).toContain("$0.20")
 
-    // Session rows show titles and compact token totals.
+    // Session rows show titles and compact token totals in the sub-group under projects.
     expect(text(host)).toContain("Alpha build")
     expect(text(host)).toContain("1.2k")
     expect(text(host)).toContain("claude-sonnet-4")
+
+    // Switch to the models tab.
+    const modelsTab = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.textContent?.includes("settings.usage.section.models"),
+    )
+    expect(modelsTab).toBeTruthy()
+    modelsTab!.click()
+    await settle()
 
     // The by-model table carries the full token breakdown and the per-step efficiency metric.
     expect(text(host)).toContain("settings.usage.tokens.perStep")
@@ -254,5 +261,24 @@ describe("SettingsUsage driver", () => {
     expect(text(dialogHost)).toContain("$0.10")
     // The user message (no usage) stays out of the table.
     expect(text(dialogHost)).not.toContain("m3")
+  })
+
+  test("toggles column sorting on header click", async () => {
+    const host = mount()
+    await settle()
+
+    // Initially sorted by cost desc: Alpha ($1.50) then Beta ($0.20)
+    const costHeader = Array.from(host.querySelectorAll<HTMLButtonElement>(".usage-th-sort")).find((btn) =>
+      btn.textContent?.includes("settings.usage.card.cost"),
+    )
+    expect(costHeader).toBeTruthy()
+
+    // Click cost header to toggle to asc
+    costHeader!.click()
+    await settle()
+
+    const rows = Array.from(host.querySelectorAll<HTMLButtonElement>(".usage-table-row--click"))
+    // In asc order, beta project ($0.20) should be first
+    expect(rows[0]?.textContent).toContain("beta")
   })
 })
