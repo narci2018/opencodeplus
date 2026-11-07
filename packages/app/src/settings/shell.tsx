@@ -26,6 +26,7 @@ import { SettingsProjects } from "./workspaces/projects"
 import { SettingsExtensions } from "./providers/extensions"
 import { SettingsAbout } from "./about/about"
 import { SettingsAgents } from "./agents/agents"
+import { SettingsUsage } from "./usage/usage"
 import { SettingsServerDataScope } from "./server-scope"
 import { SettingsNavigation, type SettingsNavGroup } from "./navigation"
 import { SettingsProjectGeneral } from "./workspaces/project"
@@ -48,6 +49,7 @@ const serverTabs = [
   { value: "providers", icon: pageIcons.providers, label: "settings.providers.title" },
   { value: "models", icon: pageIcons.models, label: "settings.models.title" },
   { value: "agents", icon: pageIcons.agents, label: "settings.agents.title" },
+  { value: "usage", icon: pageIcons.usage, label: "settings.usage.title" },
   { value: "extensions", icon: pageIcons.extensions, label: "settings.tab.extensions" },
   { value: "projects", icon: pageIcons.projects, label: "settings.tab.projects" },
   { value: "workspaces", icon: pageIcons.workspaces, label: "settings.tab.workspaces" },
@@ -58,6 +60,7 @@ const serverPages = {
   providers: { title: "settings.providers.title", description: "settings.providers.description" },
   models: { title: "settings.models.title", description: "settings.models.description" },
   agents: { title: "settings.agents.title", description: "settings.agents.description" },
+  usage: { title: "settings.usage.title", description: "settings.usage.description" },
   extensions: { title: "settings.tab.extensions", description: "settings.extensions.description" },
   projects: { title: "settings.projects.title", description: "settings.projects.description" },
   workspaces: { title: "settings.tab.workspaces", description: "settings.workspaces.description" },
@@ -342,6 +345,9 @@ function RootSettings() {
             </Tabs.Content>
             <Tabs.Content value="agents" class="settings-panel">
               <SettingsAgents />
+            </Tabs.Content>
+            <Tabs.Content value="usage" class="settings-panel">
+              <SettingsUsage headerAction={<SettingsServerSwitcher />} />
             </Tabs.Content>
             <Tabs.Content value="extensions" class="settings-panel">
               <SettingsExtensions

@@ -251,6 +251,7 @@ export const serverSettings: Entry<SettingsServerTab | "servers">[] = [
   { tab: "providers", label: "settings.providers.title", keywords: "connect api key credentials" },
   { tab: "models", label: "settings.models.title", keywords: "model picker visibility" },
   { tab: "agents", label: "settings.agents.title", keywords: "agent custom DIY system prompt" },
+  { tab: "usage", label: "settings.usage.title", keywords: "tokens cost statistics usage sessions consumption" },
   { tab: "extensions", label: "settings.tab.extensions" },
   {
     tab: "extensions",

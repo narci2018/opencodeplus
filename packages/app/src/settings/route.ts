@@ -8,6 +8,7 @@ export type SettingsRootTab =
   | "providers"
   | "models"
   | "agents"
+  | "usage"
   | "extensions"
   | "servers"
   | "experimental"
@@ -19,7 +20,7 @@ declare const pluginTab: unique symbol
 export type SettingsPluginTab = string & { readonly [pluginTab]: true }
 
 /** Root pages that show one server's settings: the selected server, or the default one. */
-export type SettingsServerTab = "projects" | "workspaces" | "providers" | "models" | "agents" | "extensions"
+export type SettingsServerTab = "projects" | "workspaces" | "providers" | "models" | "agents" | "usage" | "extensions"
 
 export type SettingsProjectTab = "general" | "workspaces" | "extensions"
 
@@ -54,6 +55,7 @@ const rootTabs: Record<SettingsRootTab, true> = {
   providers: true,
   models: true,
   agents: true,
+  usage: true,
   extensions: true,
   servers: true,
   experimental: true,
