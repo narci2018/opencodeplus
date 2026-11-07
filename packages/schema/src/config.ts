@@ -160,12 +160,44 @@ export const AgentPatch = Schema.Struct({
 }).annotate({ identifier: "Config.AgentPatch" })
 export type AgentPatch = Schema.Schema.Type<typeof AgentPatch>
 
+export const McpPatch = Schema.Struct({
+  /** The name this MCP server is registered under in the `mcp.servers` map. */
+  name: Schema.String,
+  /** The server configuration; required unless `remove` is set. */
+  config: ConfigMCP.Server.pipe(optional),
+  /** When true, remove the entry instead of upserting it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.McpPatch" })
+export type McpPatch = Schema.Schema.Type<typeof McpPatch>
+
+export const PluginPatch = Schema.Struct({
+  /** The npm/Git package specifier or local plugin directory to add, e.g. `@opencode/plugin-figma`. */
+  package: Schema.String,
+  /** When true, remove every matching entry (string or `package` object) instead of adding it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.PluginPatch" })
+export type PluginPatch = Schema.Schema.Type<typeof PluginPatch>
+
+export const SkillPatch = Schema.Struct({
+  /** A skills directory path or http(s) URL to discover skills from. */
+  source: Schema.String,
+  /** When true, remove the entry instead of adding it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.SkillPatch" })
+export type SkillPatch = Schema.Schema.Type<typeof SkillPatch>
+
 export const Patch = Schema.Struct({
   shell: Schema.NullOr(Schema.String).pipe(optional),
   /** Sets, updates, or removes one custom provider entry in the `providers` field. */
   provider: ProviderPatch.pipe(optional),
   /** Sets, updates, or removes one custom agent entry in the `agents` field. */
   agent: AgentPatch.pipe(optional),
+  /** Sets, updates, or removes one MCP server entry in the `mcp.servers` field. */
+  mcp: McpPatch.pipe(optional),
+  /** Adds or removes one plugin entry in the `plugins` array. */
+  plugin: PluginPatch.pipe(optional),
+  /** Adds or removes one skills source in the `skills` array. */
+  skill: SkillPatch.pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

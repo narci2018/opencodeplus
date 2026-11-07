@@ -2802,6 +2802,9 @@ export type ExperimentalConfigUpdateInput = {
   readonly shell?: string | null | undefined
   readonly provider?: Config.ProviderPatch | undefined
   readonly agent?: Config.AgentPatch | undefined
+  readonly mcp?: Config.McpPatch | undefined
+  readonly plugin?: Config.PluginPatch | undefined
+  readonly skill?: Config.SkillPatch | undefined
 }
 export type ExperimentalConfigUpdateOutput = void
 export type ExperimentalConfigUpdateOperation<E = never> = (

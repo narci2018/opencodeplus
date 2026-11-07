@@ -517,6 +517,47 @@ export const layer = (options?: Options) =>
                     text = applyEdits(text, modify(text, ["agents"], undefined, { formattingOptions }))
                 }
               }
+              if (patch.mcp !== undefined) {
+                const server = patch.mcp
+                text = applyEdits(
+                  text,
+                  modify(text, ["mcp", "servers", server.name], server.remove ? undefined : server.config, {
+                    formattingOptions,
+                  }),
+                )
+                // Removing the last server leaves an empty `mcp.servers` map, and an `mcp` with neither
+                // servers nor timeout is empty; drop the keys for a clean document.
+                if (server.remove) {
+                  const parsed = parse(text) as { mcp?: { servers?: Record<string, unknown>; timeout?: unknown } } | undefined
+                  if (parsed?.mcp?.servers && Object.keys(parsed.mcp.servers).length === 0) {
+                    text = applyEdits(text, modify(text, ["mcp", "servers"], undefined, { formattingOptions }))
+                    if (parsed.mcp.timeout === undefined)
+                      text = applyEdits(text, modify(text, ["mcp"], undefined, { formattingOptions }))
+                  }
+                }
+              }
+              if (patch.plugin !== undefined) {
+                const parsed = parse(text) as { plugins?: unknown[] } | undefined
+                const current = Array.isArray(parsed?.plugins) ? parsed.plugins : []
+                const spec = patch.plugin.package
+                const matches = (entry: unknown) =>
+                  typeof entry === "string" ? entry === spec : (entry as { package?: string } | null)?.package === spec
+                const next = patch.plugin.remove
+                  ? current.filter((entry) => !matches(entry))
+                  : [...current.filter((entry) => !matches(entry)), spec]
+                text = applyEdits(text, modify(text, ["plugins"], next.length > 0 ? next : undefined, { formattingOptions }))
+              }
+              if (patch.skill !== undefined) {
+                const parsed = parse(text) as { skills?: unknown[] } | undefined
+                const current = Array.isArray(parsed?.skills) ? parsed.skills : []
+                const source = patch.skill.source
+                const next = patch.skill.remove
+                  ? current.filter((entry) => entry !== source)
+                  : current.includes(source)
+                    ? current
+                    : [...current, source]
+                text = applyEdits(text, modify(text, ["skills"], next.length > 0 ? next : undefined, { formattingOptions }))
+              }
               return text
             },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),

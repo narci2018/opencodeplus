@@ -4839,6 +4839,44 @@ export type ExperimentalConfigUpdateInput = {
         readonly remove?: true
       }
     | undefined
+  readonly mcp?:
+    | {
+        readonly name: string
+        readonly config?:
+          | {
+              readonly type: "local"
+              readonly command: ReadonlyArray<string>
+              readonly cwd?: string
+              readonly environment?: { readonly [x: string]: string }
+              readonly disabled?: boolean
+              readonly codemode?: boolean
+              readonly timeout?: { readonly startup?: number; readonly catalog?: number; readonly execution?: number }
+              readonly protocol?: "legacy" | "auto" | "2026-07-28"
+            }
+          | {
+              readonly type: "remote"
+              readonly url: string
+              readonly headers?: { readonly [x: string]: string }
+              readonly oauth?:
+                | {
+                    readonly client_id?: string
+                    readonly client_secret?: string
+                    readonly scope?: string
+                    readonly callback_port?: number
+                    readonly redirect_uri?: string
+                    readonly auth_server_metadata_url?: string
+                  }
+                | false
+              readonly disabled?: boolean
+              readonly codemode?: boolean
+              readonly timeout?: { readonly startup?: number; readonly catalog?: number; readonly execution?: number }
+              readonly protocol?: "legacy" | "auto" | "2026-07-28"
+            }
+        readonly remove?: true
+      }
+    | undefined
+  readonly plugin?: { readonly package: string; readonly remove?: true } | undefined
+  readonly skill?: { readonly source: string; readonly remove?: true } | undefined
 }
 
 export type ExperimentalConfigUpdateOutput = void

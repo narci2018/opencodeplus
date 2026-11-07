@@ -16955,6 +16955,30 @@
         "required": ["command"],
         "additionalProperties": false
       },
+      "Config.McpPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Mcp.LocalConfigEncoded"
+              },
+              {
+                "$ref": "#/components/schemas/Mcp.RemoteConfigEncoded"
+              }
+            ]
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
       "Config.Model.Capabilities": {
         "type": "object",
         "properties": {
@@ -17249,6 +17273,15 @@
           },
           "agent": {
             "$ref": "#/components/schemas/Config.AgentPatch"
+          },
+          "mcp": {
+            "$ref": "#/components/schemas/Config.McpPatch"
+          },
+          "plugin": {
+            "$ref": "#/components/schemas/Config.PluginPatch"
+          },
+          "skill": {
+            "$ref": "#/components/schemas/Config.SkillPatch"
           }
         },
         "additionalProperties": false
@@ -17261,6 +17294,20 @@
           },
           "options": {
             "type": "object"
+          }
+        },
+        "required": ["package"],
+        "additionalProperties": false
+      },
+      "Config.PluginPatch": {
+        "type": "object",
+        "properties": {
+          "package": {
+            "type": "string"
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
           }
         },
         "required": ["package"],
@@ -17452,6 +17499,20 @@
           }
         },
         "required": ["path"],
+        "additionalProperties": false
+      },
+      "Config.SkillPatch": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["source"],
         "additionalProperties": false
       },
       "Config.WarmingEncoded": {
