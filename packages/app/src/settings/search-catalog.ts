@@ -252,6 +252,7 @@ export const serverSettings: Entry<SettingsServerTab | "servers">[] = [
   { tab: "models", label: "settings.models.title", keywords: "model picker visibility" },
   { tab: "agents", label: "settings.agents.title", keywords: "agent custom DIY system prompt" },
   { tab: "usage", label: "settings.usage.title", keywords: "tokens cost statistics usage sessions consumption" },
+  { tab: "rules", label: "settings.rules.title", keywords: "rules memory agents.md claude.md instructions context" },
   { tab: "extensions", label: "settings.tab.extensions" },
   {
     tab: "extensions",

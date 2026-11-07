@@ -316,6 +316,8 @@ import type {
   ExperimentalNetworkEgressOutput,
   ExperimentalNetworkProxyInput,
   ExperimentalNetworkProxyOutput,
+  ExperimentalRulesFilesInput,
+  ExperimentalRulesFilesOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1743,6 +1745,20 @@ export function make(options: ClientOptions) {
             requestOptions,
           ),
       },
+      rules: {
+        files: (input?: ExperimentalRulesFilesInput, requestOptions?: RequestOptions) =>
+          request<ExperimentalRulesFilesOutput>(
+            {
+              method: "GET",
+              path: `/api/experimental/rules/files`,
+              query: { location: input?.["location"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 404],
+              empty: false,
+            },
+            requestOptions,
+          ),
+      },
       config: {
         update: (input?: ExperimentalConfigUpdateInput, requestOptions?: RequestOptions) =>
           request<ExperimentalConfigUpdateOutput>(
@@ -1756,6 +1772,9 @@ export function make(options: ClientOptions) {
                 mcp: input?.["mcp"],
                 plugin: input?.["plugin"],
                 skill: input?.["skill"],
+                rules: input?.["rules"],
+                memory: input?.["memory"],
+                instruction: input?.["instruction"],
               },
               successStatus: 204,
               declaredStatuses: [400, 401, 404],
@@ -2805,6 +2824,11 @@ export function make(options: ClientOptions) {
       egress: client.experimental.network.egress,
       /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
       proxy: client.experimental.network.proxy,
+    },
+    /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */
+    rules: {
+      /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
+      files: client.experimental.rules.files,
     },
     config: {
       ...client.config,

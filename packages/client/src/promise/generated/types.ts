@@ -366,6 +366,20 @@ export type WebSearchResult = { url: string; title?: string; content?: string; t
 
 export type UsageLimitsMeter = { percent: number; limited: boolean; resetsAt: number }
 
+export type RulesFilesInfo = {
+  rules: { agents_md: boolean; claude_md: boolean }
+  instructions: Array<string>
+  globalAgents: { path: string; content: string | null }
+  projectAgents?: { path: string; content: string | null } | undefined
+  memory: {
+    enabled: boolean
+    distill: boolean
+    global: { path: string; content: string | null }
+    project?: { path: string; content: string | null } | undefined
+    projects: Array<{ projectID: string; name: string; directory: string; path: string }>
+  }
+}
+
 export type McpProtocol = "legacy" | "auto" | "2026-07-28"
 
 export type ConfigCompactionPercent = string
@@ -2441,6 +2455,8 @@ export type ConfigEntry =
           }
         }
         instructions?: Array<string>
+        rules?: { agents_md?: boolean; claude_md?: boolean }
+        memory?: { enabled?: boolean; distill?: boolean }
         references?: {
           [x: string]:
             | string
@@ -4803,6 +4819,12 @@ export type ExperimentalNetworkProxyInput = {
 
 export type ExperimentalNetworkProxyOutput = { status: number; statusText: string; body: string }
 
+export type ExperimentalRulesFilesInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+}
+
+export type ExperimentalRulesFilesOutput = RulesFilesInfo
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 
 export type ConfigGetOutput = Array<ConfigEntry>
@@ -4877,6 +4899,9 @@ export type ExperimentalConfigUpdateInput = {
     | undefined
   readonly plugin?: { readonly package: string; readonly remove?: true } | undefined
   readonly skill?: { readonly source: string; readonly remove?: true } | undefined
+  readonly rules?: { readonly agents_md?: boolean; readonly claude_md?: boolean } | undefined
+  readonly memory?: { readonly enabled?: boolean; readonly distill?: boolean } | undefined
+  readonly instruction?: { readonly source: string; readonly remove?: true } | undefined
 }
 
 export type ExperimentalConfigUpdateOutput = void
@@ -5033,6 +5058,12 @@ export type NetworkProxyInput = ExperimentalNetworkProxyInput
 
 /** @deprecated Use `ExperimentalNetworkProxyOutput`. Removed in the next minor. */
 export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
+
+/** @deprecated Use `ExperimentalRulesFilesInput`. Removed in the next minor. */
+export type RulesFilesInput = ExperimentalRulesFilesInput
+
+/** @deprecated Use `ExperimentalRulesFilesOutput`. Removed in the next minor. */
+export type RulesFilesOutput = ExperimentalRulesFilesOutput
 
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput

@@ -256,6 +256,17 @@ export function normalize(input: unknown): Result {
   const instructions = decodeList(input.instructions, Schema.String, ["instructions"], diagnostics, decodeEncoded)
   if (instructions.length || Array.isArray(input.instructions)) encoded.instructions = instructions
 
+  const nativeObjects = {
+    rules: Info.fields.rules,
+    memory: Info.fields.memory,
+  }
+  Object.entries(nativeObjects).forEach(([key, schema]) => {
+    if (!own(input, key)) return
+    const value = decodeEncoded(schema, input[key], [key], diagnostics)
+    if (value === undefined) return
+    overlay(encoded, key, value, [key], diagnostics)
+  })
+
   return { type: "normalized", encoded, diagnostics }
 }
 

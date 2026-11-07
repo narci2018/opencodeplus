@@ -2779,6 +2779,35 @@ export interface ExperimentalNetworkApi<E = never> {
   readonly proxy: ExperimentalNetworkProxyOperation<E>
 }
 
+export type ExperimentalRulesFilesInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+}
+export type ExperimentalRulesFilesOutput = {
+  readonly rules: { readonly agents_md: boolean; readonly claude_md: boolean }
+  readonly instructions: ReadonlyArray<string>
+  readonly globalAgents: { readonly path: string; readonly content: string | null }
+  readonly projectAgents?: { readonly path: string; readonly content: string | null } | undefined
+  readonly memory: {
+    readonly enabled: boolean
+    readonly distill: boolean
+    readonly global: { readonly path: string; readonly content: string | null }
+    readonly project?: { readonly path: string; readonly content: string | null } | undefined
+    readonly projects: ReadonlyArray<{
+      readonly projectID: string
+      readonly name: string
+      readonly directory: string
+      readonly path: string
+    }>
+  }
+}
+export type ExperimentalRulesFilesOperation<E = never> = (
+  input?: ExperimentalRulesFilesInput,
+) => Effect.Effect<ExperimentalRulesFilesOutput, E>
+
+export interface ExperimentalRulesApi<E = never> {
+  readonly files: ExperimentalRulesFilesOperation<E>
+}
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 export type ConfigGetOutput = ReadonlyArray<Config.Entry>
 export type ConfigGetOperation<E = never> = (input?: ConfigGetInput) => Effect.Effect<ConfigGetOutput, E>
@@ -2805,6 +2834,9 @@ export type ExperimentalConfigUpdateInput = {
   readonly mcp?: Config.McpPatch | undefined
   readonly plugin?: Config.PluginPatch | undefined
   readonly skill?: Config.SkillPatch | undefined
+  readonly rules?: Config.RulesPatch | undefined
+  readonly memory?: Config.MemoryPatch | undefined
+  readonly instruction?: Config.InstructionPatch | undefined
 }
 export type ExperimentalConfigUpdateOutput = void
 export type ExperimentalConfigUpdateOperation<E = never> = (
@@ -3040,6 +3072,15 @@ export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
 /** @deprecated Use `ExperimentalNetworkProxyOperation`. Removed in the next minor. */
 export type NetworkProxyOperation<E = never> = ExperimentalNetworkProxyOperation<E>
 
+/** @deprecated Use `ExperimentalRulesFilesInput`. Removed in the next minor. */
+export type RulesFilesInput = ExperimentalRulesFilesInput
+
+/** @deprecated Use `ExperimentalRulesFilesOutput`. Removed in the next minor. */
+export type RulesFilesOutput = ExperimentalRulesFilesOutput
+
+/** @deprecated Use `ExperimentalRulesFilesOperation`. Removed in the next minor. */
+export type RulesFilesOperation<E = never> = ExperimentalRulesFilesOperation<E>
+
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput
 
@@ -3064,6 +3105,9 @@ export type UsageApi<E = never> = ExperimentalUsageApi<E>
 /** @deprecated Use `ExperimentalNetworkApi`. Removed in the next minor. */
 export type NetworkApi<E = never> = ExperimentalNetworkApi<E>
 
+/** @deprecated Use `ExperimentalRulesApi`. Removed in the next minor. */
+export type RulesApi<E = never> = ExperimentalRulesApi<E>
+
 export interface AppApi<E = never> {
   readonly server: ServerApi<E>
   readonly location: LocationApi<E>
@@ -3080,6 +3124,7 @@ export interface AppApi<E = never> {
     readonly migration: ExperimentalMigrationApi<E>
     readonly usage: ExperimentalUsageApi<E>
     readonly network: ExperimentalNetworkApi<E>
+    readonly rules: ExperimentalRulesApi<E>
     readonly config: ExperimentalConfigApi<E>
   }
   readonly message: MessageApi<E>
@@ -3148,5 +3193,11 @@ export interface AppApi<E = never> {
 
     /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
     readonly proxy: ExperimentalNetworkProxyOperation<E>
+  }
+
+  /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */
+  readonly rules: {
+    /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
+    readonly files: ExperimentalRulesFilesOperation<E>
   }
 }

@@ -17,6 +17,8 @@ import { ConfigPlugin } from "./config/plugin.js"
 import { ConfigPolicy } from "./config/policy.js"
 import { ConfigProvider } from "./config/provider.js"
 import { ConfigReference } from "./config/reference.js"
+import { ConfigRules } from "./config/rules.js"
+import { ConfigMemory } from "./config/memory.js"
 import { ConfigWebSearch } from "./config/websearch.js"
 import { ConfigToolOutput } from "./config/tool-output.js"
 import { ConfigWatcher } from "./config/watcher.js"
@@ -96,6 +98,12 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   instructions: Schema.String.pipe(Schema.Array, optional).annotate({
     description: "Additional paths or URLs supplying ambient instructions",
+  }),
+  rules: ConfigRules.Info.pipe(optional).annotate({
+    description: "Rule file import toggles for AGENTS.md and CLAUDE.md",
+  }),
+  memory: ConfigMemory.Info.pipe(optional).annotate({
+    description: "Memory injection and distillation settings",
   }),
   references: ConfigReference.Info.pipe(optional).annotate({
     description: "Named local directories or Git repositories available as external context",
@@ -186,6 +194,30 @@ export const SkillPatch = Schema.Struct({
 }).annotate({ identifier: "Config.SkillPatch" })
 export type SkillPatch = Schema.Schema.Type<typeof SkillPatch>
 
+export const RulesPatch = Schema.Struct({
+  /** Include AGENTS.md instruction files in the context. */
+  agents_md: Schema.Boolean.pipe(optional),
+  /** Include project CLAUDE.md and CLAUDE.local.md files in the context. */
+  claude_md: Schema.Boolean.pipe(optional),
+}).annotate({ identifier: "Config.RulesPatch" })
+export type RulesPatch = Schema.Schema.Type<typeof RulesPatch>
+
+export const MemoryPatch = Schema.Struct({
+  /** Inject the global and project memory files into sessions. */
+  enabled: Schema.Boolean.pipe(optional),
+  /** Distill session insights into the project memory when a session goes idle. */
+  distill: Schema.Boolean.pipe(optional),
+}).annotate({ identifier: "Config.MemoryPatch" })
+export type MemoryPatch = Schema.Schema.Type<typeof MemoryPatch>
+
+export const InstructionPatch = Schema.Struct({
+  /** A file path or http(s) URL supplying ambient instructions. */
+  source: Schema.String,
+  /** When true, remove the entry instead of adding it. */
+  remove: Schema.Literal(true).pipe(optional),
+}).annotate({ identifier: "Config.InstructionPatch" })
+export type InstructionPatch = Schema.Schema.Type<typeof InstructionPatch>
+
 export const Patch = Schema.Struct({
   shell: Schema.NullOr(Schema.String).pipe(optional),
   /** Sets, updates, or removes one custom provider entry in the `providers` field. */
@@ -198,6 +230,12 @@ export const Patch = Schema.Struct({
   plugin: PluginPatch.pipe(optional),
   /** Adds or removes one skills source in the `skills` array. */
   skill: SkillPatch.pipe(optional),
+  /** Sets the rule file import toggles in the `rules` field. */
+  rules: RulesPatch.pipe(optional),
+  /** Sets the memory injection and distillation toggles in the `memory` field. */
+  memory: MemoryPatch.pipe(optional),
+  /** Adds or removes one instructions source in the `instructions` array. */
+  instruction: InstructionPatch.pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

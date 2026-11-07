@@ -15738,6 +15738,82 @@
         }
       }
     },
+    "/api/experimental/rules/files": {
+      "get": {
+        "tags": ["rules"],
+        "operationId": "experimental.rules.files",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "RulesFiles.Info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulesFiles.Info"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Read model for the rules and memory settings page: import toggles, configured instruction sources, and the rule and memory file paths with their contents for the requested location.",
+        "summary": "Rules and memory files"
+      }
+    },
     "/api/config": {
       "get": {
         "tags": ["config"],
@@ -16753,6 +16829,30 @@
               "type": "string"
             }
           },
+          "rules": {
+            "type": "object",
+            "properties": {
+              "agents_md": {
+                "type": "boolean"
+              },
+              "claude_md": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "memory": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "distill": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
           "references": {
             "type": "object",
             "additionalProperties": {
@@ -16924,6 +17024,20 @@
         },
         "additionalProperties": false
       },
+      "Config.InstructionPatch": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "remove": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["source"],
+        "additionalProperties": false
+      },
       "Config.LSP.ServerEncoded": {
         "type": "object",
         "properties": {
@@ -16977,6 +17091,18 @@
           }
         },
         "required": ["name"],
+        "additionalProperties": false
+      },
+      "Config.MemoryPatch": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "distill": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
       },
       "Config.Model.Capabilities": {
@@ -17282,6 +17408,15 @@
           },
           "skill": {
             "$ref": "#/components/schemas/Config.SkillPatch"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/Config.RulesPatch"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/Config.MemoryPatch"
+          },
+          "instruction": {
+            "$ref": "#/components/schemas/Config.InstructionPatch"
           }
         },
         "additionalProperties": false
@@ -17499,6 +17634,18 @@
           }
         },
         "required": ["path"],
+        "additionalProperties": false
+      },
+      "Config.RulesPatch": {
+        "type": "object",
+        "properties": {
+          "agents_md": {
+            "type": "boolean"
+          },
+          "claude_md": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
       },
       "Config.SkillPatch": {
@@ -22408,6 +22555,161 @@
           }
         },
         "required": ["_tag", "type", "message"],
+        "additionalProperties": false
+      },
+      "RulesFiles.Info": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "object",
+            "properties": {
+              "agents_md": {
+                "type": "boolean"
+              },
+              "claude_md": {
+                "type": "boolean"
+              }
+            },
+            "required": ["agents_md", "claude_md"],
+            "additionalProperties": false
+          },
+          "instructions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "globalAgents": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["path", "content"],
+            "additionalProperties": false
+          },
+          "projectAgents": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["path", "content"],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "memory": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "distill": {
+                "type": "boolean"
+              },
+              "global": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["path", "content"],
+                "additionalProperties": false
+              },
+              "project": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "content": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["path", "content"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "projects": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "projectID": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "directory": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["projectID", "name", "directory", "path"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["enabled", "distill", "global", "projects"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["rules", "instructions", "globalAgents", "memory"],
         "additionalProperties": false
       },
       "Schedule.Action": {
@@ -30943,6 +31245,10 @@
     {
       "name": "network",
       "description": "Experimental network egress routes."
+    },
+    {
+      "name": "rules",
+      "description": "Rules and memory read model."
     },
     {
       "name": "config",

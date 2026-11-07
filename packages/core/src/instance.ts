@@ -99,6 +99,7 @@ const nodes = [
   Image.node,
   SkillInstructions.node,
   ReferenceInstructions.node,
+
   Form.node,
   Generate.node,
   Voice.node,

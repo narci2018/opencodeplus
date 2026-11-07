@@ -314,6 +314,8 @@ import type {
   ExperimentalNetworkEgressOutput,
   ExperimentalNetworkProxyInput,
   ExperimentalNetworkProxyOutput,
+  ExperimentalRulesFilesInput,
+  ExperimentalRulesFilesOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1939,6 +1941,13 @@ const adaptGroupExperimentalNetwork = (raw: RawClient["server.network"]) => ({
   proxy: EndpointExperimentalNetworkProxy(raw),
 })
 
+const EndpointExperimentalRulesFiles = (raw: RawClient["server.rules"]) => (input?: ExperimentalRulesFilesInput) =>
+  preserveEffect<ExperimentalRulesFilesOutput>()(
+    raw["rules.files"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
+  )
+
+const adaptGroupExperimentalRules = (raw: RawClient["server.rules"]) => ({ files: EndpointExperimentalRulesFiles(raw) })
+
 const EndpointConfigGet = (raw: RawClient["server.config"]) => (input?: ConfigGetInput) =>
   preserveEffect<ConfigGetOutput>()(
     raw["config.get"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
@@ -1962,6 +1971,9 @@ const EndpointExperimentalConfigUpdate = (raw: RawClient["server.config"]) => (i
         mcp: input?.["mcp"],
         plugin: input?.["plugin"],
         skill: input?.["skill"],
+        rules: input?.["rules"],
+        memory: input?.["memory"],
+        instruction: input?.["instruction"],
       },
     }).pipe(Effect.mapError(mapClientError)),
   )
@@ -1988,6 +2000,7 @@ const adaptClient = (raw: RawClient) => {
       migration: adaptGroupExperimentalMigration(raw["server.migration"]),
       usage: adaptGroupExperimentalUsage(raw["server.usage"]),
       network: adaptGroupExperimentalNetwork(raw["server.network"]),
+      rules: adaptGroupExperimentalRules(raw["server.rules"]),
       config: adaptGroupExperimentalConfig(raw["server.config"]),
     },
     message: adaptGroupMessage(raw["server.message"]),
@@ -2108,6 +2121,11 @@ const adaptClient = (raw: RawClient) => {
       egress: client.experimental.network.egress,
       /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
       proxy: client.experimental.network.proxy,
+    },
+    /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */
+    rules: {
+      /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
+      files: client.experimental.rules.files,
     },
     config: {
       ...client.config,

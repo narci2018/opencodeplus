@@ -64,6 +64,7 @@ describe("config update extensions", () => {
                 }),
               )
 
+            yield* update({ rules: { claude_md: true } })
             yield* update({
               mcp: { name: "playwright", config: { type: "local", command: ["npx", "-y", "@playwright/mcp@latest"] } },
             })

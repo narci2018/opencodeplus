@@ -15,6 +15,9 @@ import { McpInstructions } from "../mcp/instructions.js"
 import { McpTool } from "../tool/mcp.js"
 import { ReferenceInstructions } from "../reference/instructions.js"
 import { SkillInstructions } from "../skill/instructions.js"
+import { MemoryInstructions } from "../memory/instructions.js"
+import os from "node:os"
+import path from "node:path"
 import { Tool } from "../tool.js"
 import { AgentNotFoundError } from "./error.js"
 import { SessionHistory } from "./history.js"
@@ -134,12 +137,17 @@ const layer = Layer.effect(
       if (!agent.info) return yield* new AgentNotFoundError({ sessionID: session.id, agent: session.agent ?? agent.id })
       // Session permissions narrow discovery the same way they narrow the tool snapshot.
       const permissions = Permission.merge(agent.info.permissions, session.permissions ?? [])
+      const memorySources = MemoryInstructions.load(
+        path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "opencode"),
+        location.project.canonical,
+      )
       const loaded = yield* Effect.all(
         {
           tools: registry.snapshot(permissions),
           builtins: builtins.load(),
           discovery: discovery.load(),
           skills: skillInstructions.load(permissions),
+          memory: Effect.succeed(memorySources),
           references: referenceInstructions.load(),
           mcp: mcpInstructions.load(permissions),
           entries: entries.load(sessionID),
@@ -158,6 +166,7 @@ const layer = Layer.effect(
           loaded.references,
           loaded.skills,
           loaded.discovery,
+          loaded.memory,
           loaded.builtins,
           loaded.entries,
         ]),
@@ -220,6 +229,7 @@ export const node = makeLocationNode({
     SessionModelRequest.node,
     SessionStore.node,
     SkillInstructions.node,
+  
     Tool.node,
   ],
 })

@@ -558,6 +558,35 @@ export const layer = (options?: Options) =>
                     : [...current, source]
                 text = applyEdits(text, modify(text, ["skills"], next.length > 0 ? next : undefined, { formattingOptions }))
               }
+              if (patch.rules !== undefined) {
+                // Merge over the file's own `rules` object, so a toggle patch never drops a hand-edited sibling.
+                const parsed = parse(text) as { rules?: Record<string, unknown> } | undefined
+                const merged = { ...(parsed?.rules ?? {}) }
+                if (patch.rules.agents_md !== undefined) merged.agents_md = patch.rules.agents_md
+                if (patch.rules.claude_md !== undefined) merged.claude_md = patch.rules.claude_md
+                text = applyEdits(text, modify(text, ["rules"], Object.keys(merged).length > 0 ? merged : undefined, { formattingOptions }))
+              }
+              if (patch.memory !== undefined) {
+                const parsed = parse(text) as { memory?: Record<string, unknown> } | undefined
+                const merged = { ...(parsed?.memory ?? {}) }
+                if (patch.memory.enabled !== undefined) merged.enabled = patch.memory.enabled
+                if (patch.memory.distill !== undefined) merged.distill = patch.memory.distill
+                text = applyEdits(text, modify(text, ["memory"], Object.keys(merged).length > 0 ? merged : undefined, { formattingOptions }))
+              }
+              if (patch.instruction !== undefined) {
+                const parsed = parse(text) as { instructions?: unknown[] } | undefined
+                const current = Array.isArray(parsed?.instructions) ? parsed.instructions : []
+                const source = patch.instruction.source
+                const next = patch.instruction.remove
+                  ? current.filter((entry) => entry !== source)
+                  : current.includes(source)
+                    ? current
+                    : [...current, source]
+                text = applyEdits(
+                  text,
+                  modify(text, ["instructions"], next.length > 0 ? next : undefined, { formattingOptions }),
+                )
+              }
               return text
             },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),

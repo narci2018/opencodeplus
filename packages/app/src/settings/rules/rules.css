@@ -1,0 +1,60 @@
+.rules-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rules-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--v2-border-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.rules-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rules-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v2-text-text-base);
+}
+
+.rules-row-description {
+  font-size: 11px;
+  color: var(--v2-text-text-muted);
+}
+
+.rules-row-path {
+  font-family: var(--font-family-mono);
+  word-break: break-all;
+}
+
+.rules-section-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rules-beta {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--v2-border-border);
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--v2-text-text-muted);
+  vertical-align: middle;
+}
+
+.rules-editor {
+  min-height: 320px;
+}
