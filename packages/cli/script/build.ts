@@ -13,6 +13,7 @@ import { discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@openc
 import { buildAppArchive } from "./app-assets"
 import { verifyArtifact, verifySimulationGraph } from "./verify-artifact"
 import { resolveOpencodePty } from "./opencode-pty"
+import { resolveComputerUse } from "./opencode-computer-use"
 import { NativeArch } from "../../../script/native-arch"
 import { bundledModelsSnapshot, modelsSnapshotPlugin } from "../../core/script/models-snapshot"
 
@@ -140,6 +141,19 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
       }))
     },
   }
+  const computerUse = await resolveComputerUse({ platform: item.os, arch: item.arch })
+  const computerUsePlugin: BunPlugin = {
+    name: "opencode-computer-use-binary",
+    setup(build) {
+      build.onLoad({ filter: /plugin[/\\]trae[/\\]computer-binding\.ts$/ }, () => ({
+        loader: "js",
+        contents: computerUse
+          ? `import file from ${JSON.stringify(computerUse.source)} with { type: "file" }
+export default { path: file, version: ${JSON.stringify(computerUse.version)}, sha256: ${JSON.stringify(computerUse.sha256)} }`
+          : "export default undefined",
+      }))
+    },
+  }
   const simulationInputs = new Set<string>()
   const simulationGraphPlugin: BunPlugin = {
     name: "opencode-simulation-graph",
@@ -172,6 +186,7 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
       solidPlugin,
       parcelWatcherPlugin,
       opencodePtyPlugin,
+      computerUsePlugin,
       pluginRuntimePlugin,
       simulationGraphPlugin,
       modelsSnapshot,

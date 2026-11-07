@@ -4,6 +4,13 @@ Release notes for OpenCode V2, newest first.
 
 ## Unreleased
 
+### Core
+
+#### Improvements
+
+- Added a built-in TRAE agent (`trae`, selectable in the composer and callable as a subagent) that orchestrates Code Mode, the desktop browser tools, and Windows desktop automation. Its system prompt teaches the real tool surfaces: the Code Mode `execute` sandbox, the `tools.browser.*` desktop-browser operations, and `tools.computer_use.*` desktop automation.
+- The TRAE agent ships with a zero-config computer-use server: a native `open-computer-use` MCP binary (MIT, pinned 1.1.3) is embedded in the CLI build for Windows and Linux, spawned per location through the regular MCP pipeline, and registered as an in-memory server so no user configuration is involved. When the binary is unavailable, nothing registers and the agent reports desktop automation as unavailable instead of inventing calls.
+
 ### App
 
 #### Improvements
