@@ -181,7 +181,7 @@ export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
             }),
           ),
         ),
-    { concurrency: 1, discard: true },
+    { concurrency: 4, discard: true },
   )
 
   if (toolMode !== "none")
@@ -302,7 +302,7 @@ export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
             Effect.asVoid,
           )
       },
-      { concurrency: 1, discard: true },
+      { concurrency: 4, discard: true },
     )
 
   const ids = yield* db

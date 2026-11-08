@@ -14,6 +14,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Optimized `session.stats` window calculation concurrency to 4 and supported bypassing tool execution queries via `tools: "none"`, significantly accelerating analytics data retrieval.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
 - Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
 
@@ -21,6 +22,11 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Significantly accelerated "Usage statistics" loading speed by querying stats with `tools: "none"`, batching session pages, and decoupling dashboard chart rendering so analytics and charts display immediately without blocking on session history. Added fault-tolerant pagination in the session detail dialog.
+- Explicitly separated "创建 (Create)" and "编辑 (Edit)" workflows across Global AGENTS.md, Project AGENTS.md, Global Memory, and Project Memory:
+  - Dynamically displays visual status badges (`已创建` vs `未创建`) reflecting whether the target markdown file exists on disk.
+  - Presents a dedicated `+ 创建` button for uncreated files and a clean `编辑` button (with `pencil-line` icon, eliminating erroneous plus signs) for existing files.
+  - Tailored modal titles and submit buttons ("创建" vs "保存") according to whether a new file is being created or an existing file is being edited.
 - Added advanced visual analytics reports inspired by high-end monitoring dashboards:
   - **Overview Panorama (用量调度全景)**: Centered around a vibrant SVG Radial Rays Sunburst Gauge displaying total tokens, input/output/reasoning breakdown pills, top model shares, estimated expenditures, and cache savings.
   - **24-Hour Activity Rhythm (24小时活跃律动)**: Displays hourly load distribution, peak and trough hours, average load per request, and input/output ratio.

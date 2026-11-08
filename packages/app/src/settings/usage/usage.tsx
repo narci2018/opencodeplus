@@ -15,8 +15,8 @@ type ViewTab = "projects" | "models"
 type SortOrder = "asc" | "desc"
 
 const DAY = 24 * 60 * 60 * 1000
-const MAX_SESSION_PAGES = 6
-const SESSION_BATCH_SIZE = 500
+const MAX_SESSION_PAGES = 3
+const SESSION_BATCH_SIZE = 100
 const MESSAGE_PAGES = 100
 
 const rangeFrom = (range: UsageRange): number | undefined => {
@@ -157,6 +157,7 @@ export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
       const result = await sdk.api.experimental.session.stats({
         ...(from !== undefined ? { from } : {}),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+        tools: "none",
       })
       return result
     },
@@ -199,8 +200,8 @@ export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
     return sdk.api.project.list().catch(() => [])
   })
 
-  const loading = () => stats.loading || sessions.loading
-  const failed = () => stats.error !== undefined || sessions.error !== undefined
+  const loading = () => stats.loading && !stats.latest
+  const failed = () => stats.error !== undefined && !stats.latest
 
   const refetch = () => {
     void statsActions.refetch()
@@ -1168,14 +1169,19 @@ function UsageSessionDialog(props: { session: SessionInfo; projectName: string }
     let cursor: string | undefined
 
     for (let page = 0; page < MESSAGE_PAGES; page++) {
-      const result = await sdk.api.message.list(
-        cursor
-          ? { sessionID: props.session.id, limit: 100, cursor }
-          : { sessionID: props.session.id, limit: 100, order: "asc" },
-      )
-      list.push(...result.data)
-      cursor = result.cursor.next ?? undefined
-      if (!cursor) break
+      try {
+        const result = await sdk.api.message.list(
+          cursor
+            ? { sessionID: props.session.id, limit: 100, cursor }
+            : { sessionID: props.session.id, limit: 100, order: "asc" },
+          { mediaRefs: false },
+        )
+        list.push(...result.data)
+        cursor = result.cursor.next ?? undefined
+        if (!cursor) break
+      } catch {
+        break
+      }
     }
     return list
   })

@@ -343,13 +343,19 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
     return projects()[0]?.projectID
   }
 
-  const editFile = (file: FileRef, defaultContent?: string) => {
+  const openFileDialog = (
+    file: FileRef,
+    isCreate: boolean,
+    title: string,
+    defaultContent?: string,
+  ) => {
     void dialog.show(
       () => (
         <FileEditDialog
-          title={language.t("settings.rules.file.edit.title", { name: file.path })}
+          title={title}
           path={file.path}
           content={file.content ?? defaultContent ?? ""}
+          isCreate={isCreate}
           onSaved={() => refresh()}
           onClose={() => dialog.close()}
         />
@@ -379,7 +385,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
           onClose={() => dialog.close()}
           onEditContent={(filePath) => {
             dialog.close()
-            editFile({ path: filePath, content: null })
+            openFileDialog({ path: filePath, content: null }, false, `编辑 ${filePath}`)
           }}
         />
       ),
@@ -514,26 +520,56 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                         onSelect={setProjectID}
                       />
                       <div class="rules-row-copy">
-                        <span class="rules-row-title">{projectName(scopeProjectID()!)}</span>
+                        <div class="rules-row-title-wrap">
+                          <span class="rules-row-title">{projectName(scopeProjectID()!)}</span>
+                          <Show
+                            when={files.latest?.projectAgents?.content !== null}
+                            fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
+                          >
+                            <span class="rules-status-badge rules-status-badge--active">已创建</span>
+                          </Show>
+                        </div>
                         <span class="rules-row-description rules-row-path">
                           {files.latest?.projectAgents?.path ?? "—"}
                         </span>
                       </div>
                       <Show when={files.latest?.projectAgents}>
                         {(file) => (
-                          <Button
-                            size="small"
-                            variant={file().content !== null ? "ghost-muted" : "contrast"}
-                            onClick={() =>
-                              editFile(
-                                file(),
-                                file().content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
-                              )
+                          <Show
+                            when={file().content !== null}
+                            fallback={
+                              <Button
+                                size="small"
+                                variant="contrast"
+                                icon="plus"
+                                onClick={() =>
+                                  openFileDialog(
+                                    file(),
+                                    true,
+                                    `创建项目规则 (${projectName(scopeProjectID()!)})`,
+                                    DEFAULT_PROJECT_AGENTS_TEMPLATE,
+                                  )
+                                }
+                              >
+                                创建
+                              </Button>
                             }
                           >
-                            <Icon name="pencil" size="small" />
-                            {file().content !== null ? "编辑修改" : "创建并编辑项目规则"}
-                          </Button>
+                            <Button
+                              size="small"
+                              variant="ghost-muted"
+                              onClick={() =>
+                                openFileDialog(
+                                  file(),
+                                  false,
+                                  `编辑项目规则 (${projectName(scopeProjectID()!)})`,
+                                )
+                              }
+                            >
+                              <Icon name="pencil-line" size="small" />
+                              编辑
+                            </Button>
+                          </Show>
                         )}
                       </Show>
                     </div>
@@ -544,24 +580,54 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
               <div class="rules-rows">
                 <div class="rules-row">
                   <div class="rules-row-copy">
-                    <span class="rules-row-title">{language.t("settings.rules.file.globalAgents")}</span>
+                    <div class="rules-row-title-wrap">
+                      <span class="rules-row-title">{language.t("settings.rules.file.globalAgents")}</span>
+                      <Show
+                        when={files.latest?.globalAgents.content !== null}
+                        fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
+                      >
+                        <span class="rules-status-badge rules-status-badge--active">已创建</span>
+                      </Show>
+                    </div>
                     <span class="rules-row-description rules-row-path">
                       {files.latest?.globalAgents.path ?? "—"}
                     </span>
                   </div>
-                  <Button
-                    size="small"
-                    variant={files.latest?.globalAgents.content !== null ? "ghost-muted" : "contrast"}
-                    onClick={() =>
-                      editFile(
-                        files.latest!.globalAgents,
-                        files.latest?.globalAgents.content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
-                      )
+                  <Show
+                    when={files.latest?.globalAgents.content !== null}
+                    fallback={
+                      <Button
+                        size="small"
+                        variant="contrast"
+                        icon="plus"
+                        onClick={() =>
+                          openFileDialog(
+                            files.latest!.globalAgents,
+                            true,
+                            "创建全局规则 (AGENTS.md)",
+                            DEFAULT_PROJECT_AGENTS_TEMPLATE,
+                          )
+                        }
+                      >
+                        创建
+                      </Button>
                     }
                   >
-                    <Icon name="pencil" size="small" />
-                    {files.latest?.globalAgents.content !== null ? "编辑修改" : "创建并编辑"}
-                  </Button>
+                    <Button
+                      size="small"
+                      variant="ghost-muted"
+                      onClick={() =>
+                        openFileDialog(
+                          files.latest!.globalAgents,
+                          false,
+                          "编辑全局规则 (AGENTS.md)",
+                        )
+                      }
+                    >
+                      <Icon name="pencil-line" size="small" />
+                      编辑
+                    </Button>
+                  </Show>
                 </div>
               </div>
               <div class="rules-rows">
@@ -663,26 +729,56 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                         onSelect={setProjectID}
                       />
                       <div class="rules-row-copy">
-                        <span class="rules-row-title">{language.t("settings.rules.memory.project")}</span>
+                        <div class="rules-row-title-wrap">
+                          <span class="rules-row-title">{language.t("settings.rules.memory.project")}</span>
+                          <Show
+                            when={files.latest?.memory.project?.content !== null}
+                            fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
+                          >
+                            <span class="rules-status-badge rules-status-badge--active">已创建</span>
+                          </Show>
+                        </div>
                         <span class="rules-row-description rules-row-path">
                           {files.latest?.memory.project?.path ?? "—"}
                         </span>
                       </div>
                       <Show when={files.latest?.memory.project}>
                         {(file) => (
-                          <Button
-                            size="small"
-                            variant={file().content !== null ? "ghost-muted" : "contrast"}
-                            onClick={() =>
-                              editFile(
-                                file(),
-                                file().content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
-                              )
+                          <Show
+                            when={file().content !== null}
+                            fallback={
+                              <Button
+                                size="small"
+                                variant="contrast"
+                                icon="plus"
+                                onClick={() =>
+                                  openFileDialog(
+                                    file(),
+                                    true,
+                                    `创建项目记忆 (${projectName(scopeProjectID()!)})`,
+                                    DEFAULT_PROJECT_MEMORY_TEMPLATE,
+                                  )
+                                }
+                              >
+                                创建
+                              </Button>
                             }
                           >
-                            <Icon name="pencil" size="small" />
-                            {file().content !== null ? "编辑修改" : "创建并编辑项目记忆"}
-                          </Button>
+                            <Button
+                              size="small"
+                              variant="ghost-muted"
+                              onClick={() =>
+                                openFileDialog(
+                                  file(),
+                                  false,
+                                  `编辑项目记忆 (${projectName(scopeProjectID()!)})`,
+                                )
+                              }
+                            >
+                              <Icon name="pencil-line" size="small" />
+                              编辑
+                            </Button>
+                          </Show>
                         )}
                       </Show>
                     </div>
@@ -693,22 +789,52 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
               <div class="rules-rows">
                 <div class="rules-row">
                   <div class="rules-row-copy">
-                    <span class="rules-row-title">{language.t("settings.rules.memory.global")}</span>
+                    <div class="rules-row-title-wrap">
+                      <span class="rules-row-title">{language.t("settings.rules.memory.global")}</span>
+                      <Show
+                        when={files.latest?.memory.global.content !== null}
+                        fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
+                      >
+                        <span class="rules-status-badge rules-status-badge--active">已创建</span>
+                      </Show>
+                    </div>
                     <span class="rules-row-description rules-row-path">{files.latest?.memory.global.path ?? "—"}</span>
                   </div>
-                  <Button
-                    size="small"
-                    variant={files.latest?.memory.global.content !== null ? "ghost-muted" : "contrast"}
-                    onClick={() =>
-                      editFile(
-                        files.latest!.memory.global,
-                        files.latest?.memory.global.content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
-                      )
+                  <Show
+                    when={files.latest?.memory.global.content !== null}
+                    fallback={
+                      <Button
+                        size="small"
+                        variant="contrast"
+                        icon="plus"
+                        onClick={() =>
+                          openFileDialog(
+                            files.latest!.memory.global,
+                            true,
+                            "创建全局记忆 (MEMORY.md)",
+                            DEFAULT_PROJECT_MEMORY_TEMPLATE,
+                          )
+                        }
+                      >
+                        创建
+                      </Button>
                     }
                   >
-                    <Icon name="pencil" size="small" />
-                    {files.latest?.memory.global.content !== null ? "编辑修改" : "创建并编辑"}
-                  </Button>
+                    <Button
+                      size="small"
+                      variant="ghost-muted"
+                      onClick={() =>
+                        openFileDialog(
+                          files.latest!.memory.global,
+                          false,
+                          "编辑全局记忆 (MEMORY.md)",
+                        )
+                      }
+                    >
+                      <Icon name="pencil-line" size="small" />
+                      编辑
+                    </Button>
+                  </Show>
                 </div>
               </div>
             </Show>
@@ -887,6 +1013,7 @@ function FileEditDialog(props: {
   title: string
   path: string
   content: string
+  isCreate?: boolean
   onSaved?: () => void
   onClose?: () => void
 }) {
@@ -911,7 +1038,7 @@ function FileEditDialog(props: {
       showToast({
         variant: "success",
         icon: "circle-check",
-        title: language.t("settings.extensions.saved.title"),
+        title: props.isCreate ? "已成功创建" : language.t("settings.extensions.saved.title"),
         description: language.t("settings.extensions.saved.description", { name: props.path }),
       })
       props.onSaved?.()
@@ -1043,7 +1170,7 @@ function FileEditDialog(props: {
           {language.t("common.cancel")}
         </Button>
         <Button variant="contrast" onClick={() => void save()} disabled={saving()}>
-          <Show when={saving()} fallback={language.t("common.save")}>
+          <Show when={saving()} fallback={props.isCreate ? "创建" : language.t("common.save")}>
             <Loader class="custom-agent-dialog-spinner" />
           </Show>
         </Button>
