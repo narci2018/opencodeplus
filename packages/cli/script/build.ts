@@ -149,7 +149,9 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
         loader: "js",
         contents: computerUse
           ? `import file from ${JSON.stringify(computerUse.source)} with { type: "file" }
-export default { path: file, version: ${JSON.stringify(computerUse.version)}, sha256: ${JSON.stringify(computerUse.sha256)} }`
+import os from "node:os"
+import path from "node:path"
+export default { path: file, version: ${JSON.stringify(computerUse.version)}, sha256: ${JSON.stringify(computerUse.sha256)}, cwd: path.join(os.tmpdir(), "opencode-computer-use") }`
           : "export default undefined",
       }))
     },

@@ -1,5 +1,8 @@
 export * as TraePlugin from "./trae.js"
 
+import { mkdirSync } from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { define } from "@opencode/plugin/effect/plugin"
 import { Effect } from "effect"
 import { Agent } from "../../agent.js"
@@ -39,12 +42,16 @@ export const Plugin = define({
     })
 
     const binding = ComputerBinding
-    if (!binding) return
+    if (!binding?.path) return
+    const cwd = binding.cwd || path.join(os.tmpdir(), "opencode-computer-use")
+    try {
+      mkdirSync(cwd, { recursive: true })
+    } catch {}
     yield* ctx.mcp.transform((editor) => {
       editor.set("computer-use", {
         type: "local",
         command: [binding.path, "mcp"],
-        cwd: binding.cwd,
+        cwd,
       })
     })
   }),

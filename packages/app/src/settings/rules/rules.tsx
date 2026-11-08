@@ -531,9 +531,8 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                               )
                             }
                           >
-                            {file().content !== null
-                              ? language.t("common.edit")
-                              : "+ 创建项目规则"}
+                            <Icon name="pencil" size="small" />
+                            {file().content !== null ? "编辑修改" : "创建并编辑项目规则"}
                           </Button>
                         )}
                       </Show>
@@ -550,10 +549,18 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       {files.latest?.globalAgents.path ?? "—"}
                     </span>
                   </div>
-                  <Button size="small" variant="ghost-muted" onClick={() => editFile(files.latest!.globalAgents)}>
-                    {files.latest?.globalAgents.content !== null
-                      ? language.t("common.edit")
-                      : language.t("settings.rules.file.create")}
+                  <Button
+                    size="small"
+                    variant={files.latest?.globalAgents.content !== null ? "ghost-muted" : "contrast"}
+                    onClick={() =>
+                      editFile(
+                        files.latest!.globalAgents,
+                        files.latest?.globalAgents.content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
+                      )
+                    }
+                  >
+                    <Icon name="pencil" size="small" />
+                    {files.latest?.globalAgents.content !== null ? "编辑修改" : "创建并编辑"}
                   </Button>
                 </div>
               </div>
@@ -673,9 +680,8 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                               )
                             }
                           >
-                            {file().content !== null
-                              ? language.t("common.edit")
-                              : "+ 创建项目记忆"}
+                            <Icon name="pencil" size="small" />
+                            {file().content !== null ? "编辑修改" : "创建并编辑项目记忆"}
                           </Button>
                         )}
                       </Show>
@@ -690,10 +696,18 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                     <span class="rules-row-title">{language.t("settings.rules.memory.global")}</span>
                     <span class="rules-row-description rules-row-path">{files.latest?.memory.global.path ?? "—"}</span>
                   </div>
-                  <Button size="small" variant="ghost-muted" onClick={() => editFile(files.latest!.memory.global)}>
-                    {files.latest?.memory.global.content !== null
-                      ? language.t("common.edit")
-                      : language.t("settings.rules.file.create")}
+                  <Button
+                    size="small"
+                    variant={files.latest?.memory.global.content !== null ? "ghost-muted" : "contrast"}
+                    onClick={() =>
+                      editFile(
+                        files.latest!.memory.global,
+                        files.latest?.memory.global.content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
+                      )
+                    }
+                  >
+                    <Icon name="pencil" size="small" />
+                    {files.latest?.memory.global.content !== null ? "编辑修改" : "创建并编辑"}
                   </Button>
                 </div>
               </div>

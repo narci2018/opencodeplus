@@ -1,9 +1,8 @@
 import { CustomAgents } from "@/providers/custom-agent"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useData } from "@/runtime/server/current"
-import { useWorkspaceLocation } from "@/workspaces/location"
+import { useServerSDK } from "@/runtime/server/client"
 import { normalizeAgentList } from "@/runtime/server/global-sync/utils"
-import { createMemo, For } from "solid-js"
+import { createMemo, createResource, For } from "solid-js"
 import "@/settings/settings.css"
 
 const DEFAULT_BUILTIN_AGENTS = [
@@ -37,20 +36,27 @@ const DEFAULT_BUILTIN_AGENTS = [
 
 export const SettingsAgents = () => {
   const language = useLanguage()
-  const data = useData()
-  const sdk = useWorkspaceLocation()
+  const sdk = useServerSDK()
 
-  const liveBuiltins = createMemo(() => {
-    const list = normalizeAgentList(data.location.agent.list({ directory: sdk().directory }) ?? [])
-    const visible = list.filter((item) => item.native && !item.hidden && item.mode !== "subagent")
-    if (visible.length === 0) return DEFAULT_BUILTIN_AGENTS
-    return visible.map((item) => ({
-      id: item.name,
-      name: item.displayName || item.name,
-      description: item.description ?? "",
-      mode: item.mode,
-    }))
-  })
+  const [agents] = createResource(
+    () => sdk.connection.status() === "connected",
+    async (connected) => {
+      if (!connected) return DEFAULT_BUILTIN_AGENTS
+      const res = await sdk.api.agent.list().catch(() => undefined)
+      if (!res?.data) return DEFAULT_BUILTIN_AGENTS
+      const list = normalizeAgentList(res.data)
+      const visible = list.filter((item) => item.native && !item.hidden && item.mode !== "subagent")
+      if (visible.length === 0) return DEFAULT_BUILTIN_AGENTS
+      return visible.map((item) => ({
+        id: item.name,
+        name: item.displayName || item.name,
+        description: item.description ?? "",
+        mode: item.mode,
+      }))
+    },
+  )
+
+  const liveBuiltins = createMemo(() => agents() ?? DEFAULT_BUILTIN_AGENTS)
 
   return (
     <div class="settings-tab-body">
