@@ -1,0 +1,47 @@
+{
+  "name": "opencode-trae-bao",
+  "version": "0.1.0",
+  "description": "TRAE 宝完整移植 - 浮动宠物 + 双助理 + 多任务并行 + IM 桥接 + 跨会话记忆",
+  "type": "module",
+  "engines": {
+    "opencode": ">=1.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "exports": {
+    ".": "./plugin.ts",
+    "./server": "./plugin.ts"
+  },
+  "contributes": {
+    "agents": [
+      {
+        "id": "trae-bao",
+        "name": "TRAE 宝",
+        "description": "开发者个人助理：跨项目记忆、多任务并行、IM 桥接",
+        "mode": "primary",
+        "hidden": false
+      }
+    ],
+    "skills": [
+      "skills/TRAE-browseruse",
+      "skills/TRAE-computer-use",
+      "skills/TRAE-code-mode"
+    ],
+    "mcp": [
+      {
+        "id": "chronicle",
+        "name": "Chronicle 记忆",
+        "description": "跨会话观察记忆，支持状态查询、最近观察、搜索和记忆解析"
+      }
+    ]
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "screenshot-desktop": "^1.15.8",
+    "tesseract.js": "^7.0.0"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": "*"
+  }
+}

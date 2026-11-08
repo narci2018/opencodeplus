@@ -1,0 +1,30 @@
+<!-- Copyright (c) Bytedance Inc. All rights reserved. Licensed under the MIT License. -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+:root { --quick-background: rgba(240,240,240,.99); --quick-hover: rgba(115,115,115,.12); }
+:root[data-theme="dark"] { --quick-background: rgba(38,38,38,.99); --quick-hover: rgba(255,255,255,.12); }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 4px; background: transparent; }
+.actions { display: flex; gap: 4px; padding: 3.5px; height: 36px; width: 68px; border: 0.5px solid var(--border-border-neutral-l1, rgba(229, 229, 229, 0.10)); border-radius: 12px; background: var(--quick-background); backdrop-filter: blur(16px); overflow: hidden; }
+button { display: flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; margin: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+button:hover, button:focus-visible { background: var(--quick-hover); }
+button:focus-visible { outline: 1px solid currentColor; }
+img { pointer-events: none; }
+:root[data-theme="dark"] img { filter: invert(1); }
+</style></head><body>
+<div class="actions"><button id="text"><img src="icons/quick-text.svg" alt="" draggable="false"></button><button id="voice"><img src="icons/quick-voice.svg" alt="" draggable="false"></button></div>
+<script>
+const ipc = window.floatingChatIpc;
+for (const mode of ['text', 'voice']) {
+	document.getElementById(mode).onclick = () => ipc.send('icube-floating-chat:quick-create', mode);
+}
+ipc.on('icube-floating-chat:quick-state', (_event, state) => {
+	document.documentElement.dataset.theme = state.theme;
+	for (const mode of ['text', 'voice']) {
+		const button = document.getElementById(mode);
+		button.disabled = state.opening === true;
+		button.title = state[mode + 'Label'];
+		button.setAttribute('aria-label', state[mode + 'Label']);
+	}
+});
+</script></body></html>

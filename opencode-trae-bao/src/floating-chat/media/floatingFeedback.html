@@ -1,0 +1,59 @@
+<!-- Copyright (c) Bytedance Inc. All rights reserved. Licensed under the MIT License. -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+:root { color-scheme: light; --bg: #fff; --fg: #222; --border: #ddd; }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #262626; --fg: #eee; --border: #444; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 4px; font: 12px system-ui; color: var(--fg); background: transparent; }
+.card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 8px; }
+header { display: flex; align-items: center; gap: 4px; }
+button { background: transparent; color: inherit; border: 0; cursor: pointer; font: inherit; border-radius: 6px; padding: 6px; }
+button:hover { background: color-mix(in srgb, var(--fg) 10%, transparent); }
+#summary { flex: 1; text-align: left; }
+#details { max-height: 180px; overflow-y: auto; border-top: 1px solid var(--border); margin-top: 4px; }
+.result { display: flex; width: 100%; text-align: left; gap: 8px; }
+.name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
+.status { flex-shrink: 0; }
+.failed { color: #dd675c; }
+#count { text-align: center; white-space: nowrap; padding: 4px 8px; }
+[hidden] { display: none !important; }
+</style></head><body>
+<div class="card" id="card"><div id="count" hidden></div><header id="header"><button id="summary"></button><button id="close">×</button></header><div id="details" hidden></div></div>
+<script>
+const ipc = window.floatingChatIpc;
+const summary = document.getElementById('summary');
+const details = document.getElementById('details');
+const count = document.getElementById('count');
+let expanded = false;
+let data;
+function resize() { ipc.send('icube-floating-chat:feedback-resize', Math.ceil(document.getElementById('card').getBoundingClientRect().height + 8)); }
+function render() {
+  if (!data) return;
+  document.documentElement.dataset.theme = data.theme;
+  count.hidden = data.kind !== 'count';
+  document.getElementById('header').hidden = data.kind === 'count';
+  count.textContent = data.runningLabel;
+  summary.textContent = data.summaryLabel;
+  summary.setAttribute('aria-expanded', String(expanded));
+  document.getElementById('close').setAttribute('aria-label', data.clearLabel);
+  details.replaceChildren();
+  details.hidden = !expanded || data.kind === 'count';
+  for (const result of data.results) {
+    const row = document.createElement('button');
+    row.className = 'result';
+    const name = document.createElement('span');
+    name.className = 'name'; name.textContent = result.name; name.title = result.name;
+    const status = document.createElement('span');
+    status.className = 'status' + (result.status === 'failed' ? ' failed' : '');
+    status.textContent = result.status === 'failed' ? data.failedLabel : data.finishedLabel;
+    row.append(name, status);
+    row.onclick = () => ipc.send('icube-floating-chat:result-open', result.resultId);
+    details.append(row);
+  }
+  requestAnimationFrame(resize);
+}
+summary.onclick = () => { expanded = !expanded; render(); };
+document.getElementById('close').onclick = () => { expanded = false; ipc.send('icube-floating-chat:results-clear'); };
+ipc.on('icube-floating-chat:feedback', (_event, next) => { data = next; if (!next.results.length) expanded = false; render(); });
+new ResizeObserver(resize).observe(document.getElementById('card'));
+</script></body></html>

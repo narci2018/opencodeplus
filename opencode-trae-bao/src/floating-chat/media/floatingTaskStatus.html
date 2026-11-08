@@ -1,0 +1,178 @@
+<!-- Copyright (c) Bytedance Inc. All rights reserved. Licensed under the MIT License. -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+:root { color-scheme: light; --running: rgba(161,161,161,.8); --other: rgba(161,161,161,.8); --finished: #0dad78; --attention: #ffa236; --fg: #0a0a0a; --muted: #737373; --card: rgba(240,240,240,.99); --border: #fff; }
+:root[data-theme="dark"] { color-scheme: dark; --fg: #eee; --muted: #a6a6a6; --card: rgba(38,38,38,.99); --border: rgba(255,255,255,.15); }
+/* Standalone feedback windows use the corresponding colors from modules/solo-lite/src/tokens.css. */
+:root { --bg-bg-overlay-l2: rgba(115,115,115,.12); --bg-bg-overlay-l3: rgba(115,115,115,.16); --bg-bg-overlay-l4: rgba(115,115,115,.20); --icon-icon-default: #262626; --icon-icon-default-hover: #171717; --icon-icon-default-active: #171717; --border-border-neutral-l2: rgba(115,115,115,.18); }
+:root[data-theme="dark"] { --bg-bg-overlay-l2: rgba(212,212,212,.06); --bg-bg-overlay-l3: rgba(212,212,212,.08); --bg-bg-overlay-l4: rgba(212,212,212,.12); --icon-icon-default: #e5e5e5; --icon-icon-default-hover: #fafafa; --icon-icon-default-active: #fafafa; --border-border-neutral-l2: rgba(229,229,229,.16); }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 4px; background: transparent; overflow: hidden; color: var(--fg); font: 12px system-ui; }
+[hidden] { display: none !important; }
+#marker { position: relative; display: flex; flex: none; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; appearance: none; cursor: pointer; border-radius: 50%; background: rgba(255,255,255,.24); backdrop-filter: blur(10px); }
+#marker:hover { background-image: linear-gradient(var(--bg-bg-overlay-l2) 0 0); }
+#marker:active { background-image: linear-gradient(var(--bg-bg-overlay-l3) 0 0); }
+#markerRing { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; pointer-events: none; }
+#marker img { pointer-events: none; }
+:root[data-theme="dark"] #marker img { filter: invert(1); }
+#marker:focus-visible { outline: 2px solid var(--finished); outline-offset: 2px; }
+#tasks { display: flex; flex-direction: column; width: 320px; max-height: 200px; gap: 6px; padding: 6px; overflow-y: auto; scrollbar-width: none; }
+#tasks[data-fade="true"] { mask: url('icons/status/task-list-mask.svg') top left / 320px 200px no-repeat; }
+.task { position: relative; display: flex; align-items: center; flex-shrink: 0; height: 50px; border: .5px solid var(--border); border-radius: 14px; background: var(--card); backdrop-filter: blur(16px); box-shadow: 0 3px 8px rgba(0,0,0,.04); }
+.task-open { display: flex; align-items: center; flex: 1; min-width: 0; height: 100%; gap: 8px; padding: 8px 12px; border: 0; border-radius: inherit; color: inherit; font: inherit; text-align: left; background: transparent; cursor: pointer; }
+/* Figma 14698:159060: 4px overhang, compensating for the card's .5px border; contained by the list's 6px padding. */
+/* Composite the overlay on an opaque card color so the overhang does not reveal the desktop. */
+.task-dismiss { position: absolute; top: calc(-1 * (var(--spacer-4, 4px) + .5px)); left: calc(-1 * (var(--spacer-4, 4px) + .5px)); display: flex; align-items: center; justify-content: center; width: var(--spacer-20, 20px); height: var(--spacer-20, 20px); padding: 0; border: 1px solid var(--border-border-neutral-l2); border-radius: var(--radius-full, 9999px); background: linear-gradient(var(--bg-bg-overlay-l3) 0 0), rgb(from var(--card) r g b / 1); color: var(--icon-icon-default); cursor: pointer; opacity: 0; pointer-events: none; }
+.task:hover > .task-dismiss, .task:focus-within > .task-dismiss { opacity: 1; pointer-events: auto; }
+.task-dismiss:hover { background-image: linear-gradient(var(--bg-bg-overlay-l4) 0 0); color: var(--icon-icon-default-hover); }
+.task-dismiss:active { background-image: linear-gradient(var(--bg-bg-overlay-l2) 0 0); color: var(--icon-icon-default-active); }
+.task-dismiss svg { flex: none; pointer-events: none; }
+.task-open:focus-visible, .task-dismiss:focus-visible { outline: 1px solid var(--finished); outline-offset: 2px; }
+.state-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; }
+.state-icon.running img, .state-icon.waiting img { animation: task-progress-spin 1s linear infinite; }
+@keyframes task-progress-spin { to { transform: rotate(360deg); } }
+.state-icon.other::before { content: ''; width: 16px; height: 16px; border: 1.5px solid var(--other); border-radius: 50%; }
+.state-icon.stopped::before { content: ''; width: 14px; height: 14px; border: 1.5px solid var(--muted); border-radius: 50%; box-sizing: border-box; }
+.state-icon.stopped::after { content: ''; position: absolute; width: 7px; height: 1.5px; border-radius: 1px; background: var(--muted); }
+.text { display: flex; flex: 1; min-width: 0; flex-direction: column; padding: 0 4px; }
+.name { font-size: 13px; line-height: 17px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { color: var(--muted); line-height: 16px; }
+.empty { padding: 12px; border-radius: 14px; background: var(--card); color: var(--muted); text-align: center; }
+.assistant .state-icon img { width: 28px; height: 28px; }
+.assistant .status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistant-badge { flex: none; min-width: 16px; padding: 0 4px; border-radius: 8px; background: rgba(115,115,115,.15); color: var(--fg); font-size: 10px; line-height: 16px; text-align: center; }
+.separator { flex: none; height: 1px; margin: 2px 12px; background: var(--border-border-neutral-l2); }
+/* Anchor the old stack while its native window reserves space for the new stack. */
+body[data-kind="toast"] #tasks { position: absolute; left: 4px; bottom: 4px; }
+body[data-kind="toast"][data-placement="below"] #tasks { top: 4px; bottom: auto; }
+</style></head><body>
+<button id="marker" type="button" aria-expanded="false"><svg id="markerRing" viewBox="0 0 20 20" aria-hidden="true"><g id="markerSegments" transform="rotate(-90 10 10)"></g></svg><img id="markerIcon" src="icons/status/notification.svg" alt=""></button>
+<div id="tasks" role="list" hidden></div>
+<!-- Static IconCloseSmall from @arco-design/iconbox-react-trae for this standalone page without a React runtime. -->
+<template id="dismissIcon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10.2248 4.70231C10.4689 4.45862 10.8646 4.45851 11.1086 4.70231C11.3527 4.94639 11.3527 5.343 11.1086 5.58708L8.88399 7.81071L11.1086 10.0363C11.3525 10.2804 11.3526 10.6761 11.1086 10.9201C10.8646 11.1641 10.4689 11.164 10.2248 10.9201L7.99922 8.69548L5.77559 10.9201C5.53151 11.1642 5.1349 11.1642 4.89082 10.9201C4.64702 10.6761 4.64712 10.2803 4.89082 10.0363L7.11543 7.81071L4.89082 5.58708C4.64674 5.343 4.64674 4.94639 4.89082 4.70231C5.1349 4.45824 5.53151 4.45824 5.77559 4.70231L7.99922 6.92692L10.2248 4.70231Z" fill="currentColor"/></svg></template>
+<script type="module">
+import { FloatingToastTransition } from './floatingToastTransition.js';
+const ipc = window.floatingChatIpc;
+const marker = document.getElementById('marker');
+const markerIcon = document.getElementById('markerIcon');
+const markerSegments = document.getElementById('markerSegments');
+const tasks = document.getElementById('tasks');
+const toast = new FloatingToastTransition(tasks, (phase, revision) => {
+  updateFade();
+  ipc.send('icube-floating-chat:toast-frame', { phase, revision });
+});
+ipc.on('icube-floating-chat:toast-present', (_event, { revision, finish }) => toast.play(revision, finish));
+ipc.on('icube-floating-chat:toast-placement', (_event, placement) => { document.body.dataset.placement = placement; });
+window.addEventListener('pagehide', () => toast.dispose(), { once: true });
+let listExpanded = false;
+function renderStatusRing(summary, assistantCount) {
+  // Assistant cards share the attention count but use the neutral ring color.
+  const segments = [
+    { count: summary.finished, color: 'finished' },
+    { count: summary.inProgress, color: 'running' },
+    { count: summary.attention - assistantCount, color: 'attention' },
+    { count: summary.other + assistantCount, color: 'other' },
+  ].filter(segment => segment.count > 0);
+  if (!segments.length) segments.push({ count: 1, color: 'other' });
+  const gap = segments.length > 1 ? 5 : 0;
+  const radius = 8.75;
+  const strokeWidth = 2.5;
+  // Round caps extend beyond both path endpoints. Reserve their angular
+  // footprint so the visible gap and minimum painted sweep stay unchanged.
+  const capSweep = 2 * Math.asin(strokeWidth / (2 * radius)) * 180 / Math.PI;
+  // A 30-degree painted arc is ~4.6px at this radius. Clamp the smallest
+  // groups first, then distribute the remaining angle proportionally.
+  const minVisibleSweep = 30;
+  let remainingSweep = 360;
+  let remainingCount = segments.reduce((sum, segment) => sum + segment.count, 0);
+  for (const segment of [...segments].sort((left, right) => left.count - right.count)) {
+    segment.sweep = Math.max(minVisibleSweep + gap, segment.count / remainingCount * remainingSweep);
+    remainingSweep -= segment.sweep;
+    remainingCount -= segment.count;
+  }
+  const fragment = document.createDocumentFragment();
+  let offset = 0;
+  for (const segment of segments) {
+    const sweep = segment.sweep;
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '10'); circle.setAttribute('cy', '10'); circle.setAttribute('r', String(radius));
+    circle.setAttribute('stroke-width', String(strokeWidth)); circle.setAttribute('stroke-linecap', 'round');
+    circle.setAttribute('pathLength', '360'); circle.setAttribute('stroke', `var(--${segment.color})`);
+    if (gap) {
+      const pathGap = gap + capSweep;
+      circle.setAttribute('stroke-dasharray', `${sweep - pathGap} ${360 - sweep + pathGap}`);
+      circle.setAttribute('stroke-dashoffset', String(-offset - pathGap / 2));
+    }
+    fragment.append(circle);
+    offset += sweep;
+  }
+  markerSegments.replaceChildren(fragment);
+}
+function updateFade() { tasks.dataset.fade = String(tasks.style.overflow !== 'visible' && tasks.scrollTop + tasks.clientHeight < tasks.scrollHeight - 1); }
+function createDismissButton(label, onDismiss) {
+  const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.className = 'task-dismiss'; dismiss.append(document.getElementById('dismissIcon').content.cloneNode(true)); dismiss.setAttribute('aria-label', label); dismiss.title = label;
+  dismiss.onclick = onDismiss;
+  return dismiss;
+}
+function renderTasks(data) {
+  const fragment = document.createDocumentFragment();
+  const assistants = data.assistants || [];
+  for (const assistant of assistants) {
+    const row = document.createElement('div'); row.className = 'task assistant'; row.setAttribute('role', 'listitem');
+    row.dataset.key = JSON.stringify(['assistant', assistant.target.scopeEpoch, assistant.target.kind, assistant.target.projectId, assistant.target.sessionId]);
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'task-open';
+    open.onclick = () => ipc.send('icube-floating-chat:assistant-open', assistant.target);
+    const icon = document.createElement('span'); icon.className = 'state-icon'; icon.setAttribute('aria-hidden', 'true');
+    const avatar = document.createElement('img'); avatar.src = assistant.target.kind === 'project-assistant' ? 'icons/status/assistant-project.svg' : 'icons/status/assistant.svg'; avatar.alt = ''; icon.append(avatar);
+    const text = document.createElement('span'); text.className = 'text';
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = assistant.name; name.title = assistant.name;
+    const preview = document.createElement('span'); preview.className = 'status'; preview.textContent = assistant.preview || ''; preview.title = preview.textContent;
+    text.append(name, preview); open.append(icon, text);
+    if (assistant.unreadCount > 1) {
+      const badge = document.createElement('span'); badge.className = 'assistant-badge'; badge.textContent = assistant.unreadCount > 99 ? '99+' : String(assistant.unreadCount); open.append(badge);
+    }
+    const dismiss = createDismissButton(data.statusLabels.dismiss, () => ipc.send('icube-floating-chat:assistant-dismiss', assistant.target));
+    row.append(open, dismiss); fragment.append(row);
+  }
+  if (assistants.length && data.tasks.length) { const separator = document.createElement('div'); separator.className = 'separator'; separator.dataset.key = 'separator'; separator.setAttribute('role', 'separator'); fragment.append(separator); }
+  for (const task of data.tasks) {
+    const row = document.createElement('div'); row.className = 'task'; row.setAttribute('role', 'listitem');
+    row.dataset.key = JSON.stringify(['task', task.sessionId]);
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'task-open';
+    open.onclick = () => ipc.send('icube-floating-chat:task-card-open', task.sessionId);
+    const dismiss = createDismissButton(data.statusLabels.dismiss, () => ipc.send('icube-floating-chat:task-card-dismiss', task.sessionId));
+    const icon = document.createElement('span'); icon.className = 'state-icon'; icon.classList.add(task.status); icon.setAttribute('aria-hidden', 'true');
+    if (task.status === 'finished' || task.status === 'running' || task.status === 'waiting' || task.status === 'attention' || task.status === 'failed') {
+      const image = document.createElement('img'); image.alt = '';
+      image.src = `icons/status/${task.status === 'finished' ? 'completed' : task.status === 'attention' || task.status === 'failed' ? 'warning' : 'running'}.svg`; icon.append(image);
+    } else if (task.status !== 'stopped') { icon.classList.add('other'); }
+    const text = document.createElement('span'); text.className = 'text';
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = task.name || data.statusLabels.untitled; name.title = name.textContent;
+    const status = document.createElement('span'); status.className = 'status'; status.textContent = data.statusLabels[task.status];
+    text.append(name, status); open.append(icon, text); row.append(open, dismiss); fragment.append(row);
+  }
+  if (!assistants.length && !data.tasks.length && data.kind !== 'toast') {
+    const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = data.statusLabels.empty; fragment.append(empty);
+  }
+  if (data.kind === 'toast') { toast.update(fragment, data.presentation); return; }
+  const scrollTop = listExpanded && data.expanded ? tasks.scrollTop : 0;
+  listExpanded = data.expanded;
+  tasks.replaceChildren(fragment); tasks.scrollTop = scrollTop; updateFade();
+  requestAnimationFrame(() => ipc.send('icube-floating-chat:feedback-resize', Math.ceil(tasks.getBoundingClientRect().height + 8)));
+}
+marker.onclick = () => ipc.send('icube-floating-chat:task-status-toggle');
+tasks.onscroll = updateFade;
+ipc.on('icube-floating-chat:feedback', (_event, data) => {
+  document.documentElement.dataset.theme = data.theme;
+  document.body.dataset.kind = data.kind;
+  if (data.presentation) document.body.dataset.placement = data.presentation.placement;
+  marker.hidden = data.kind !== 'status'; tasks.hidden = data.kind !== 'tasks' && data.kind !== 'toast';
+  if (data.kind === 'tasks' || data.kind === 'toast') { renderTasks(data); return; }
+  const { other, attention } = data.statusSummary;
+  renderStatusRing(data.statusSummary, data.assistants?.length || 0);
+  marker.setAttribute('aria-label', data.markerLabel);
+  marker.setAttribute('aria-expanded', String(data.expanded));
+  const icon = 'icons/status/' + (data.expanded ? 'expanded.svg' : other || attention ? 'notification-prompt.svg' : 'notification.svg');
+  if (markerIcon.getAttribute('src') !== icon) markerIcon.src = icon;
+});
+</script></body></html>

@@ -1,0 +1,910 @@
+<!--
+	Copyright (c) Bytedance Inc. All rights reserved.
+	Licensed under the MIT License. See License.txt in the project root for license information.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+:root {
+	--ball-background: rgba(255, 255, 255, 0.80);
+	--ball-foreground: #0c0c0d;
+}
+:root[data-theme="dark"] {
+	--ball-background: rgba(38, 38, 38, 0.80);
+	--ball-foreground: #e5e5e5;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; display: flex; align-items: center; justify-content: center; }
+.icon-ball .btn,
+.icon-traebao .btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer; user-select: none; -webkit-app-region: no-drag;
+}
+.icon-ball .btn {
+	/* 44px ball with 8px of shadow padding on each side. */
+	width: 60px;
+	height: 60px;
+	flex-shrink: 0;
+}
+.icon-traebao .btn {
+	width: 105px;
+	height: 105px;
+	flex-shrink: 0;
+}
+.icon-ball .btnContent {
+	display: flex;
+	width: 44px;
+	height: 44px;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 3px;
+	border-radius: 100px;
+	background: var(--ball-background);
+	color: var(--ball-foreground);
+	box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.16);
+	backdrop-filter: blur(2px);
+	cursor: pointer; user-select: none; -webkit-app-region: no-drag;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:hover { transform: scale(1.01); }
+.btn:active { transform: scale(0.95); }
+/* Pressed state driven by swallowed native events (:active never fires) */
+.btn.pressed .btnContent { transform: scale(0.95); }
+/* The visible 3D pet owns its motion; preserve the user's inline size on press. */
+.btn:has(.traebao3d:not([hidden])):is(:hover, :active) { transform: scale(1); }
+.btn.pressed:has(.traebao3d:not([hidden])) .btnContent { transform: none; }
+.btn img { object-fit: cover; pointer-events: none; width: 85px; height: 85px; }
+.icon-traebao .btnContent { position: relative; width: 85px; height: 85px; }
+/* Match the supplied WebP's visible footprint while retaining the authored 3D camera. */
+.btn canvas.traebao3d { position: absolute; left: -8.5px; top: -8.5px; width: 102px; height: 102px; pointer-events: none; transform: scale(.85); }
+.btnContent [hidden] { display: none; }
+.btnContent [data-pet-easter-egg] { position: absolute; inset: 0; }
+.pet-transforming .traebao3d { z-index: 1; }
+.pet-transforming [data-pet-easter-egg] { z-index: 2; }
+.btn svg { pointer-events: none; }
+.icon-ball .agentMotion {
+	width: calc(100% * 32 / 60);
+	height: calc(100% * 23 / 60);
+}
+.agentMotion > svg { display: block; width: 100%; height: 100%; }
+.btn.waiting .btnContent { animation: waiting 1.8s ease-in-out infinite; }
+.btn.completed .btnContent { animation: completed .6s ease-in-out 3; }
+@keyframes waiting { 50% { opacity: .55; transform: translateY(-2px); } }
+@keyframes completed { 50% { transform: translateY(-9px) rotate(-4deg); } }
+</style>
+</head>
+<body class="icon-traebao">
+<div class="btn" id="toggleBtn">
+	<div class="btnContent" id="btnContent">
+		<svg width="24" height="24" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g filter="url(#filter0_ddd_1077_39806)">
+      <circle cx="38" cy="38" r="30" fill="var(--ball-background)" />
+    </g>
+    <path
+      d="M52.2108 48.7209H27.849V44.6627H23.7891V28.4209H52.2108V48.7209ZM27.849 44.6627H48.1509V32.4808H27.849V44.6627ZM38.0009 38.5098L35.1301 41.3805L32.2594 38.5098L35.1301 35.639L38.0009 38.5098ZM46.121 38.5081L43.2501 41.3787L40.3795 38.5081L43.2501 35.6373L46.121 38.5081Z"
+      fill="var(--ball-foreground)"
+    />
+  </svg>
+	</div>
+</div>
+<script>
+const ipc = window.floatingChatIpc;
+const btn = document.getElementById('toggleBtn');
+const btnContent = document.getElementById('btnContent');
+let isDragging = false;
+let hasMoved = false;
+let startScreenX, startScreenY;
+let agentCleanup = null;
+let agentPointerMove = null;
+let agentVisibilityChange = null;
+let currentIconName = 'traebao';
+let currentStaticPath = '';
+let currentAnimatedPath = '';
+let currentHoverPath = '';
+let currentBusyPath = '';
+let currentSuperBusyPath = '';
+let currentVoicePath = '';
+let voiceActive = false;
+let runningTasks = [];
+let isHovering = false;
+let superBusyIntervalId = null;
+let superBusyTimeoutId = null;
+let isSuperBusy = false;
+
+// Load the local Three.js bundle only for the idle pet; activity art stays in <img>.
+let petRenderer = null;
+let petEasterEgg = null;
+let petEasterEggEnabled = false;
+let petStartupEasterEggRequested = false;
+let petStartupEasterEggPending = false;
+let petScript = null;
+let petLoading = false;
+let petFailed = false;
+let petGeneration = 0;
+let petScale = 1;
+let petWindowVisible = true;
+let petUnloading = false;
+let petPointer = [null, null];
+let petInputCaret = null;
+let petHoverRegion = null;
+const petHitCanvas = document.createElement('canvas');
+const petHitContext = petHitCanvas.getContext('2d', { willReadFrequently: true });
+petHitCanvas.width = petHitCanvas.height = 160;
+
+function isDefaultPet() {
+	return currentIconName === 'traebao' && !voiceActive && runningTasks.length === 0 &&
+		!btn.classList.contains('waiting') && !btn.classList.contains('completed');
+}
+
+function clearPetMotion() {
+	petRenderer?.setHover(false);
+	petRenderer?.setDrag(false);
+	petHoverRegion = null;
+}
+
+function canPlayPetEasterEgg() {
+	return petEasterEggEnabled && isDefaultPet() && !petFailed && !petUnloading &&
+		petWindowVisible && !document.hidden && !isHovering && !isDragging && !nativePressActive;
+}
+
+function tryStartupPetEasterEgg() {
+	if ((petStartupEasterEggRequested && !petStartupEasterEggPending) || !canPlayPetEasterEgg() ||
+		!petRenderer || petRenderer.canvas.hidden) return;
+	const date = new Date();
+	if (date.getMonth() !== 9 || date.getDate() !== 24) {
+		petStartupEasterEggRequested = true; petStartupEasterEggPending = false; return;
+	}
+	if (petStartupEasterEggPending) {
+		if (petEasterEgg?.tryPlay(true)) petStartupEasterEggPending = false;
+	} else {
+		petStartupEasterEggRequested = true;
+		ipc.send('icube-floating-chat:request-startup-easter-egg');
+	}
+}
+
+function updatePetMotion() {
+	petEasterEgg?.check();
+	if (!isDefaultPet() || petFailed || !petWindowVisible || document.hidden || !petRenderer || petRenderer.canvas.hidden) {
+		clearPetMotion(); return;
+	}
+	// The renderer owns body lift, leg deformation, shadows and landing.
+	// Its asynchronous frame callback also refreshes the moving click mask.
+	petRenderer.setHover(isHovering && !(isDragging && hasMoved));
+	petRenderer.setDrag(isDragging && hasMoved);
+	tryStartupPetEasterEgg();
+}
+
+function disposePet() {
+	const easterEgg = petEasterEgg;
+	petEasterEgg = null;
+	easterEgg?.stop();
+	clearPetMotion();
+	petGeneration++;
+	petLoading = false;
+	petRenderer?.dispose();
+	petRenderer = null;
+}
+
+function loadPetScript() {
+	if (!petScript) {
+		petScript = new Promise((resolve, reject) => {
+			const script = document.createElement('script');
+			const timeout = setTimeout(() => finish(new Error('TRAE Bao renderer load timed out')), 10000);
+			const finish = error => {
+				clearTimeout(timeout); script.onload = script.onerror = null;
+				if (error) { script.remove(); reject(error); } else { resolve(); }
+			};
+			script.src = './traebao/renderer.js';
+			script.onload = () => finish();
+			script.onerror = () => finish(new Error('TRAE Bao renderer is unavailable'));
+			document.head.appendChild(script);
+		});
+	}
+	return petScript;
+}
+
+function ensurePetRenderer() {
+	if (petRenderer || petLoading || petFailed || petUnloading || !petWindowVisible) return;
+	petLoading = true;
+	const generation = petGeneration;
+	loadPetScript().then(() => {
+		if (generation !== petGeneration) return;
+		petLoading = false;
+		if (!isDefaultPet() || !petWindowVisible) return;
+		const fail = error => {
+			if (generation !== petGeneration) return;
+			console.warn('[FloatingChat] 3D pet unavailable; using supplied idle image.', error);
+			petFailed = true;
+			disposePet();
+			updateTraebaoSrc();
+		};
+		try {
+			petEasterEgg = new TraebaoRenderer.EasterEgg({
+				container: btnContent, canPlay: canPlayPetEasterEgg,
+				onChange: updateTraebaoSrc, onFrame: scheduleButtonHitRegion, getRenderer: () => petRenderer,
+			});
+			petRenderer = TraebaoRenderer.create({
+				onError: fail,
+				onBlink: () => petEasterEgg?.tryPlay(),
+				onFrame: (canvas, image) => {
+					if (generation !== petGeneration || !isDefaultPet() || !petWindowVisible || petEasterEgg?.playing) return;
+					// Pixels arrive only after the GPU fence signals, at up to 10Hz.
+					// Keep this canvas in CPU memory so hit testing never reads the GPU.
+					if (petHitCanvas.width !== image.width) petHitCanvas.width = petHitCanvas.height = image.width;
+					petHitContext.putImageData(image, 0, 0);
+					canvas.hidden = false;
+					btnContent.querySelector('img').hidden = true;
+					updatePetMotion();
+					scheduleButtonHitRegion();
+				},
+			});
+			petRenderer.canvas.hidden = true;
+			btnContent.appendChild(petRenderer.canvas);
+			petRenderer.setScale(petScale);
+			petRenderer.ready.then(() => {
+				if (generation === petGeneration && petRenderer) {
+					petRenderer.setPointer(...(petInputCaret || petPointer));
+					petRenderer.setActive(isDefaultPet() && petWindowVisible);
+				}
+			});
+		} catch (error) { fail(error); }
+	}).catch(error => {
+		if (generation !== petGeneration) return;
+		petLoading = false; petFailed = true;
+		console.warn('[FloatingChat] 3D pet load failed.', error);
+	});
+}
+
+const agentSvgHtml = '<div class="agentMotion" id="agentMotion"><svg id="agentSvg" xmlns="http://www.w3.org/2000/svg" width="32" height="23" viewBox="0 0 32 23" fill="none">'
+	+ '<g id="agentFace" style="transition:transform 0.1s ease-out">'
+	+ '<path d="M32.002 23H4.57135V18.4021H0V0H32.002V23ZM4.57135 18.4021H27.4307V4.59992H4.57135V18.4021Z" fill="currentColor"/>'
+	+ '<g id="leftEyeG" style="transition:transform 0.1s ease-out">'
+	+ '<rect id="leftEye" x="10.48" y="9.14" width="4.57" height="4.57" fill="currentColor" style="transform-origin:center;transform-box:fill-box;transform:rotate(45deg);transition:transform 0.08s ease-out"/>'
+	+ '</g><g id="rightEyeG" style="transition:transform 0.1s ease-out">'
+	+ '<rect id="rightEye" x="19.63" y="9.14" width="4.57" height="4.57" fill="currentColor" style="transform-origin:center;transform-box:fill-box;transform:rotate(45deg);transition:transform 0.08s ease-out"/>'
+	+ '</g></g></svg></div>';
+
+function initAgentAnimation() {
+	const motion = document.getElementById('agentMotion');
+	const face = document.getElementById('agentFace');
+	const lG = document.getElementById('leftEyeG');
+	const rG = document.getElementById('rightEyeG');
+	const lE = document.getElementById('leftEye');
+	const rE = document.getElementById('rightEye');
+	if (!motion || !face || !lG || !rG || !lE || !rE) return function() {};
+
+	var S = 1;
+	var idle = false, active = null, idleTimer = null, timeouts = new Set();
+	var lastOffset = null, moveRaf = null, pendingOffset = null;
+	let breatheTimer = null, settleAnimation = null;
+	const breatheFrameMs = 100;
+
+	function startBreathing() {
+		stopBreathing();
+		const start = performance.now();
+		// Keep the SVG on an HTML layer so moving it does not repaint its paths.
+		motion.style.willChange = 'transform';
+		function tick() {
+			const offset = Math.sin((performance.now() - start) / 3000 * Math.PI * 2) * 1.5;
+			motion.style.transform = 'translate3d(0,' + offset + 'px,0)';
+			// WAAPI steps still ticks the compositor at display refresh rate. Schedule
+			// actual updates at 10Hz, preserving the 3s period and 1.5px amplitude.
+			breatheTimer = setTimeout(tick, breatheFrameMs);
+		}
+		tick();
+	}
+
+	function stopBreathing(settle = false) {
+		const transform = settle && breatheTimer !== null ? motion.style.transform : null;
+		if (breatheTimer !== null) clearTimeout(breatheTimer);
+		breatheTimer = null;
+		settleAnimation?.cancel();
+		motion.style.transform = '';
+		motion.style.willChange = '';
+		settleAnimation = transform ? motion.animate([
+			{ transform }, { transform: 'translateY(0px)' },
+		], { duration: 300, easing: 'ease-out' }) : null;
+	}
+
+	function clearTimeouts() {
+		timeouts.forEach(clearTimeout);
+		timeouts.clear();
+	}
+
+	function setEyes(rot, sy) {
+		var v = 'rotate(' + rot + 'deg) scaleY(' + sy + ')';
+		lE.style.transform = v;
+		rE.style.transform = v;
+	}
+
+	function idleAnim() {
+		idleTimer = null;
+		if (!active) return;
+		if (!idle) {
+			startBreathing();
+		}
+		idle = true;
+		face.style.transform = '';
+		lG.style.transform = '';
+		rG.style.transform = '';
+		setEyes(0, 1);
+		var s = function(fn, d) {
+			const timer = setTimeout(() => { timeouts.delete(timer); fn(); }, d);
+			timeouts.add(timer);
+		};
+		s(function() { setEyes(0, 0.1); }, 150);
+		s(function() { setEyes(0, 1); }, 300);
+		s(function() { setEyes(0, 0.1); }, 450);
+		s(function() { setEyes(0, 1); }, 600);
+		s(function() { setEyes(45, 1); }, 800);
+		idleTimer = setTimeout(idleAnim, 10000);
+	}
+
+	function applyMove(offset) {
+		moveRaf = null;
+		var dx = offset.x, dy = offset.y;
+		if (Math.hypot(dx, dy) < 4) {
+			face.style.transform = '';
+			lG.style.transform = '';
+			rG.style.transform = '';
+			return;
+		}
+		var mEX = 2.2 * S, mEY = 1.5 * S, oX = -1.5 * S;
+		var ex = Math.min(Math.max(dx * S / 20, -mEX), mEX) + oX;
+		var ey = Math.min(Math.max(dy * S / 20, -mEY), mEY);
+		var sq = (Math.abs(ex - oX) / mEX) * 0.5 * S;
+		var mF = S;
+		face.style.transform = 'translate(' + Math.min(Math.max(dx * S / 60, -mF), mF) + 'px,' + Math.min(Math.max(dy * S / 60, -mF), mF) + 'px)';
+		lG.style.transform = 'translate(' + (ex + sq) + 'px,' + ey + 'px)';
+		rG.style.transform = 'translate(' + (ex - sq) + 'px,' + ey + 'px)';
+	}
+
+	function onPointerMove(dx, dy) {
+		if (!active) return;
+		if (dx === null && dy === null) {
+			if (moveRaf !== null) cancelAnimationFrame(moveRaf);
+			moveRaf = null;
+			pendingOffset = null;
+			lastOffset = null;
+			if (idleTimer) clearTimeout(idleTimer);
+			clearTimeouts();
+			idleAnim();
+			return;
+		}
+		if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+		var scale = btn.getBoundingClientRect().width / btn.offsetWidth;
+		if (!(scale > 0)) return;
+		dx /= scale;
+		dy /= scale;
+		if (lastOffset && Math.hypot(dx - lastOffset.x, dy - lastOffset.y) < 2) return;
+		if (idle) stopBreathing(true);
+		lastOffset = { x: dx, y: dy };
+		if (idleTimer) clearTimeout(idleTimer);
+		clearTimeouts();
+		idle = false;
+		setEyes(45, 1);
+		idleTimer = setTimeout(idleAnim, 1000);
+		pendingOffset = lastOffset;
+		if (moveRaf === null) {
+			moveRaf = requestAnimationFrame(function() { applyMove(pendingOffset); });
+		}
+	}
+
+	function stopMotion() {
+		if (idleTimer) clearTimeout(idleTimer);
+		idleTimer = null;
+		clearTimeouts();
+		stopBreathing();
+		if (moveRaf !== null) cancelAnimationFrame(moveRaf);
+		moveRaf = null;
+		pendingOffset = null;
+		lastOffset = null;
+		idle = false;
+	}
+
+	function updateVisibility() {
+		const next = petWindowVisible && !document.hidden;
+		if (next === active) return;
+		active = next;
+		btnContent.style.animationPlayState = active ? '' : 'paused';
+		stopMotion();
+		if (active) idleTimer = setTimeout(idleAnim, 1000);
+	}
+
+	// The main process owns the screen-distance gate and polling rate.
+	agentPointerMove = onPointerMove;
+	agentVisibilityChange = updateVisibility;
+	updateVisibility();
+
+	return function() {
+		active = false;
+		agentPointerMove = null;
+		agentVisibilityChange = null;
+		stopMotion();
+		btnContent.style.animationPlayState = '';
+	};
+}
+
+function clearSuperBusyTimers() {
+	if (superBusyIntervalId !== null) { clearInterval(superBusyIntervalId); superBusyIntervalId = null; }
+	if (superBusyTimeoutId !== null) { clearTimeout(superBusyTimeoutId); superBusyTimeoutId = null; }
+	isSuperBusy = false;
+}
+
+function getTraebaoSrc() {
+	if (voiceActive && currentVoicePath) return currentVoicePath;
+	var hasRunning = runningTasks.length > 0;
+	if (hasRunning && isSuperBusy && currentSuperBusyPath) return currentSuperBusyPath;
+	if (hasRunning && currentBusyPath) return currentBusyPath;
+	if (petFailed && (isDragging || isHovering) && !hasRunning && currentHoverPath) return currentHoverPath;
+	return currentStaticPath;
+}
+
+function updateTraebaoSrc() {
+	petEasterEgg?.check();
+	const img = btnContent.querySelector('img');
+	if (!img) return;
+	const use3d = isDefaultPet() && !petFailed && petWindowVisible && !petEasterEgg?.playing;
+	if (use3d) ensurePetRenderer();
+	petRenderer?.setActive(use3d);
+	if (use3d && !isHovering && !isDragging) petRenderer?.setPointer(...(petInputCaret || petPointer));
+	if (use3d && petRenderer?.canvas.hidden) img.hidden = !!petEasterEgg?.active;
+	if (!use3d) {
+		if (petRenderer) petRenderer.canvas.hidden = true;
+		img.hidden = !!petEasterEgg?.playing;
+	}
+	if (petEasterEgg?.active) img.hidden = true;
+	const newSrc = getTraebaoSrc();
+	if (img.getAttribute('src') !== newSrc) img.src = newSrc;
+	updatePetMotion();
+	scheduleButtonHitRegion();
+}
+
+function startSuperBusyCycle() {
+	clearSuperBusyTimers();
+	superBusyIntervalId = setInterval(function() {
+		if (runningTasks.length === 0) { clearSuperBusyTimers(); return; }
+		isSuperBusy = true;
+		updateTraebaoSrc();
+		superBusyTimeoutId = setTimeout(function() {
+			isSuperBusy = false;
+			updateTraebaoSrc();
+		}, 10000);
+	}, 180000);
+}
+
+function renderIcon() {
+	if (agentCleanup) { agentCleanup(); agentCleanup = null; }
+	disposePet();
+	clearSuperBusyTimers();
+	document.body.className = 'icon-' + (currentIconName || 'ball');
+	btnContent.innerHTML = '';
+	scheduleButtonHitRegion();
+
+	if (!currentIconName || currentIconName === 'ball') {
+		btnContent.innerHTML = agentSvgHtml;
+		agentCleanup = initAgentAnimation();
+		return;
+	}
+	if (currentIconName === 'traebao') {
+		var img = document.createElement('img');
+		img.src = getTraebaoSrc();
+		img.alt = '';
+		img.draggable = false;
+		img.onload = scheduleButtonHitRegion;
+		img.onerror = function() {
+			if (!img.isConnected) return;
+			disposePet();
+			document.body.className = 'icon-ball';
+			btnContent.innerHTML = agentSvgHtml;
+			agentCleanup = initAgentAnimation();
+			scheduleButtonHitRegion();
+		};
+		btnContent.appendChild(img);
+		if (runningTasks.length > 0) startSuperBusyCycle();
+		updateTraebaoSrc();
+		return;
+	}
+	var img = document.createElement('img');
+	img.src = currentStaticPath;
+	img.alt = '';
+	img.draggable = false;
+	img.onload = scheduleButtonHitRegion;
+	img.onerror = function() {
+		document.body.className = 'icon-ball';
+		btnContent.innerHTML = agentSvgHtml;
+		agentCleanup = initAgentAnimation();
+		scheduleButtonHitRegion();
+	};
+	btnContent.appendChild(img);
+}
+
+ipc.on('icube-floating-chat:update-theme', (_event, mode) => {
+	if (mode === 'light' || mode === 'dark') {
+		document.documentElement.dataset.theme = mode;
+	}
+});
+
+ipc.on('icube-floating-chat:easter-egg-enabled', (_event, enabled) => {
+	petEasterEggEnabled = enabled === true;
+	petEasterEgg?.check();
+	tryStartupPetEasterEgg();
+});
+
+ipc.on('icube-floating-chat:startup-easter-egg', () => {
+	petStartupEasterEggPending = true;
+	tryStartupPetEasterEgg();
+});
+
+ipc.on('icube-floating-chat:input-caret', (_event, x, y) => {
+	petInputCaret = Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+	if (currentIconName === 'traebao' && !isHovering && !isDragging) petRenderer?.setPointer(...(petInputCaret || petPointer));
+});
+
+ipc.on('icube-floating-chat:cursor-position', (_event, x, y) => {
+	if (agentPointerMove) agentPointerMove(x, y);
+	if (currentIconName === 'traebao') {
+		petPointer = [x, y];
+		updateHoverAt(Number.isFinite(x) ? window.innerWidth / 2 + x : NaN,
+			Number.isFinite(y) ? window.innerHeight / 2 + y : NaN);
+		if (!isHovering && !isDragging) petRenderer?.setPointer(...(petInputCaret || petPointer));
+	}
+});
+
+function updateHoverAt(clientX, clientY) {
+	if (isDragging) return;
+	const hit = isButtonHit(clientX, clientY);
+	// Retain only the exact entry silhouette while airborne. The moving
+	// click mask remains separate, so transparent padding never captures input.
+	const next = hit || (isHovering && isRegionHit(petHoverRegion, clientX, clientY));
+	if (next === isHovering) return;
+	petHoverRegion = next ? hitRegion : null;
+	isHovering = next;
+	if (currentIconName === 'traebao') updateTraebaoSrc();
+}
+
+btn.addEventListener('mouseenter', function(event) {
+	updateHoverAt(event.clientX, event.clientY);
+});
+btn.addEventListener('mouseleave', function() {
+	isHovering = false;
+	petHoverRegion = null;
+	if (currentIconName === 'traebao') updateTraebaoSrc();
+});
+
+ipc.on('icube-floating-chat:update-icon', function(_event, iconName, staticPath, animatedPath, hoverPath, busyPath, superBusyPath, lookPaths, voicePath) {
+	currentIconName = iconName || 'traebao';
+	currentStaticPath = staticPath || '';
+	currentAnimatedPath = animatedPath || staticPath || '';
+	currentHoverPath = hoverPath || '';
+	currentBusyPath = busyPath || '';
+	currentSuperBusyPath = superBusyPath || '';
+	currentVoicePath = voicePath || '';
+	petPointer = [null, null];
+	petInputCaret = null;
+	renderIcon();
+});
+
+ipc.on('icube-floating-chat:update-running-tasks', function(_event, tasks) {
+	var prev = runningTasks;
+	runningTasks = Array.isArray(tasks) ? tasks : [];
+	var wasRunning = prev.length > 0;
+	var nowRunning = runningTasks.length > 0;
+	if (wasRunning !== nowRunning) {
+		if (currentIconName === 'traebao') {
+			clearSuperBusyTimers();
+			if (nowRunning) startSuperBusyCycle();
+			updateTraebaoSrc();
+		} else if (currentIconName && currentIconName !== 'ball') {
+			renderIcon();
+		}
+	}
+});
+
+let lastCompletionVersion;
+let completionTimer;
+ipc.on('icube-floating-chat:task-state', (_event, state) => {
+  voiceActive = state.voiceActive === true;
+  const completed = lastCompletionVersion !== undefined && state.completionVersion > lastCompletionVersion;
+  lastCompletionVersion = state.completionVersion;
+  btn.classList.toggle('waiting', !voiceActive && state.running === 0 && state.waiting > 0);
+  if (voiceActive || state.running > 0 || state.waiting > 0 || state.hasFailure) {
+    clearTimeout(completionTimer); btn.classList.remove('completed');
+  } else if (completed) {
+    btn.classList.add('completed');
+    clearTimeout(completionTimer);
+    completionTimer = setTimeout(() => { btn.classList.remove('completed'); updateTraebaoSrc(); }, 1800);
+  }
+  if (currentIconName === 'traebao') updateTraebaoSrc();
+});
+
+ipc.on('icube-floating-chat:button-visibility', (_event, visible) => {
+	petWindowVisible = visible === true;
+	if (!petWindowVisible) { isHovering = false; petInputCaret = null; }
+	agentVisibilityChange?.();
+	if (currentIconName === 'traebao') updateTraebaoSrc();
+});
+document.addEventListener('visibilitychange', () => {
+	agentVisibilityChange?.();
+	updatePetMotion();
+});
+
+ipc.on('icube-floating-chat:update-scale', (_event, scale) => {
+	var s = Math.max(0.6, Math.min(1.5, Number(scale) || 1));
+	petScale = s;
+	petHoverRegion = null;
+	petRenderer?.setScale(s);
+	btn.style.transform = 'scale(' + s + ')';
+	btn.style.transformOrigin = 'center center';
+	scheduleButtonHitRegion();
+	var rect = btn.getBoundingClientRect();
+	var w = Math.ceil(rect.width);
+	var h = Math.ceil(rect.height);
+	if (w > 0 && h > 0) {
+		ipc.send('icube-floating-chat:button-resize', w, h);
+	}
+});
+
+// One bounded mask serves DOM and native hit testing. Recompute on content or
+// geometry changes, never on every mouse move.
+const hitCanvas = document.createElement('canvas');
+const hitContext = hitCanvas.getContext('2d', { willReadFrequently: true });
+let hitRegion = null;
+let hitRegionFrame = null;
+
+function scheduleButtonHitRegion() {
+	if (hitRegionFrame === null) {
+		hitRegionFrame = requestAnimationFrame(refreshButtonHitRegion);
+	}
+}
+
+function refreshButtonHitRegion() {
+	if (hitRegionFrame !== null) {
+		cancelAnimationFrame(hitRegionFrame);
+		hitRegionFrame = null;
+	}
+	const width = Math.ceil(window.innerWidth);
+	const height = Math.ceil(window.innerHeight);
+	if (!hitContext || width < 1 || height < 1 || width > 512 || height > 512) return;
+	hitCanvas.width = width;
+	hitCanvas.height = height;
+	try {
+		if (document.body.classList.contains('icon-ball')) {
+			const rect = btnContent.getBoundingClientRect();
+			hitContext.beginPath();
+			hitContext.ellipse(rect.left + rect.width / 2, rect.top + rect.height / 2,
+				rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2);
+			hitContext.fill();
+		} else if (petEasterEgg?.active) {
+			petEasterEgg.drawHit(hitContext, petHitCanvas);
+		} else if (petRenderer && !petRenderer.canvas.hidden) {
+			const rect = petRenderer.canvas.getBoundingClientRect();
+			hitContext.drawImage(petHitCanvas, rect.left, rect.top, rect.width, rect.height);
+		} else {
+			const images = Array.from(btnContent.querySelectorAll('img')).filter(img => !img.hidden);
+			if (images.some(img => img.complete && img.naturalWidth && img.naturalHeight)) {
+				// Use supplied image alpha for activity and fallback states.
+				for (const img of images) {
+					if (!img.complete || !img.naturalWidth || !img.naturalHeight) continue;
+					const rect = img.getBoundingClientRect();
+					const scale = Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+					const drawnWidth = img.naturalWidth * scale;
+					const drawnHeight = img.naturalHeight * scale;
+					hitContext.save();
+					hitContext.beginPath();
+					hitContext.rect(rect.left, rect.top, rect.width, rect.height);
+					hitContext.clip();
+					const source = petEasterEgg?.playing && img === petEasterEgg.image ? petEasterEgg.mask : img;
+					hitContext.drawImage(source, rect.left + (rect.width - drawnWidth) / 2,
+						rect.top + (rect.height - drawnHeight) / 2, drawnWidth, drawnHeight);
+					hitContext.restore();
+				}
+			} else {
+				// Keep content interactive while loading; onload replaces this with the pixel mask.
+				const rect = btnContent.getBoundingClientRect();
+				hitContext.fillRect(rect.left, rect.top, rect.width, rect.height);
+			}
+		}
+		const rgba = hitContext.getImageData(0, 0, width, height).data;
+		const alpha = new Uint8Array(width * height);
+		for (let i = 0; i < alpha.length; i++) alpha[i] = rgba[i * 4 + 3];
+		hitRegion = { width, height, alpha };
+	} catch {
+		// Failed/tainted images have no interactive pixels.
+		hitRegion = { width, height, alpha: new Uint8Array(width * height) };
+	}
+	// The main process also uses this mask for hover detection on Windows/Linux.
+	ipc.send('icube-floating-chat:button-hit-region', width, height, hitRegion.alpha);
+}
+
+function isButtonHit(clientX, clientY) {
+	if (!hitRegion || hitRegionFrame !== null) refreshButtonHitRegion();
+	return isRegionHit(hitRegion, clientX, clientY);
+}
+
+function isRegionHit(region, clientX, clientY) {
+	if (!region || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
+	const x = Math.floor(clientX), y = Math.floor(clientY);
+	return x >= 0 && x < region.width && y >= 0 && y < region.height &&
+		region.alpha[y * region.width + x] >= 16;
+}
+
+// Whether a screen point (Electron DIP) is over the visible button content.
+// Used to correct the hover state on release, since swallowed drags do not
+// generate mouseleave events.
+function isPointOverButtonScreen(screenX, screenY) {
+	return isButtonHit(screenX - window.screenX, screenY - window.screenY);
+}
+
+const resizeObserver = new ResizeObserver(() => {
+	scheduleButtonHitRegion();
+	const rect = btn.getBoundingClientRect();
+	const w = Math.ceil(rect.width);
+	const h = Math.ceil(rect.height);
+	if (w > 0 && h > 0) {
+		ipc.send('icube-floating-chat:button-resize', w, h);
+	}
+});
+resizeObserver.observe(btn);
+window.addEventListener('resize', () => { petHoverRegion = null; scheduleButtonHitRegion(); });
+scheduleButtonHitRegion();
+
+let nativeInputEnabled = false;
+let nativePressActive = false;
+let nativeContextMenuPosition = null;
+let dragMoveFrame = null;
+let pendingDragPosition = null;
+
+function flushDragMove() {
+	if (dragMoveFrame !== null) {
+		cancelAnimationFrame(dragMoveFrame);
+		dragMoveFrame = null;
+	}
+	if (pendingDragPosition && !nativeInputEnabled) {
+		ipc.send('icube-floating-chat:drag-move', pendingDragPosition.x, pendingDragPosition.y);
+	}
+	pendingDragPosition = null;
+}
+
+function resetPress() {
+	if (dragMoveFrame !== null) cancelAnimationFrame(dragMoveFrame);
+	dragMoveFrame = null;
+	pendingDragPosition = null;
+	if (isDragging) {
+		ipc.send('icube-floating-chat:drag-end');
+	}
+	isDragging = false;
+	hasMoved = false;
+	nativePressActive = false;
+	nativeContextMenuPosition = null;
+	btn.classList.remove('pressed');
+	if (currentIconName === 'traebao') updateTraebaoSrc();
+	scheduleButtonHitRegion();
+}
+
+ipc.on('icube-floating-chat:native-input-mode', (_event, enabled) => {
+	const next = enabled === true;
+	if (next === nativeInputEnabled) return;
+	isHovering = false;
+	resetPress();
+	nativeInputEnabled = next;
+});
+
+ipc.on('icube-floating-chat:native-mouse-event', (_event, native) => {
+	if (!nativeInputEnabled || !native) return;
+	switch (native.type) {
+		case 'mousedown':
+			nativePressActive = true;
+			isDragging = true;
+			hasMoved = false;
+			btn.classList.add('pressed');
+			if (currentIconName === 'traebao') updateTraebaoSrc();
+			break;
+		case 'dragstart':
+			if (isDragging) {
+				hasMoved = true;
+				if (currentIconName === 'traebao') updateTraebaoSrc();
+			}
+			break;
+		case 'mouseup':
+			if (!isDragging) break;
+			if (!hasMoved && !native.dragged) ipc.send('icube-floating-chat:toggle');
+			isHovering = isPointOverButtonScreen(native.screenX, native.screenY);
+			resetPress();
+			break;
+		case 'rightdown':
+			if (isDragging) break;
+			nativePressActive = true;
+			petEasterEgg?.check();
+			nativeContextMenuPosition = { x: native.screenX, y: native.screenY };
+			break;
+		case 'rightup': {
+			if (isDragging) break;
+			const menuPosition = nativeContextMenuPosition;
+			resetPress();
+			// Finish the native press before AppKit's menu takes over mouse events.
+			if (menuPosition) ipc.send('icube-floating-chat:context-menu', menuPosition.x, menuPosition.y);
+			break;
+		}
+		case 'cancel':
+			isHovering = false;
+			resetPress();
+			break;
+	}
+});
+
+// DOM remains available on every platform until native installation succeeds.
+btn.addEventListener('contextmenu', (e) => {
+	e.preventDefault();
+	if (nativeInputEnabled || isDragging || !isButtonHit(e.clientX, e.clientY)) return;
+	ipc.send('icube-floating-chat:context-menu', e.screenX, e.screenY);
+});
+
+btn.addEventListener('mousedown', (e) => {
+	if (nativeInputEnabled || e.button !== 0 || !isButtonHit(e.clientX, e.clientY)) return;
+	// A release outside this window may have been missed. Start with a fresh offset.
+	if (isDragging) resetPress();
+	isDragging = true;
+	hasMoved = false;
+	startScreenX = e.screenX;
+	startScreenY = e.screenY;
+	// Capture the original offset before any motion, including very short drags.
+	ipc.send('icube-floating-chat:drag-move', startScreenX, startScreenY);
+	if (currentIconName === 'traebao') updateTraebaoSrc();
+	e.preventDefault();
+});
+
+function queueDragPosition(e) {
+	if (!hasMoved && Math.abs(e.screenX - startScreenX) < 3 && Math.abs(e.screenY - startScreenY) < 3) return;
+	if (!hasMoved) {
+		hasMoved = true;
+		if (currentIconName === 'traebao') updateTraebaoSrc();
+	}
+	pendingDragPosition = { x: e.screenX, y: e.screenY };
+	if (dragMoveFrame === null) dragMoveFrame = requestAnimationFrame(flushDragMove);
+}
+
+document.addEventListener('mousemove', (e) => {
+	if (!isDragging) updateHoverAt(e.clientX, e.clientY);
+	if (nativeInputEnabled || !isDragging) return;
+	if ((e.buttons & 1) === 0) {
+		resetPress();
+		return;
+	}
+	queueDragPosition(e);
+});
+
+document.addEventListener('mouseup', (e) => {
+	if (nativeInputEnabled || e.button !== 0 || !isDragging) return;
+	queueDragPosition(e);
+	flushDragMove();
+	if (!hasMoved) ipc.send('icube-floating-chat:toggle');
+	isHovering = isButtonHit(e.clientX, e.clientY);
+	resetPress();
+});
+
+window.addEventListener('blur', () => {
+	if (nativePressActive) return;
+	flushDragMove();
+	isHovering = false;
+	resetPress();
+});
+
+window.addEventListener('beforeunload', () => {
+	petUnloading = true;
+	disposePet();
+	resetPress();
+	clearTimeout(completionTimer);
+	if (hitRegionFrame !== null) cancelAnimationFrame(hitRegionFrame);
+	resizeObserver.disconnect();
+	clearSuperBusyTimers();
+	if (agentCleanup) agentCleanup();
+});
+</script>
+</body>
+</html>

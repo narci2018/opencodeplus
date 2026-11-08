@@ -1,0 +1,9 @@
+# 运行时数据
+.trae-bao/
+
+# 依赖
+node_modules/
+bun.lock
+
+# 类型检查产物
+*.tsbuildinfo
