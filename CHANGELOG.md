@@ -4,9 +4,36 @@ Release notes for OpenCode V2, newest first.
 
 ## Unreleased
 
+### Desktop
+
+#### Bug fixes
+
+- Fixed packaged desktop builds downloading upstream official CLI from npm instead of bundling the local CLI build. `findBuiltCliDirectory` now checks all target candidate directory formats (`cli-windows-x64`, `cli-windows-x64-baseline`, `windows-x64`) in `packages/cli/dist` and properly embeds the locally compiled binary.
+
 ### Core
 
 #### Improvements
+
+- Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
+- Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
+
+### App
+
+#### Improvements
+
+- Added advanced visual analytics reports inspired by high-end monitoring dashboards:
+  - **Overview Panorama (用量调度全景)**: Centered around a vibrant SVG Radial Rays Sunburst Gauge displaying total tokens, input/output/reasoning breakdown pills, top model shares, estimated expenditures, and cache savings.
+  - **24-Hour Activity Rhythm (24小时活跃律动)**: Displays hourly load distribution, peak and trough hours, average load per request, and input/output ratio.
+  - **Efficiency Index Arc Gauge (效能指数半环仪表盘)**: Visualizes cache hit rate, token reuse volume, uncached input, and cost savings.
+  - **Activity Heatmap Grid (Token 活动热力图)**: 30-week GitHub-style contribution calendar displaying daily activity levels, accompanied by a daily steps trend wave.
+  - **Model Usage Donut Chart (模型用量环形图)**: Donut visualization of model token share distribution with percentages.
+- Implemented table pagination across the "By project", "By model", and nested "By session" tables with page size controls (10 / 20 / 50 rows per page), page info, and previous/next page navigation, drastically reducing DOM footprint and eliminating UI lag on large datasets.
+- Redesigned the "Agents" settings page to prominently display Built-in Agents (Build, Plan, TRAE, TRAE 宝) with badges, capability tags, and descriptions alongside user-defined Custom Agents.
+- Enhanced the "Rules & memory" settings page:
+  - Added an "Edit" action for existing instruction sources, allowing users to modify source URLs/paths or jump directly into editing local markdown rule files.
+  - Added real-time visual Markdown syntax validation in the file editor, flagging unclosed code blocks, malformed headings, unmatched backticks, broken links, and empty targets with line numbers and recommendations.
+  - Added view mode toggle between "Editor (源码编辑)", "Split (分栏对比)", and "Preview (实时预览)" with styled GitHub-compatible Markdown rendering.
+  - Added support for creating project-level rules (`<project>/AGENTS.md`) and project-level memory (`<project>/.opencode/memory/MEMORY.md`) with comprehensive starter templates directly from the UI.
 
 - Added a "Rules & memory" settings page and long-term memory engine modeled after TRAE's rules and memory interface. Users can toggle whether AGENTS.md and project CLAUDE.md/CLAUDE.local.md files are imported into context, inspect and edit global and project AGENTS.md files with a built-in text editor, and manage additional ambient instruction sources. The new memory system automatically injects global (`~/.config/opencode/memory/MEMORY.md`) and project (`<project>/.opencode/memory/MEMORY.md`) memory files into all sessions, and automatically distills durable facts (user preferences, conventions, decisions) into project memory whenever a session goes idle.
 - The Worktrees settings page gains a "New worktree" dialog: pick a project, optionally name the worktree and choose a base branch (read from the project's canonical checkout), and create it right from the page. The inventory refreshes as soon as the worktree exists.

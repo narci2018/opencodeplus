@@ -24,6 +24,7 @@ describe("normalizeAgentList", () => {
     expect(result).toEqual([
       {
         name: "build",
+        displayName: "Build",
         description: undefined,
         mode: "primary",
         native: true,

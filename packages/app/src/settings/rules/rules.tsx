@@ -29,6 +29,243 @@ type Scope = "global" | "project"
 
 const encoder = new TextEncoder()
 
+const DEFAULT_PROJECT_AGENTS_TEMPLATE = `# Project Rules & Guidelines
+
+## Overview
+Describe the architecture, tech stack, and conventions of this project.
+
+## Code Standards
+- Keep functions modular and maintain strict type safety (avoid \`any\`).
+- Prefer functional array methods (map, filter) and early returns.
+- Maintain documentation integrity and do not remove unrelated comments.
+
+## Testing & Quality
+- Write unit tests for core business logic.
+- Verify changes with \`bun typecheck\` before committing.
+`
+
+const DEFAULT_PROJECT_MEMORY_TEMPLATE = `# Project Memory & Context
+
+## Key Architectural Decisions
+- Document critical decisions, database schemas, and conventions here.
+
+## Environment & Constraints
+- Specific environment flags, ports, and configuration rules.
+`
+
+export type SyntaxIssue = {
+  line: number
+  level: "error" | "warning" | "info"
+  message: string
+}
+
+export function validateMarkdown(content: string): SyntaxIssue[] {
+  const issues: SyntaxIssue[] = []
+  const lines = content.split("\n")
+  let inCodeBlock = false
+  let codeBlockStartLine = 0
+  let codeBlockFence = ""
+
+  lines.forEach((line, index) => {
+    const lineNum = index + 1
+    const trimmed = line.trim()
+
+    // 1. Code block fences
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      const fence = trimmed.slice(0, 3)
+      if (!inCodeBlock) {
+        inCodeBlock = true
+        codeBlockStartLine = lineNum
+        codeBlockFence = fence
+      } else if (trimmed.startsWith(codeBlockFence)) {
+        inCodeBlock = false
+      }
+    }
+
+    if (!inCodeBlock) {
+      // 2. Headings missing space after hash (e.g. #Title)
+      if (/^#{1,6}[^ \t#\n]/.test(trimmed)) {
+        issues.push({
+          line: lineNum,
+          level: "warning",
+          message: `标题符号 '#' 与文字之间缺少空格: "${trimmed.slice(0, 20)}"`,
+        })
+      }
+
+      // 3. Inline backticks unclosed
+      const backticks = (line.match(/(?<!\\)`/g) || []).length
+      if (backticks % 2 !== 0) {
+        issues.push({
+          line: lineNum,
+          level: "warning",
+          message: `行内代码反引号 \` 未成对闭合`,
+        })
+      }
+
+      // 4. Broken markdown link syntax
+      if (/\[[^\]]+\]\([^)]*$/.test(line) && !line.includes(")")) {
+        issues.push({
+          line: lineNum,
+          level: "error",
+          message: `超链接缺少闭合右括号 ')'`,
+        })
+      }
+
+      // 5. Empty link target
+      if (/\[[^\]]+\]\(\s*\)/.test(line)) {
+        issues.push({
+          line: lineNum,
+          level: "info",
+          message: `链接目标 URL 为空`,
+        })
+      }
+    }
+  })
+
+  if (inCodeBlock) {
+    issues.push({
+      line: codeBlockStartLine,
+      level: "error",
+      message: `代码块未闭合，缺少结束标记 ${codeBlockFence}`,
+    })
+  }
+
+  return issues
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+}
+
+export function renderMarkdownPreview(raw: string): string {
+  const lines = raw.split("\n")
+  const out: string[] = []
+  let inCode = false
+  let codeLang = ""
+  let codeBuffer: string[] = []
+  let inList = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    // Code fence
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      if (inCode) {
+        out.push(
+          `<pre><code class="language-${escapeHtml(codeLang)}">${escapeHtml(codeBuffer.join("\n"))}</code></pre>`,
+        )
+        codeBuffer = []
+        inCode = false
+        codeLang = ""
+      } else {
+        if (inList) {
+          out.push("</ul>")
+          inList = false
+        }
+        inCode = true
+        codeLang = trimmed.slice(3).trim()
+      }
+      continue
+    }
+
+    if (inCode) {
+      codeBuffer.push(line)
+      continue
+    }
+
+    // Empty line
+    if (!trimmed) {
+      if (inList) {
+        out.push("</ul>")
+        inList = false
+      }
+      continue
+    }
+
+    // Headings
+    if (trimmed.startsWith("# ")) {
+      if (inList) {
+        out.push("</ul>")
+        inList = false
+      }
+      out.push(`<h1>${formatInline(trimmed.slice(2))}</h1>`)
+      continue
+    }
+    if (trimmed.startsWith("## ")) {
+      if (inList) {
+        out.push("</ul>")
+        inList = false
+      }
+      out.push(`<h2>${formatInline(trimmed.slice(3))}</h2>`)
+      continue
+    }
+    if (trimmed.startsWith("### ")) {
+      if (inList) {
+        out.push("</ul>")
+        inList = false
+      }
+      out.push(`<h3>${formatInline(trimmed.slice(4))}</h3>`)
+      continue
+    }
+
+    // Blockquote
+    if (trimmed.startsWith("> ")) {
+      if (inList) {
+        out.push("</ul>")
+        inList = false
+      }
+      out.push(`<blockquote>${formatInline(trimmed.slice(2))}</blockquote>`)
+      continue
+    }
+
+    // Unordered list
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (!inList) {
+        out.push("<ul>")
+        inList = true
+      }
+      out.push(`<li>${formatInline(trimmed.slice(2))}</li>`)
+      continue
+    }
+
+    // Normal paragraph
+    if (inList) {
+      out.push("</ul>")
+      inList = false
+    }
+    out.push(`<p>${formatInline(line)}</p>`)
+  }
+
+  if (inCode) {
+    out.push(
+      `<pre><code class="language-${escapeHtml(codeLang)}">${escapeHtml(codeBuffer.join("\n"))}</code></pre>`,
+    )
+  }
+  if (inList) {
+    out.push("</ul>")
+  }
+
+  return out.join("\n")
+}
+
+function formatInline(text: string): string {
+  let s = escapeHtml(text)
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>")
+  // Bold
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+  // Italic
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>")
+  // Links
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+  return s
+}
 
 export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) => {
   const language = useLanguage()
@@ -41,8 +278,6 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
 
   const connected = () => sdk.connection.status() === "connected"
 
-  // First fetch lists every project's memory directory; the scoped fetch then resolves the
-  // selected project's rule and memory files.
   const [bootstrap] = createResource(connected, async () => {
     if (!connected()) return undefined
     return sdk.api.experimental.rules.files().catch(() => undefined)
@@ -62,7 +297,6 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
 
   const refresh = () => void filesActions.refetch()
 
-  // Toggles flip optimistically; a failed write rolls the optimistic value back.
   const [ruleOverrides, setRuleOverrides] = createSignal<Partial<{ agents_md: boolean; claude_md: boolean }> | undefined>(
     undefined,
   )
@@ -109,13 +343,13 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
     return projects()[0]?.projectID
   }
 
-  const editFile = (file: FileRef) => {
+  const editFile = (file: FileRef, defaultContent?: string) => {
     void dialog.show(
       () => (
         <FileEditDialog
           title={language.t("settings.rules.file.edit.title", { name: file.path })}
           path={file.path}
-          content={file.content ?? ""}
+          content={file.content ?? defaultContent ?? ""}
           onSaved={() => refresh()}
           onClose={() => dialog.close()}
         />
@@ -130,6 +364,23 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
         <SourceAddDialog
           onSaved={() => refresh()}
           onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
+  }
+
+  const editInstruction = (source: string) => {
+    void dialog.show(
+      () => (
+        <SourceEditDialog
+          source={source}
+          onSaved={() => refresh()}
+          onClose={() => dialog.close()}
+          onEditContent={(filePath) => {
+            dialog.close()
+            editFile({ path: filePath, content: null })
+          }}
         />
       ),
       () => undefined,
@@ -270,10 +521,19 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       </div>
                       <Show when={files.latest?.projectAgents}>
                         {(file) => (
-                          <Button size="small" variant="ghost-muted" onClick={() => editFile(file())}>
+                          <Button
+                            size="small"
+                            variant={file().content !== null ? "ghost-muted" : "contrast"}
+                            onClick={() =>
+                              editFile(
+                                file(),
+                                file().content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
+                              )
+                            }
+                          >
                             {file().content !== null
                               ? language.t("common.edit")
-                              : language.t("settings.rules.file.create")}
+                              : "+ 创建项目规则"}
                           </Button>
                         )}
                       </Show>
@@ -313,14 +573,24 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                         <div class="rules-row-copy">
                           <span class="rules-row-description rules-row-path">{source}</span>
                         </div>
-                        <Button
-                          size="small"
-                          variant="ghost-muted"
-                          aria-label={language.t("common.delete")}
-                          onClick={() => void removeInstruction(source)}
-                        >
-                          <Icon name="trash" size="small" />
-                        </Button>
+                        <div class="flex items-center gap-1">
+                          <Button
+                            size="small"
+                            variant="ghost-muted"
+                            aria-label={language.t("common.edit")}
+                            onClick={() => editInstruction(source)}
+                          >
+                            <Icon name="pencil" size="small" />
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="ghost-muted"
+                            aria-label={language.t("common.delete")}
+                            onClick={() => void removeInstruction(source)}
+                          >
+                            <Icon name="trash" size="small" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </For>
@@ -393,8 +663,19 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       </div>
                       <Show when={files.latest?.memory.project}>
                         {(file) => (
-                          <Button size="small" variant="ghost-muted" onClick={() => editFile(file())}>
-                            {file().content !== null ? language.t("common.edit") : language.t("settings.rules.file.create")}
+                          <Button
+                            size="small"
+                            variant={file().content !== null ? "ghost-muted" : "contrast"}
+                            onClick={() =>
+                              editFile(
+                                file(),
+                                file().content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
+                              )
+                            }
+                          >
+                            {file().content !== null
+                              ? language.t("common.edit")
+                              : "+ 创建项目记忆"}
                           </Button>
                         )}
                       </Show>
@@ -507,11 +788,103 @@ function SourceAddDialog(props: { onSaved?: () => void; onClose?: () => void }) 
   )
 }
 
-function FileEditDialog(props: { title: string; path: string; content: string; onSaved?: () => void; onClose?: () => void }) {
+function SourceEditDialog(props: {
+  source: string
+  onSaved?: () => void
+  onClose?: () => void
+  onEditContent?: (filePath: string) => void
+}) {
+  const language = useLanguage()
+  const sdk = useServerSDK()
+  const [value, setValue] = createSignal(props.source)
+  const [saving, setSaving] = createSignal(false)
+
+  const save = async () => {
+    if (saving() || !value().trim() || value().trim() === props.source) {
+      props.onClose?.()
+      return
+    }
+    setSaving(true)
+    try {
+      await sdk.api.experimental.config.update({ instruction: { source: props.source, remove: true } })
+      await sdk.api.experimental.config.update({ instruction: { source: value().trim() } })
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("settings.extensions.saved.title"),
+        description: language.t("settings.extensions.saved.description", { name: value().trim() }),
+      })
+      props.onSaved?.()
+      props.onClose?.()
+    } catch (cause) {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: formatServerError(cause, language.t),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isLocalFile = () => props.source.endsWith(".md") || props.source.includes("/") || props.source.includes("\\")
+
+  return (
+    <Dialog size="large" variant="settings" preventBackdropDismiss={saving()}>
+      <DialogHeader>
+        <DialogTitleGroup title="编辑规则指令源" description={props.source} />
+      </DialogHeader>
+      <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
+        <TextField
+          label="规则路径或 URL"
+          value={value()}
+          onChange={setValue}
+          placeholder="例如：AGENTS.md 或 https://example.com/rules.md"
+          autofocus
+        />
+        <Show when={isLocalFile()}>
+          <div class="mt-3 flex items-center justify-between rounded border border-v2-border-subtle p-2 text-11-regular">
+            <span class="text-v2-text-muted">此指令源可能为本地规则文件，可直接查看与编辑其 Markdown 内容</span>
+            <Button
+              size="small"
+              variant="ghost-muted"
+              onClick={() => props.onEditContent?.(props.source)}
+            >
+              编辑文件内容
+            </Button>
+          </div>
+        </Show>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
+          {language.t("common.cancel")}
+        </Button>
+        <Button variant="contrast" onClick={() => void save()} disabled={saving() || !value().trim()}>
+          <Show when={saving()} fallback={language.t("common.save")}>
+            <Loader class="custom-agent-dialog-spinner" />
+          </Show>
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  )
+}
+
+function FileEditDialog(props: {
+  title: string
+  path: string
+  content: string
+  onSaved?: () => void
+  onClose?: () => void
+}) {
   const language = useLanguage()
   const sdk = useServerSDK()
   const [content, setContent] = createSignal(props.content)
   const [saving, setSaving] = createSignal(false)
+  const [viewMode, setViewMode] = createSignal<"edit" | "split" | "preview">("split")
+  const [showIssues, setShowIssues] = createSignal(false)
+
+  const issues = createMemo(() => validateMarkdown(content()))
+  const previewHtml = createMemo(() => renderMarkdownPreview(content()))
 
   const save = async () => {
     if (saving()) return
@@ -543,16 +916,113 @@ function FileEditDialog(props: { title: string; path: string; content: string; o
   return (
     <Dialog size="x-large" variant="settings" resizable maximizable preventBackdropDismiss={saving()}>
       <DialogHeader>
-        <DialogTitleGroup title={props.title} description={props.path} />
+        <div class="flex w-full items-center justify-between">
+          <DialogTitleGroup title={props.title} description={props.path} />
+          <div class="rules-view-tabs mr-6">
+            <Button
+              size="small"
+              variant={viewMode() === "edit" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("edit")}
+            >
+              编辑
+            </Button>
+            <Button
+              size="small"
+              variant={viewMode() === "split" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("split")}
+            >
+              分栏
+            </Button>
+            <Button
+              size="small"
+              variant={viewMode() === "preview" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("preview")}
+            >
+              预览
+            </Button>
+          </div>
+        </div>
       </DialogHeader>
       <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
-        <textarea
-          class="custom-agent-dialog-textarea rules-editor"
-          value={content()}
-          rows={18}
-          onChange={(event) => setContent(event.currentTarget.value)}
-          spellcheck={false}
-        />
+        {/* Real-time Visual Markdown Syntax Validator Bar */}
+        <div
+          class={`rules-syntax-bar ${
+            issues().length === 0 ? "rules-syntax-bar--valid" : "rules-syntax-bar--warning"
+          }`}
+        >
+          <div class="flex items-center gap-2">
+            <Icon
+              name={issues().length === 0 ? "circle-check" : "circle-exclamation"}
+              size="small"
+            />
+            <span>
+              {issues().length === 0
+                ? "✓ Markdown 语法检查通过：未发现语法与格式错误"
+                : `⚠ 检测到 ${issues().length} 个 Markdown 语法/格式注意项`}
+            </span>
+          </div>
+          <Show when={issues().length > 0}>
+            <Button
+              size="small"
+              variant="ghost"
+              onClick={() => setShowIssues(!showIssues())}
+            >
+              {showIssues() ? "收起明细" : "查看明细"}
+            </Button>
+          </Show>
+        </div>
+
+        <Show when={showIssues() && issues().length > 0}>
+          <div class="rules-syntax-issues mb-3 rounded border border-v2-border bg-v2-surface-subtle p-2">
+            <For each={issues()}>
+              {(item) => (
+                <div class="rules-syntax-issue-item">
+                  <span class="rounded bg-v2-surface px-1.5 py-0.5 text-10-regular text-v2-text-muted">
+                    第 {item.line} 行
+                  </span>
+                  <span>{item.message}</span>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+
+        {/* View Mode Switching */}
+        <Show when={viewMode() === "edit"}>
+          <textarea
+            class="custom-agent-dialog-textarea rules-editor"
+            value={content()}
+            rows={18}
+            onInput={(event) => setContent(event.currentTarget.value)}
+            spellcheck={false}
+          />
+        </Show>
+
+        <Show when={viewMode() === "preview"}>
+          <div
+            class="rules-preview-pane"
+            style={{ height: "480px" }}
+            innerHTML={previewHtml()}
+          />
+        </Show>
+
+        <Show when={viewMode() === "split"}>
+          <div class="rules-split-container">
+            <div class="rules-split-pane">
+              <textarea
+                class="custom-agent-dialog-textarea rules-editor"
+                style={{ height: "100%", "min-height": "100%" }}
+                value={content()}
+                onInput={(event) => setContent(event.currentTarget.value)}
+                spellcheck={false}
+              />
+            </div>
+            <div
+              class="rules-split-pane rules-preview-pane"
+              innerHTML={previewHtml()}
+            />
+          </div>
+        </Show>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>

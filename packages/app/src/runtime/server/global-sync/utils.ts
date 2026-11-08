@@ -19,6 +19,7 @@ export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Ag
 
   return input.map((agent) => ({
     name: agent.id,
+    displayName: agent.name,
     description: agent.description,
     mode: agent.mode,
     native: agent.native,

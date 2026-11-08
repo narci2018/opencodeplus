@@ -27,6 +27,7 @@ export type LspStatus = { id: string; name: string; root: string; status: "conne
 
 export type Agent = {
   name: string
+  displayName?: string
   description?: string
   mode: "subagent" | "primary" | "all"
   native?: boolean

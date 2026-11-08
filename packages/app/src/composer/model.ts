@@ -506,7 +506,13 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
 
         return agents.visible && agents.options.length > 0
           ? {
-              options: () => adapter.controls().agents.options.map((name) => ({ id: name, label: name })),
+              options: () => {
+                const available = adapter.controls().agents.available
+                return adapter.controls().agents.options.map((name) => {
+                  const match = available.find((agent) => agent.name === name)
+                  return { id: name, label: match?.displayName || match?.name || name }
+                })
+              },
               current: () => adapter.controls().agents.current,
               onSelect: (value: string) => adapter.controls().agents.select(value),
               keybind: () => command.keybindParts("agent.cycle"),

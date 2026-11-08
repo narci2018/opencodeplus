@@ -1,4 +1,4 @@
-import { chmod, copyFile, mkdtemp, rm } from "node:fs/promises"
+import { chmod, copyFile, exists, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { Option, Schema } from "effect"
@@ -98,9 +98,34 @@ export async function downloadCliToResources(version = CLI_VERSION, dest = windo
   console.log(`Copied ${cli.package}@${version} to ${dest}`)
 }
 
-export async function copyBuiltCliToResources(root: string, dest = windowsify("resources/opencode-cli")) {
+export async function findBuiltCliDirectory(root: string): Promise<string | undefined> {
   const cli = getCurrentCli()
-  const directory = cli.package.replace("@opencode/", "")
+  const pkgName = cli.package.replace("@opencode/", "")
+  const candidates = [
+    pkgName,
+    pkgName.replace("-baseline", ""),
+    `cli-${cli.target}`,
+    cli.target,
+    `cli-${pkgName}`,
+  ]
+  for (const candidate of candidates) {
+    if (await exists(join(root, candidate))) {
+      return candidate
+    }
+  }
+  return undefined
+}
+
+export async function copyBuiltCliToResources(
+  root: string,
+  dest = windowsify("resources/opencode-cli"),
+  explicitDir?: string,
+) {
+  const directory = explicitDir ?? (await findBuiltCliDirectory(root))
+  if (!directory) {
+    const cli = getCurrentCli()
+    throw new Error(`Cannot find built CLI for target ${cli.target} in ${root}`)
+  }
   await copyCliToResources(join(root, directory), dest)
 }
 

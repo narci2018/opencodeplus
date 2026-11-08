@@ -2,7 +2,13 @@
 import { $ } from "bun"
 import { exists } from "node:fs/promises"
 import path from "node:path"
-import { copyBuiltCliToResources, downloadCliToResources, getCurrentCli, resolveChannel } from "./utils"
+import {
+  copyBuiltCliToResources,
+  downloadCliToResources,
+  findBuiltCliDirectory,
+  getCurrentCli,
+  resolveChannel,
+} from "./utils"
 import { verifyBundles } from "./verify-bundles"
 
 // Prepares resources/ (icons, metainfo, the bundled CLI) for OPENCODE_CHANNEL and builds the app into out/.
@@ -20,12 +26,13 @@ await $`bun ./script/copy-icons.ts ${channel}`
 
 await $`bun ./script/copy-metainfo.ts ${channel}`
 
-const built = await exists(path.join(cli, getCurrentCli().package.replace("@opencode/", "")))
+const builtDir = await findBuiltCliDirectory(cli)
+const built = !!builtDir
 
 if (channel === "prod" && !built)
   throw new Error(`Production desktop builds bundle the CLI from ${cli}; build it first`)
 
-if (built) await copyBuiltCliToResources(cli)
+if (builtDir) await copyBuiltCliToResources(cli, undefined, builtDir)
 
 if (!built) await downloadCliToResources(channel === "beta" ? "beta" : undefined)
 

@@ -10,7 +10,7 @@ import type { ComposerModelLabel } from "./model-label"
 
 export type ComposerControls = {
   agents: {
-    available: { name: string; hidden?: boolean; mode: string }[]
+    available: { name: string; displayName?: string; hidden?: boolean; mode: string }[]
     options: string[]
     current: string
     visible: boolean

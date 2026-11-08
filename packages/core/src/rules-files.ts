@@ -5,6 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import { Effect } from "effect"
 import { Config } from "./config.js"
+import { Project } from "./project.js"
 
 const globalConfigDir = () =>
   process.env.OPENCODE_CONFIG_DIR ||
@@ -20,7 +21,7 @@ const readFileContent = (filepath: string) => (existsSync(filepath) ? readFileSy
  * Read model behind the settings rules & memory page. The caller provides Config.Service from the
  * location context, and this read model resolves files using standard Node filesystem calls.
  */
-export const get = (config: Config.Interface, directory?: string) =>
+export const get = (config: Config.Interface, projectsService: Project.Interface, directory?: string) =>
   Effect.gen(function* () {
     const entries = yield* config.entries()
     const documents = entries.filter((entry) => entry.type === "document")
@@ -29,7 +30,18 @@ export const get = (config: Config.Interface, directory?: string) =>
     const instructions = documents.flatMap((entry) => (entry.info.instructions ? [entry.info.instructions] : [])).at(-1)
 
     const globalConfig = globalConfigDir()
-    const projectMemory = directory ? { path: projectMemoryPath(directory), content: readFileContent(projectMemoryPath(directory)) } : undefined
+    const projectList = yield* projectsService.list().pipe(Effect.orElseSucceed(() => []))
+    const projects = projectList.map((p) => ({
+      projectID: String(p.id),
+      name: p.name || path.basename(p.canonical) || String(p.id),
+      directory: p.canonical,
+      path: projectMemoryPath(p.canonical),
+    }))
+
+    const targetDirectory = directory || projects[0]?.directory
+    const projectMemory = targetDirectory
+      ? { path: projectMemoryPath(targetDirectory), content: readFileContent(projectMemoryPath(targetDirectory)) }
+      : undefined
 
     return {
       rules: {
@@ -38,13 +50,13 @@ export const get = (config: Config.Interface, directory?: string) =>
       },
       instructions: instructions ?? [],
       globalAgents: { path: path.join(globalConfig, "AGENTS.md"), content: readFileContent(path.join(globalConfig, "AGENTS.md")) },
-      ...(directory ? { projectAgents: { path: path.join(directory, "AGENTS.md"), content: readFileContent(path.join(directory, "AGENTS.md")) } } : {}),
+      ...(targetDirectory ? { projectAgents: { path: path.join(targetDirectory, "AGENTS.md"), content: readFileContent(path.join(targetDirectory, "AGENTS.md")) } } : {}),
       memory: {
         enabled: memory?.enabled ?? true,
         distill: memory?.distill ?? true,
         global: { path: path.join(globalConfig, "memory", "MEMORY.md"), content: readFileContent(path.join(globalConfig, "memory", "MEMORY.md")) },
         ...(projectMemory ? { project: projectMemory } : {}),
-        projects: [],
+        projects,
       },
     }
   })
