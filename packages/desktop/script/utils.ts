@@ -1,4 +1,5 @@
-import { chmod, copyFile, exists, mkdtemp, rm } from "node:fs/promises"
+import { existsSync } from "node:fs"
+import { chmod, copyFile, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { Option, Schema } from "effect"
@@ -109,7 +110,7 @@ export async function findBuiltCliDirectory(root: string): Promise<string | unde
     `cli-${pkgName}`,
   ]
   for (const candidate of candidates) {
-    if (await exists(join(root, candidate))) {
+    if (existsSync(join(root, candidate))) {
       return candidate
     }
   }

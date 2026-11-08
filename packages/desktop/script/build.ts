@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
-import { exists } from "node:fs/promises"
 import path from "node:path"
 import {
   copyBuiltCliToResources,
