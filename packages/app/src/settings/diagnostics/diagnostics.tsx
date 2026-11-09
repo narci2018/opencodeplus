@@ -7,6 +7,7 @@ import { Switch } from "@opencode/ui/switch"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform, type NetworkEgress } from "@/runtime/platform/platform"
 import { showToast } from "@/shell/notifications/toast"
+import { uuid } from "@opencode/util/uuid"
 import "./diagnostics.css"
 
 export type CustomHeader = {
@@ -63,6 +64,23 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
   const [newKey, setNewKey] = createSignal("")
   const [newValue, setNewValue] = createSignal("")
   const [newDesc, setNewDesc] = createSignal("")
+
+  // Client fingerprint state
+  const [fingerprint, setFingerprint] = createSignal<{
+    userAgent: string
+    clientName: string
+    version: string
+    channel: string
+    screenResolution: string
+    timezone: string
+    language: string
+    platform: string
+    hardwareConcurrency: number
+    deviceMemory: number
+    colorDepth: number
+    pixelRatio: number
+    id: string
+  } | null>(null)
 
   const version = () => platform.version ?? "0.0.1-dev-01"
   const channel = () => "dev"
@@ -154,6 +172,67 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
     showToast({ variant: "default", title: "已清空所有自定义标头" })
   }
 
+  const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
+  const randPick = <T,>(arr: T[]): T => arr[randInt(0, arr.length - 1)]
+
+  const generateFingerprint = () => {
+    const browsers = [
+      { name: "Chrome", ver: () => `${randInt(120, 131)}.${randInt(0, 9)}.${randInt(1000, 9999)}.${randInt(100, 999)}` },
+      { name: "Firefox", ver: () => `${randInt(125, 133)}.${randInt(0, 9)}` },
+      { name: "Edge", ver: () => `${randInt(120, 131)}.${randInt(0, 9)}.${randInt(1000, 9999)}.${randInt(100, 999)}` },
+      { name: "Safari", ver: () => `${randInt(17, 18)}.${randInt(0, 6)}.${randInt(0, 9)}` },
+    ]
+    const osList = [
+      { name: "Windows NT 10.0", arch: "Win64; x64" },
+      { name: "Windows NT 10.0", arch: "WOW64" },
+      { name: "Macintosh; Intel Mac OS X 10_15_7", arch: "" },
+      { name: "X11; Linux x86_64", arch: "" },
+      { name: "X11; Ubuntu; Linux x86_64", arch: "" },
+    ]
+    const os = randPick(osList)
+    const browser = randPick(browsers)
+    const bv = browser.ver()
+    const archPart = os.arch ? ` (${os.arch})` : ""
+    const ua = `Mozilla/5.0 (${os.name}${archPart}) AppleWebKit/537.36 (KHTML, like Gecko) ${browser.name}/${bv} Safari/537.36`
+
+    const channels = ["dev", "beta", "stable", "nightly", "canary", "rc"]
+    const clientNames = ["desktop", "web", "mobile", "cli", "tui", "extension"]
+    const resolutions = ["1920x1080", "2560x1440", "3840x2160", "1366x768", "1440x900", "1536x864", "1280x720", "2560x1600"]
+    const timezones = [
+      "Asia/Shanghai", "America/New_York", "Europe/London", "Asia/Tokyo",
+      "America/Los_Angeles", "Europe/Berlin", "Australia/Sydney", "Asia/Singapore",
+    ]
+    const langs = ["zh-CN", "en-US", "ja-JP", "ko-KR", "de-DE", "fr-FR", "zh-TW", "en-GB"]
+    const platforms = ["Win32", "MacIntel", "Linux x86_64", "WebGL API"]
+    const memories = [4, 8, 16, 32]
+    const concurrencies = [2, 4, 6, 8, 12, 16]
+    const depths = [24, 30, 48]
+    const ratios = [1, 1.25, 1.5, 2, 2.5, 3]
+
+    const fp = {
+      userAgent: ua,
+      clientName: randPick(clientNames),
+      version: `${randInt(0, 9)}.${randInt(0, 9)}.${randInt(0, 99)}-dev-${randInt(1, 99)}`,
+      channel: randPick(channels),
+      screenResolution: randPick(resolutions),
+      timezone: randPick(timezones),
+      language: randPick(langs),
+      platform: randPick(platforms),
+      hardwareConcurrency: randPick(concurrencies),
+      deviceMemory: randPick(memories),
+      colorDepth: randPick(depths),
+      pixelRatio: randPick(ratios),
+      id: uuid(),
+    }
+    setFingerprint(fp)
+    showToast({
+      variant: "success",
+      icon: "reset",
+      title: "已生成随机客户端指纹",
+      description: `UA: ${ua.slice(0, 60)}…`,
+    })
+  }
+
   // Initial egress check
   onMount(() => {
     if (platform.checkEgress) void checkEgress()
@@ -181,25 +260,67 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
             </div>
             <div class="diagnostics-section-desc">当前客户端向模型服务端与控制台发出的标准身份与运行标识</div>
           </div>
-          <Button variant="outline" size="small" onClick={() => copyText(userAgent(), "User-Agent")}>
-            复制 UA
-          </Button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Button variant="outline" size="small" onClick={generateFingerprint}>
+              <Icon name="reset" size="small" />
+              <span>随机生成客户端指纹</span>
+            </Button>
+            <Button variant="outline" size="small" onClick={() => copyText(userAgent(), "User-Agent")}>
+              复制 UA
+            </Button>
+          </div>
         </div>
 
         <div class="diagnostics-grid">
           <div class="diagnostics-info-card">
             <span class="diagnostics-info-label">完整 User-Agent</span>
             <div class="diagnostics-info-value">
-              <span style={{ "word-break": "break-all" }}>{userAgent()}</span>
+              <span style={{ "word-break": "break-all" }}>{fingerprint()?.userAgent ?? userAgent()}</span>
+              <Show when={fingerprint()}>
+                <IconButton
+                  icon="copy"
+                  size="small"
+                  variant="ghost"
+                  onClick={() => copyText(fingerprint()!.userAgent, "指纹 User-Agent")}
+                  aria-label="复制指纹 UA"
+                />
+              </Show>
             </div>
           </div>
 
           <div class="diagnostics-info-card">
             <span class="diagnostics-info-label">客户端类型与版本</span>
             <div class="diagnostics-info-value">
-              <span>{clientName()} · v{version()} ({channel()})</span>
+              <span>{fingerprint() ? `${fingerprint()!.clientName} · v${fingerprint()!.version} (${fingerprint()!.channel})` : `${clientName()} · v${version()} (${channel()})`}</span>
             </div>
           </div>
+
+          <Show when={fingerprint()}>
+            <div class="diagnostics-info-card">
+              <span class="diagnostics-info-label">屏幕分辨率</span>
+              <div class="diagnostics-info-value">
+                <span>{fingerprint()!.screenResolution}</span>
+              </div>
+            </div>
+            <div class="diagnostics-info-card">
+              <span class="diagnostics-info-label">时区 / 语言</span>
+              <div class="diagnostics-info-value">
+                <span>{fingerprint()!.timezone} · {fingerprint()!.language}</span>
+              </div>
+            </div>
+            <div class="diagnostics-info-card">
+              <span class="diagnostics-info-label">平台 / 硬件线程</span>
+              <div class="diagnostics-info-value">
+                <span>{fingerprint()!.platform} · {fingerprint()!.hardwareConcurrency} 核</span>
+              </div>
+            </div>
+            <div class="diagnostics-info-card">
+              <span class="diagnostics-info-label">设备内存 / 色深 / 像素比</span>
+              <div class="diagnostics-info-value">
+                <span>{fingerprint()!.deviceMemory} GB · {fingerprint()!.colorDepth}-bit · {fingerprint()!.pixelRatio}x</span>
+              </div>
+            </div>
+          </Show>
 
           <div class="diagnostics-info-card">
             <span class="diagnostics-info-label">网络出口 IP 状态</span>
