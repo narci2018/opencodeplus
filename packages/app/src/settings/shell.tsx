@@ -26,6 +26,9 @@ import { SettingsProjects } from "./workspaces/projects"
 import { SettingsExtensions } from "./providers/extensions"
 import { SettingsAbout } from "./about/about"
 import { SettingsAgents } from "./agents/agents"
+import { SettingsTemplates } from "./templates/templates"
+import { SettingsMarketplace } from "./marketplace/marketplace"
+import { SettingsAutomation } from "./automation/automation"
 import { SettingsUsage } from "./usage/usage"
 import { SettingsRules } from "./rules/rules"
 import { SettingsServerDataScope } from "./server-scope"
@@ -50,6 +53,9 @@ const serverTabs = [
   { value: "providers", icon: pageIcons.providers, label: "settings.providers.title" },
   { value: "models", icon: pageIcons.models, label: "settings.models.title" },
   { value: "agents", icon: pageIcons.agents, label: "settings.agents.title" },
+  { value: "templates", icon: pageIcons.templates, label: "settings.templates.title" },
+  { value: "marketplace", icon: pageIcons.marketplace, label: "settings.marketplace.title" },
+  { value: "automation", icon: pageIcons.automation, label: "settings.automation.title" },
   { value: "usage", icon: pageIcons.usage, label: "settings.usage.title" },
   { value: "rules", icon: pageIcons.rules, label: "settings.rules.title" },
   { value: "extensions", icon: pageIcons.extensions, label: "settings.tab.extensions" },
@@ -62,6 +68,9 @@ const serverPages = {
   providers: { title: "settings.providers.title", description: "settings.providers.description" },
   models: { title: "settings.models.title", description: "settings.models.description" },
   agents: { title: "settings.agents.title", description: "settings.agents.description" },
+  templates: { title: "settings.templates.title", description: "settings.templates.description" },
+  marketplace: { title: "settings.marketplace.title", description: "settings.marketplace.description" },
+  automation: { title: "settings.automation.title", description: "settings.automation.description" },
   usage: { title: "settings.usage.title", description: "settings.usage.description" },
   rules: { title: "settings.rules.title", description: "settings.rules.description" },
   extensions: { title: "settings.tab.extensions", description: "settings.extensions.description" },
@@ -348,6 +357,15 @@ function RootSettings() {
             </Tabs.Content>
             <Tabs.Content value="agents" class="settings-panel">
               <SettingsAgents />
+            </Tabs.Content>
+            <Tabs.Content value="templates" class="settings-panel">
+              <SettingsTemplates headerAction={<SettingsServerSwitcher />} />
+            </Tabs.Content>
+            <Tabs.Content value="marketplace" class="settings-panel">
+              <SettingsMarketplace headerAction={<SettingsServerSwitcher />} />
+            </Tabs.Content>
+            <Tabs.Content value="automation" class="settings-panel">
+              <SettingsAutomation headerAction={<SettingsServerSwitcher />} />
             </Tabs.Content>
             <Tabs.Content value="usage" class="settings-panel">
               <SettingsUsage headerAction={<SettingsServerSwitcher />} />

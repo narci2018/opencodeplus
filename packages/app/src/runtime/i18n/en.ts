@@ -1273,6 +1273,13 @@ export const dict = {
   "settings.agents.custom.section.title": "Custom agents",
   "settings.agents.custom.section.manage": "Manage",
 
+  "settings.templates.title": "Templates",
+  "settings.templates.description": "Explore workflow and task templates, pick the right one, and start in one click.",
+  "settings.marketplace.title": "Marketplace",
+  "settings.marketplace.description": "Discover and install MCP tools and extensions to empower your agents.",
+  "settings.automation.title": "Automation",
+  "settings.automation.description": "Manage scheduled tasks and background automation pipelines.",
+
   "settings.usage.title": "Usage statistics",
   "settings.usage.description": "Token consumption and cost analysis for every project, session and response on this server.",
   "settings.usage.range.all": "All time",

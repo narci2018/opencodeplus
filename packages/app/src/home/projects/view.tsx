@@ -24,6 +24,7 @@ import { ServerHealthIndicator } from "@/servers/registry/row"
 import { type ServerHealth } from "@/runtime/server/health"
 import { fileManagerApp } from "@/home/projects/file-manager"
 import { CollapsedSidebarToggleSpace } from "@/shell/sidebar-toggle"
+import { useSettingsSurface } from "@/settings/surface"
 import "./view.css"
 
 const HOME_PROJECT_NAV_LABEL = "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
@@ -150,6 +151,7 @@ export function HomeProjectsView(props: HomeProjectsViewProps) {
 }
 
 function HomeProjectsPanel(props: HomeProjectsViewProps) {
+  const surface = useSettingsSurface()
   let observer: MutationObserver | undefined
   let frame = 0
   const [contextMenu, setContextMenu] = createStore<{ open: string | undefined }>({ open: undefined })
@@ -184,6 +186,32 @@ function HomeProjectsPanel(props: HomeProjectsViewProps) {
       }}
     >
       <Show when={!props.dropdown}>
+        <div class="flex flex-col gap-0.5 px-1.5 pb-2 border-b border-v2-border-border mb-1">
+          <HomeProjectNavButton
+            type="button"
+            data-component="home-marketplace-button"
+            onClick={() => surface.open("marketplace")}
+          >
+            <Icon name="mcp" size="small" />
+            <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("settings.marketplace.title")}</span>
+          </HomeProjectNavButton>
+          <HomeProjectNavButton
+            type="button"
+            data-component="home-automation-button"
+            onClick={() => surface.open("automation")}
+          >
+            <Icon name="task" size="small" />
+            <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("settings.automation.title")}</span>
+          </HomeProjectNavButton>
+          <HomeProjectNavButton
+            type="button"
+            data-component="home-templates-button"
+            onClick={() => surface.open("templates")}
+          >
+            <Icon name="cube" size="small" />
+            <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("settings.templates.title")}</span>
+          </HomeProjectNavButton>
+        </div>
         <div class="flex h-7 min-w-0 shrink-0 items-center justify-between pl-1.5 pr-3">
           {/* Below lg, Projects heads the page on the collapsed sidebar toggle's line. Starting the space at the row's
               edge (the shell's 8px inset plus the grid's 12px padding) keeps the row's 6px padding after the toggle,

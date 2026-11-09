@@ -26,6 +26,20 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Completely aligned Custom Agent creation and editing UI with TRAE CN's native design:
+  - Fixed prompt field visibility in edit mode by placing the large, editable `提示词` (0/10000) directly under `名称*` (0/20) and adding `overflow-y: auto` to prevent clipping.
+  - Implemented the exact TRAE CN visual structure: Avatar box, Name (0/20), System Prompt (0/10000), "可被其他智能体调用" card with English identifier (0/50) and when-to-call (0/5000), "工具 - MCP" with server connector cards, "工具 - 内置" (阅读, 编辑, 终端, 预览, 联网搜索), and `✨ 智能生成`.
+- Integrated TRAE CN's **"模板库" (Template Library)**:
+  - Added 10 categories (全部, 内容制作, 数据分析, 投资与金融, 视频与图像, 办公协同, 产品开发, 策略与研究, 法务与合规, 学习与教育) featuring real business scenarios (e.g., 连锁超市营收复盘分析报告, 制造工厂效益经营简报, 连锁门店经营分析报告, 外卖会员体验对比报告).
+  - Truly functional "一键开始" action that configures prompts, selects recommended agents (`trae` / `trae-bao`), and launches interactive sessions directly.
+- Integrated TRAE CN's **"插件市场" (Plugin Marketplace)**:
+  - Curated official and community MCP tool services (Playwright browser automation, Web Fetch, SQLite, Postgres, GitHub, Git, File System, Sequential Thinking, Docker, Feishu/Lark, Memory Graph, Python Runner).
+  - 1-click real install, enable, and uninstall directly writing into OpenCode server configuration (`sdk.api.experimental.config.update`), making MCP capabilities immediately available to agents.
+- Integrated TRAE CN's **"自动化" (Automation)**:
+  - Comprehensive background automation system with scheduled tasks (cron/interval), execution history table, and pipeline creation.
+  - Functional "立即执行" (Run Now) creating live sessions, executing prompts, recording execution time/status, and offering one-click jump to session results.
+- Added left sidebar quick-navigation buttons for 插件市场, 自动化, and 模板库 directly matching TRAE CN's sidebar layout.
+
 - Implemented Scheme 1 ("真正条目化/多文件管理") for Rules & Memory:
   - **Rules**: `AGENTS.md` is pinned as the Core System Rule with independent `[编辑]` / `[创建主规则]` actions. Clicking `+ 创建规则` opens a dialog to author and create discrete rule files (e.g. `rules/code-standards.md`), validating Markdown formatting with real-time error checking and split preview, and automatically registering the new rule in `config.instructions` so that every creation visibly adds a new row to the rules list.
   - **Memory**: `MEMORY.md` serves as the centralized repository with an `[编辑全文]` action. Clicking `+ 创建记忆` opens a dialog to record itemized facts (category, date, content), formatting and appending them to `MEMORY.md` while rendering each entry in a structured card list with per-item deletion, so creating memory entries increases the visible list count (+1).

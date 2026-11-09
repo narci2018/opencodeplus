@@ -1,12 +1,10 @@
 import { Button } from "@opencode/ui/button"
 import { Checkbox } from "@opencode/ui/checkbox"
 import { Icon } from "@opencode/ui/icon"
-import { Select } from "@opencode/ui/select"
 import { Switch } from "@opencode/ui/switch"
-import { TextField } from "@opencode/ui/text-field"
 import { Loader } from "@opencode/ui/loader"
 import { useDialog } from "@opencode/ui/context/dialog"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
+import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@opencode/ui/dialog"
 import { showToast } from "@/shell/notifications/toast"
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
@@ -52,12 +50,12 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   const data = useData()
   const dialog = useDialog()
 
-  const [brief, setBrief] = createSignal("")
   const [name, setName] = createSignal(props.editing?.id ?? "")
+  const [identifier, setIdentifier] = createSignal(props.editing?.id ?? "")
+  const [system, setSystem] = createSignal(props.editing?.system ?? "")
   const [callable, setCallable] = createSignal(props.editing ? props.editing.mode !== "primary" : true)
   const [whenToCall, setWhenToCall] = createSignal(props.editing?.description ?? "")
-  const [system, setSystem] = createSignal(props.editing?.system ?? "")
-  const [model, setModel] = createSignal(selectionString(props.editing?.model))
+  const model = () => selectionString(props.editing?.model)
   const [enabledGroups, setEnabledGroups] = createSignal(
     decodeToolSelection({ permissions: props.editing?.permissions, configuredMcp: [] }).groups,
   )
@@ -66,9 +64,30 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   const [generating, setGenerating] = createSignal(false)
   const [error, setError] = createSignal<string | undefined>(undefined)
 
-  const editing = createMemo(() => props.existing.find((entry) => entry.id === agentID(name())))
+  // Keep identifier synced with name if creating new and user hasn't explicitly diverged
+  const [identifierTouched, setIdentifierTouched] = createSignal(!!props.editing)
 
-  // MCP connections are per Location, as the extensions page does; the names come from the default Location.
+  const handleNameChange = (val: string) => {
+    setName(val)
+    if (!identifierTouched() && !props.editing) {
+      setIdentifier(agentID(val))
+    }
+    setError(undefined)
+  }
+
+  const handleIdentifierChange = (val: string) => {
+    setIdentifierTouched(true)
+    setIdentifier(val)
+    setError(undefined)
+  }
+
+  const effectiveId = createMemo(() => agentID(identifier() || name()))
+  const isReservedName = createMemo(() => isBuiltinAgent(effectiveId()))
+  const conflict = createMemo(() =>
+    props.existing.some((entry) => entry.id === effectiveId() && entry.id !== props.editing?.id),
+  )
+
+  // MCP connections
   const locationRef = () => data.location.default()
   createEffect(() => {
     if (sdk.connection.status() !== "connected") return
@@ -78,15 +97,7 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     (data.location.mcp.server.list(locationRef()) ?? []).toSorted((a, b) => a.name.localeCompare(b.name)),
   )
 
-  // The model picker lists the provider catalogs; the settings shell may not have loaded them yet.
-  createEffect(() => {
-    if (sdk.connection.status() !== "connected") return
-    const ref = data.location.default()
-    void Promise.all([data.location.provider.sync(ref), data.location.model.sync(ref)]).catch(() => undefined)
-  })
-
-  // Seed the MCP selection from the stored rules once the server list is known, so editing starts
-  // from what the agent already has instead of clobbering it with the form default.
+  // Seed the MCP selection
   const [mcpSeeded, setMcpSeeded] = createSignal(false)
   createEffect(() => {
     if (mcpSeeded()) return
@@ -96,10 +107,8 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     setEnabledMcp(decodeToolSelection({ permissions: props.editing?.permissions, configuredMcp: names }).mcp)
   })
 
-  const isReservedName = createMemo(() => isBuiltinAgent(agentID(name())))
-
   const canSave = createMemo(() => {
-    if (!name().trim() || isReservedName()) return false
+    if (!name().trim() || !effectiveId().trim() || isReservedName() || conflict()) return false
     if (callable() && !whenToCall().trim()) return false
     return true
   })
@@ -125,19 +134,18 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   const allGroupsEnabled = createMemo(() => enabledGroups().size === TOOL_GROUPS.length)
 
   const addMcpServer = () => {
-    // Stacks on top of this dialog, so the form state survives adding a server.
     const directory = data.location.default().directory
     void dialog.show(() => <DialogMcp directory={directory} />, () => undefined)
   }
 
   const generate = async () => {
-    const description = brief().trim()
-    if (generating() || !description) return
+    const promptSeed = system().trim() || name().trim() || whenToCall().trim()
+    if (generating() || !promptSeed) return
     setGenerating(true)
     setError(undefined)
     try {
       const result = await sdk.api.experimental.generate.text({
-        prompt: generatePrompt(description, mcps().map((server) => server.name)),
+        prompt: generatePrompt(promptSeed, mcps().map((server) => server.name)),
       })
       const parsed = parseGeneratedAgent(result.text)
       if (!parsed) {
@@ -158,13 +166,12 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   }
 
   const applyGenerated = (parsed: GeneratedAgent) => {
-    if (parsed.name) setName(parsed.name)
+    if (parsed.name && !name()) setName(parsed.name)
     if (parsed.whenToCall) {
       setCallable(true)
       setWhenToCall(parsed.whenToCall)
     }
     if (parsed.system) setSystem(parsed.system)
-    // Only a non-empty tool list rewrites the selection: an empty one would disable everything.
     if (parsed.tools && parsed.tools.length > 0) setEnabledGroups(new Set(parsed.tools))
     if (parsed.mcpServers) {
       const known = new Set(mcps().map((server) => server.name))
@@ -180,7 +187,7 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
       const modelValue = parseSelection(model().trim()) ?? undefined
       await sdk.api.experimental.config.update({
         agent: agentPatch({
-          id: agentID(name()),
+          id: effectiveId(),
           description: whenToCall(),
           system: system(),
           model: modelValue as CustomAgentModel | undefined,
@@ -192,14 +199,13 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
           }),
         }),
       })
-      // The config write reloads the server, so refresh the agent catalog.
       data.location.agent.invalidate(undefined)
       await data.location.agent.sync().catch(() => undefined)
       showToast({
         variant: "success",
         icon: "circle-check",
-        title: language.t("settings.agents.custom.saved.title"),
-        description: language.t("settings.agents.custom.saved.description", { name: agentID(name()) }),
+        title: props.editing ? "智能体已更新" : language.t("settings.agents.custom.saved.title"),
+        description: `“${effectiveId()}” 配置及提示词已成功保存。`,
       })
       props.onSaved?.()
       props.onClose?.()
@@ -216,252 +222,295 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     }
   }
 
-  const modelOptions = createMemo(() => {
-    const ref = locationRef()
-    const providerList = data.location.provider.list(ref)
-    const modelList = data.location.model.list(ref) ?? []
-    if (!providerList) return []
-    const names = new Map(providerList.map((provider) => [provider.id, provider.name]))
-    return modelList
-      .filter((model) => model.enabled && model.status !== "deprecated")
-      .map((model) => ({
-        id: `${model.providerID}/${model.modelID}`,
-        label: model.name || model.modelID,
-        group: names.get(model.providerID) ?? model.providerID,
-      }))
-      .toSorted((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label))
-  })
-
   return (
     <Dialog
-      size="x-large"
+      size="large"
       variant="settings"
       preventBackdropDismiss={saving() || generating()}
-      resizable
-      maximizable
       class="custom-agent-dialog"
     >
       <DialogHeader>
-        <DialogTitleGroup
-          title={
-            props.editing
-              ? language.t("settings.agents.custom.edit.title")
-              : language.t("settings.agents.custom.title")
-          }
-          description={language.t("settings.agents.custom.description")}
-        />
-      </DialogHeader>
-      <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
-        <div class="custom-agent-dialog-field">
-          <div class="custom-agent-dialog-label-row">
-            <label class="custom-agent-dialog-label" for="custom-agent-brief">
-              {language.t("settings.agents.custom.brief.label")}
-            </label>
-            <Button
-              size="small"
-              variant="ghost-muted"
-              onClick={() => void generate()}
-              disabled={generating() || !brief().trim()}
-            >
-              <Show when={generating()} fallback={language.t("settings.agents.custom.generate")}>
-                <Loader class="custom-agent-dialog-spinner" />
-              </Show>
-            </Button>
+        <div class="custom-agent-header-row">
+          <div class="custom-agent-breadcrumb">
+            <span class="custom-agent-breadcrumb-muted">智能体 ❔</span>
+            <span>/</span>
+            <span>{props.editing ? "编辑智能体" : "创建智能体"}</span>
           </div>
-          <textarea
-            id="custom-agent-brief"
-            class="custom-agent-dialog-textarea"
-            value={brief()}
-            maxlength={10000}
-            onChange={(event) => setBrief(event.currentTarget.value)}
-            placeholder={language.t("settings.agents.custom.brief.placeholder")}
-            rows={3}
-          />
-          <span class="custom-agent-dialog-counter">{brief().length}/10000</span>
-        </div>
-
-        <div class="custom-agent-dialog-field">
-          <TextField
-            label={language.t("settings.agents.custom.name.label")}
-            value={name()}
-            onChange={(value) => {
-              setName(value)
-              setError(undefined)
-            }}
-            placeholder={language.t("settings.agents.custom.name.placeholder")}
-            autofocus
-          />
-          <span class="custom-agent-dialog-hint">
-            {language.t(
-              callable() ? "settings.agents.custom.identifier.hint" : "settings.agents.custom.identifier.off",
-              { id: agentID(name()) },
-            )}
-          </span>
-          <Show when={isReservedName()}>
-            <span class="text-11-regular text-v2-text-error">
-              该名称为内置原生智能体保留标识（build / plan / trae / trae-bao），不能用于自定义智能体。
-            </span>
-          </Show>
-          <Show when={editing()}>
-            <span class="custom-agent-dialog-hint">{language.t("settings.agents.custom.editing")}</span>
-          </Show>
-        </div>
-
-        <div class="custom-agent-dialog-card">
-          <Switch
-            checked={callable()}
-            onChange={(checked) => setCallable(checked === true)}
-            description={language.t("settings.agents.custom.callable.description")}
+          <Button
+            size="small"
+            variant="ghost-muted"
+            onClick={() => void generate()}
+            disabled={generating() || (!system().trim() && !name().trim())}
           >
-            {language.t("settings.agents.custom.callable.title")}
-          </Switch>
-          <Show when={callable()}>
-            <div class="custom-agent-dialog-field">
-              <label class="custom-agent-dialog-label" for="custom-agent-when">
-                {language.t("settings.agents.custom.whenToCall.label")}
-              </label>
-              <textarea
-                id="custom-agent-when"
-                class="custom-agent-dialog-textarea"
-                value={whenToCall()}
-                maxlength={5000}
-                onChange={(event) => setWhenToCall(event.currentTarget.value)}
-                placeholder={language.t("settings.agents.custom.whenToCall.placeholder")}
-                rows={3}
+            <Show when={generating()} fallback={<>✨ 智能生成</>}>
+              <Loader class="custom-agent-dialog-spinner" />
+            </Show>
+          </Button>
+        </div>
+      </DialogHeader>
+
+      <DialogBody class="custom-agent-dialog-body">
+        {/* Top: Avatar + 名称* */}
+        <div class="custom-agent-top-row">
+          <div class="custom-agent-avatar-box">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="6" width="18" height="15" rx="3" stroke="#8b5cf6" stroke-width="2" />
+              <path d="M7 3L9 6H15L17 3L12 5L7 3Z" fill="#ec4899" />
+              <circle cx="8.5" cy="12.5" r="1.5" fill="#38bdf8" />
+              <circle cx="15.5" cy="12.5" r="1.5" fill="#38bdf8" />
+              <path d="M8 17H16" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="custom-agent-name-field">
+            <label class="custom-agent-field-label">
+              <span>名称</span>
+              <span class="custom-agent-asterisk">*</span>
+            </label>
+            <div class="custom-agent-input-wrapper">
+              <input
+                type="text"
+                class="custom-agent-input"
+                placeholder="请输入智能体名称"
+                maxlength={20}
+                value={name()}
+                onInput={(e) => handleNameChange(e.currentTarget.value)}
               />
-              <span class="custom-agent-dialog-counter">{whenToCall().length}/5000</span>
+              <span class="custom-agent-input-counter">{name().length}/20</span>
             </div>
-          </Show>
-        </div>
-
-        <div class="custom-agent-dialog-field">
-          <label class="custom-agent-dialog-label" for="custom-agent-system">
-            {language.t("settings.agents.custom.system.label")}
-          </label>
-          <textarea
-            id="custom-agent-system"
-            class="custom-agent-dialog-textarea"
-            value={system()}
-            onChange={(event) => {
-              setSystem(event.currentTarget.value)
-              setError(undefined)
-            }}
-            placeholder={language.t("settings.agents.custom.system.placeholder")}
-            rows={6}
-          />
-        </div>
-
-        <div class="custom-agent-dialog-field">
-          <label class="custom-agent-dialog-label" for="custom-agent-model">
-            {language.t("settings.agents.custom.model.label")}
-          </label>
-          <Select
-            id="custom-agent-model"
-            options={modelOptions()}
-            value={(item) => item.id}
-            label={(item) => item.label}
-            groupBy={(item) => item.group}
-            current={modelOptions().find((item) => item.id === model())}
-            onSelect={(item) => setModel(item?.id ?? "")}
-            placeholder={language.t("settings.agents.custom.model.default")}
-            valueClass="truncate"
-          />
-        </div>
-
-        <div class="custom-agent-dialog-card">
-          <span class="custom-agent-dialog-card-title">{language.t("settings.agents.custom.tools.title")}</span>
-
-          <div class="custom-agent-dialog-card-section">
-            <span class="custom-agent-dialog-card-subtitle">{language.t("settings.agents.custom.tools.mcp")}</span>
-            <Show
-              when={mcps().length > 0}
-              fallback={
-                <div class="custom-agent-dialog-mcp-empty">
-                  <p class="custom-agent-dialog-mcp-explain">{language.t("settings.agents.custom.tools.mcp.explain")}</p>
-                  <Button size="small" variant="ghost-muted" icon="plus" onClick={addMcpServer}>
-                    {language.t("settings.agents.custom.tools.mcp.add")}
-                  </Button>
-                </div>
-              }
-            >
-              <div class="custom-agent-dialog-tools">
-                <For each={mcps()}>
-                  {(server) => (
-                    <Checkbox
-                      checked={enabledMcp().has(server.name)}
-                      disabled={server.status.status === "pending"}
-                      description={
-                        server.status.status === "pending"
-                          ? undefined
-                          : language.t(statusLabels[server.status.status])
-                      }
-                      onChange={(checked) => toggleMcpServer(server.name, checked === true)}
-                    >
-                      {server.name}
-                    </Checkbox>
-                  )}
-                </For>
-              </div>
-              <Button size="small" variant="ghost-muted" icon="plus" onClick={addMcpServer}>
-                {language.t("settings.agents.custom.tools.mcp.add")}
-              </Button>
+            <Show when={isReservedName()}>
+              <span class="text-11-regular text-v2-text-error">
+                该名称为内置原生智能体保留标识（build / plan / trae / trae-bao），不能用于自定义智能体。
+              </span>
+            </Show>
+            <Show when={conflict()}>
+              <span class="text-11-regular text-v2-text-error">已存在同名自定义智能体，请更换名称。</span>
             </Show>
           </div>
+        </div>
 
-          <div class="custom-agent-dialog-card-section">
-            <Checkbox
-              checked={allGroupsEnabled()}
-              onChange={(checked) =>
-                setEnabledGroups(checked === true ? new Set(TOOL_GROUPS.map((group) => group.id)) : new Set())
-              }
-            >
-              {language.t("settings.agents.custom.tools.builtin")}
-            </Checkbox>
-            <div class="custom-agent-dialog-tools">
-              <For each={TOOL_GROUPS}>
-                {(group) => (
-                  <Checkbox
-                    checked={enabledGroups().has(group.id)}
-                    description={language.t(`settings.agents.custom.tools.builtin.${group.id}.description`)}
-                    onChange={(checked) => toggleGroup(group.id, checked === true)}
-                  >
-                    {language.t(`settings.agents.custom.tools.builtin.${group.id}`)}
-                  </Checkbox>
-                )}
-              </For>
+        {/* 提示词 (System Prompt) */}
+        <div class="custom-agent-field">
+          <label class="custom-agent-field-label">
+            <span>提示词</span>
+          </label>
+          <div class="custom-agent-prompt-wrapper">
+            <textarea
+              class="custom-agent-prompt-textarea"
+              placeholder="请输入智能体的角色、语气、工作流程、工具偏好及规则规范等。（选填）"
+              maxlength={10000}
+              rows={6}
+              value={system()}
+              onInput={(e) => {
+                setSystem(e.currentTarget.value)
+                setError(undefined)
+              }}
+            />
+            <div class="custom-agent-prompt-footer">
+              <span>{system().length}/10000</span>
+              <span>⤡</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 可被其他智能体调用 ⓘ */}
+        <div class="custom-agent-field">
+          <label class="custom-agent-field-label">
+            <span>可被其他智能体调用</span>
+            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>ⓘ</span>
+          </label>
+          <div class="custom-agent-card">
+            <div class="custom-agent-card-header">
+              <div class="custom-agent-card-header-copy">
+                <span class="custom-agent-card-title">可被其他智能体调用</span>
+                <span class="custom-agent-card-desc">
+                  可被内置和自定义智能体调用。
+                  <a href="#" onClick={(e) => e.preventDefault()}>
+                    帮助文档
+                  </a>
+                </span>
+              </div>
+              <Switch checked={callable()} onChange={(checked) => setCallable(checked === true)} />
+            </div>
+
+            <Show when={callable()}>
+              <div class="custom-agent-card-inner">
+                {/* 英文标识名* */}
+                <div style={{ display: "flex", "flex-direction": "column", gap: "6px" }}>
+                  <label class="custom-agent-field-label">
+                    <span>英文标识名</span>
+                    <span class="custom-agent-asterisk">*</span>
+                  </label>
+                  <div class="custom-agent-input-wrapper">
+                    <input
+                      type="text"
+                      class="custom-agent-input"
+                      placeholder="被调用时的唯一英文标识名称，例如: project-analyzer"
+                      maxlength={50}
+                      value={identifier()}
+                      onInput={(e) => handleIdentifierChange(e.currentTarget.value)}
+                    />
+                    <span class="custom-agent-input-counter">{identifier().length}/50</span>
+                  </div>
+                </div>
+
+                {/* 何时调用* */}
+                <div style={{ display: "flex", "flex-direction": "column", gap: "6px" }}>
+                  <label class="custom-agent-field-label">
+                    <span>何时调用</span>
+                    <span class="custom-agent-asterisk">*</span>
+                  </label>
+                  <div class="custom-agent-prompt-wrapper">
+                    <textarea
+                      class="custom-agent-prompt-textarea"
+                      placeholder="请描述其他智能体调用该智能体的合适场景和时机"
+                      maxlength={5000}
+                      rows={3}
+                      value={whenToCall()}
+                      onInput={(e) => setWhenToCall(e.currentTarget.value)}
+                    />
+                    <div class="custom-agent-prompt-footer">
+                      <span>{whenToCall().length}/5000</span>
+                      <span>⤡</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Show>
+          </div>
+        </div>
+
+        {/* 工具 ⓘ */}
+        <div class="custom-agent-tools-section">
+          <label class="custom-agent-field-label">
+            <span>工具</span>
+            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>ⓘ</span>
+          </label>
+
+          {/* 工具 - MCP */}
+          <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+            <span style={{ "font-size": "12px", "font-weight": "500", color: "var(--v2-text-text-muted)" }}>
+              工具 - MCP
+            </span>
+            <div class="custom-agent-mcp-box">
+              <span class="custom-agent-mcp-title">什么是 MCP Servers?</span>
+              <p class="custom-agent-mcp-desc">
+                Model Context Protocol (MCP) 允许大语言模型访问自定义工具和服务。MCP Servers
+                是支持该协议的服务，提供工具和功能来扩展智能体的能力。添加后，智能体会自动调用合适的工具完成任务。
+              </p>
+              <Show when={mcps().length > 0}>
+                <div style={{ display: "flex", "flex-direction": "column", gap: "6px", "margin-top": "6px" }}>
+                  <For each={mcps()}>
+                    {(server) => (
+                      <Checkbox
+                        checked={enabledMcp().has(server.name)}
+                        disabled={server.status.status === "pending"}
+                        description={
+                          server.status.status === "pending"
+                            ? undefined
+                            : language.t(statusLabels[server.status.status])
+                        }
+                        onChange={(checked) => toggleMcpServer(server.name, checked === true)}
+                      >
+                        {server.name}
+                      </Checkbox>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <div>
+                <Button size="small" variant="ghost-muted" icon="plus" onClick={addMcpServer}>
+                  添加 MCP Servers
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* 工具 - 内置 */}
+          <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+            <div class="custom-agent-builtin-tools">
+              <Checkbox
+                checked={allGroupsEnabled()}
+                onChange={(checked) =>
+                  setEnabledGroups(checked === true ? new Set(TOOL_GROUPS.map((group) => group.id)) : new Set())
+                }
+              >
+                <span style={{ "font-weight": "600" }}>工具 - 内置</span>
+              </Checkbox>
+
+              <div style={{ display: "flex", "flex-direction": "column", gap: "6px", "margin-top": "4px" }}>
+                <For each={TOOL_GROUPS}>
+                  {(group) => {
+                    const iconName = () => {
+                      switch (group.id) {
+                        case "read":
+                          return "📖 阅读"
+                        case "edit":
+                          return "📝 编辑"
+                        case "shell":
+                          return "💻 终端"
+                        case "web":
+                          return "🌐 联网搜索"
+                        case "subagent":
+                          return "🤖 子智能体"
+                        case "todo":
+                          return "📋 任务清单"
+                        case "question":
+                          return "❓ 提问"
+                        default:
+                          return group.id
+                      }
+                    }
+
+                    return (
+                      <div class="custom-agent-tool-item">
+                        <Checkbox
+                          checked={enabledGroups().has(group.id)}
+                          onChange={(checked) => toggleGroup(group.id, checked === true)}
+                        >
+                          <span style={{ "font-size": "13px", "font-weight": "500" }}>{iconName()}</span>
+                        </Checkbox>
+                        <span class="custom-agent-tool-item-desc">
+                          {language.t(`settings.agents.custom.tools.builtin.${group.id}.description`)}
+                        </span>
+                      </div>
+                    )
+                  }}
+                </For>
+              </div>
             </div>
           </div>
         </div>
 
         <Show when={error()}>
-          <div class="custom-agent-dialog-error" role="alert">
+          <div class="custom-agent-error-banner" role="alert">
             <Icon name="circle-exclamation" size="small" />
             <span>{error()}</span>
           </div>
         </Show>
       </DialogBody>
+
       <DialogFooter>
-        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving() || generating()}>
-          {language.t("common.cancel")}
-        </Button>
-        <Button variant="contrast" onClick={() => void save()} disabled={!canSave() || saving()}>
-          <Show when={saving()} fallback={language.t("settings.agents.custom.save")}>
-            <Loader class="custom-agent-dialog-spinner" />
-          </Show>
-        </Button>
+        <div class="custom-agent-dialog-footer" style={{ width: "100%" }}>
+          <Button variant="contrast" onClick={() => void save()} disabled={!canSave() || saving()}>
+            <Show when={saving()} fallback={props.editing ? "保存" : "创建"}>
+              <Loader class="custom-agent-dialog-spinner" />
+            </Show>
+          </Button>
+          <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving() || generating()}>
+            取消
+          </Button>
+        </div>
       </DialogFooter>
     </Dialog>
   )
 }
 
-/** Renders a stored model selection as the free-text field value. */
 function selectionString(model: CustomAgentEntry["model"]): string {
   if (!model) return ""
   if (typeof model === "string") return model
   return `${model.providerID}/${model.model}${model.variant ? `#${model.variant}` : ""}`
 }
 
-/** Parses `provider/model` (optionally `provider/model#variant`) into a config model selection. */
 function parseSelection(value: string): string | { providerID: string; model: string; variant?: string } | undefined {
   if (!value) return undefined
   const match = value.match(/^([^/#]+)\/([^#]+?)(?:#([^#]+))?$/)

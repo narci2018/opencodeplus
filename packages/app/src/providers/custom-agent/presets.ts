@@ -83,7 +83,12 @@ export function readAgentEntries(entries: readonly ConfigEntryLike[]): CustomAge
       result.push({
         id,
         description: typeof value.description === "string" ? value.description : undefined,
-        system: typeof value.system === "string" ? value.system : undefined,
+        system:
+          typeof value.system === "string"
+            ? value.system
+            : typeof value.prompt === "string"
+              ? (value.prompt as string)
+              : undefined,
         model: (value.model as CustomAgentEntry["model"]) ?? undefined,
         mode: value.mode as CustomAgentMode | undefined,
         hidden: typeof value.hidden === "boolean" ? value.hidden : undefined,

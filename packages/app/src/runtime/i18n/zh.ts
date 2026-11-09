@@ -596,6 +596,13 @@ export const dict = {
   "settings.agents.custom.section.title": "自定义智能体",
   "settings.agents.custom.section.manage": "管理",
 
+  "settings.templates.title": "模板库",
+  "settings.templates.description": "浏览丰富的工作流与业务案例，挑选合适模板，一键开始任务。",
+  "settings.marketplace.title": "插件市场",
+  "settings.marketplace.description": "发现并安装 MCP 工具服务与扩展技能，赋能智能体调用外部能力与系统。",
+  "settings.automation.title": "自动化",
+  "settings.automation.description": "管理定时任务与自动化流水线，在后台自动执行巡检与代码任务。",
+
   "settings.usage.title": "会话跟踪统计",
   "settings.usage.description": "对这台服务器上每个项目、每个会话乃至每次对话的 token 消耗与费用进行详细分析。",
   "settings.usage.range.all": "全部时间",

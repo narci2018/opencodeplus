@@ -584,6 +584,13 @@ export const dict = {
   "settings.agents.custom.section.title": "自訂智慧體",
   "settings.agents.custom.section.manage": "管理",
 
+  "settings.templates.title": "範本庫",
+  "settings.templates.description": "瀏覽豐富的工作流程與業務範例，挑選合適範本，一鍵開始任務。",
+  "settings.marketplace.title": "外掛程式市場",
+  "settings.marketplace.description": "發現並安裝 MCP 工具服務與擴展技能，賦能智慧體調用外部能力與系統。",
+  "settings.automation.title": "自動化",
+  "settings.automation.description": "管理定時任務與自動化工作流程，在後台自動執行巡檢與程式碼任務。",
+
   "settings.usage.title": "會話追蹤統計",
   "settings.usage.description": "對這台伺服器上每個專案、每個會話乃至每次對話的 token 消耗與費用進行詳細分析。",
   "settings.usage.range.all": "全部時間",
