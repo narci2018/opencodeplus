@@ -5,6 +5,7 @@ import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useTabs } from "@/shell/tabs/tabs"
 import { useGlobal, useServerCtx } from "@/runtime/server/runtime"
+import { ServerProvider } from "@/runtime/server/current"
 import { ServerConnection } from "@/runtime/server/registry"
 import type { LocalProject } from "@/shell/state/layout"
 import { DialogServer } from "@/servers/connect/dialog"
@@ -342,7 +343,13 @@ function RootSettings() {
         <SettingsExperimental />
       </Tabs.Content>
       <Tabs.Content value="diagnostics" class="settings-panel">
-        <SettingsDiagnostics />
+        <Show when={reachable()} keyed>
+          {(server) => (
+            <ServerProvider conn={server}>
+              <SettingsDiagnostics />
+            </ServerProvider>
+          )}
+        </Show>
       </Tabs.Content>
       <Tabs.Content value="about" class="settings-panel settings-about">
         <SettingsAbout active={surface.view().tab === "about"} />
