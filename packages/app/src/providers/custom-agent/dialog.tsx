@@ -20,6 +20,7 @@ import {
   agentPermissions,
   decodeToolSelection,
   generatePrompt,
+  isBuiltinAgent,
   parseGeneratedAgent,
   TOOL_GROUPS,
   type CustomAgentEntry,
@@ -95,8 +96,10 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     setEnabledMcp(decodeToolSelection({ permissions: props.editing?.permissions, configuredMcp: names }).mcp)
   })
 
+  const isReservedName = createMemo(() => isBuiltinAgent(agentID(name())))
+
   const canSave = createMemo(() => {
-    if (!name().trim()) return false
+    if (!name().trim() || isReservedName()) return false
     if (callable() && !whenToCall().trim()) return false
     return true
   })
@@ -294,6 +297,11 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
               { id: agentID(name()) },
             )}
           </span>
+          <Show when={isReservedName()}>
+            <span class="text-11-regular text-v2-text-error">
+              该名称为内置原生智能体保留标识（build / plan / trae / trae-bao），不能用于自定义智能体。
+            </span>
+          </Show>
           <Show when={editing()}>
             <span class="custom-agent-dialog-hint">{language.t("settings.agents.custom.editing")}</span>
           </Show>

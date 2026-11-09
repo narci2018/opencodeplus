@@ -36,6 +36,27 @@ describe("readAgentEntries", () => {
     expect(result).toEqual([{ id: "reviewer", description: "Reviews code", mode: "primary" }])
   })
 
+  test("skips built-in agents even when native flag is absent (e.g. customized prompt override)", () => {
+    const entries = [
+      {
+        type: "document",
+        info: {
+          agents: {
+            reviewer: { description: "Reviews code", mode: "primary" },
+            build: { system: "Customized system prompt for build" },
+            plan: { system: "Customized system prompt for plan" },
+            trae: { system: "Customized system prompt for trae" },
+            "trae-bao": { system: "Customized system prompt for trae-bao" },
+          },
+        },
+      },
+    ]
+
+    const result = readAgentEntries(entries)
+
+    expect(result).toEqual([{ id: "reviewer", description: "Reviews code", mode: "primary" }])
+  })
+
   test("keeps the highest-precedence document for duplicate ids", () => {
     const entries = [
       { type: "document", info: { agents: { reviewer: { description: "First" } } } },

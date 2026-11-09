@@ -53,6 +53,55 @@ const DEFAULT_PROJECT_MEMORY_TEMPLATE = `# Project Memory & Context
 - Specific environment flags, ports, and configuration rules.
 `
 
+export type ParsedMemoryItem = {
+  id: string
+  raw: string
+  category: string
+  date?: string
+  content: string
+}
+
+export function parseMemoryItems(rawMarkdown: string | null | undefined): ParsedMemoryItem[] {
+  if (!rawMarkdown) return []
+  const lines = rawMarkdown.split("\n")
+  const items: ParsedMemoryItem[] = []
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith("- ") && !trimmed.startsWith("* ")) return
+
+    const itemText = trimmed.slice(2).trim()
+    if (!itemText) return
+
+    let category = "通用记忆"
+    let date: string | undefined = undefined
+    let content = itemText
+
+    const matchCategory = itemText.match(/^(?:\*\*\[|\[)([^\]]+)(?:\]\*\*|\])\s*(?:\(([^)]+)\))?[:：]?\s*(.*)$/)
+    if (matchCategory) {
+      category = matchCategory[1]
+      date = matchCategory[2]
+      content = matchCategory[3] || itemText
+    } else {
+      const matchBullet = itemText.match(/^([^\s:：]+)[:：]\s*(.*)$/)
+      if (matchBullet && matchBullet[1].length < 15) {
+        category = matchBullet[1]
+        content = matchBullet[2]
+      }
+    }
+
+    items.push({
+      id: `mem-${index}-${items.length}`,
+      raw: line,
+      category,
+      date,
+      content,
+    })
+  })
+
+  return items
+}
+
 export type SyntaxIssue = {
   line: number
   level: "error" | "warning" | "info"
@@ -364,18 +413,6 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
     )
   }
 
-  const addInstruction = () => {
-    void dialog.show(
-      () => (
-        <SourceAddDialog
-          onSaved={() => refresh()}
-          onClose={() => dialog.close()}
-        />
-      ),
-      () => undefined,
-    )
-  }
-
   const editInstruction = (source: string) => {
     void dialog.show(
       () => (
@@ -403,6 +440,84 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
         title: language.t("settings.extensions.removed.title"),
         description: language.t("settings.extensions.removed.description", { name: source }),
       })
+    } catch (cause) {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: formatServerError(cause, language.t),
+      })
+    }
+  }
+
+  const openCreateRuleDialog = () => {
+    const isGlobal = rulesScope() === "global"
+    const baseDir = isGlobal
+      ? (files.latest?.globalAgents.path.replace(/[\\\/][^\\\/]+$/, "") ?? "")
+      : (projects().find((item) => item.projectID === scopeProjectID())?.directory ?? "")
+    const scopeLabel = isGlobal ? "全局" : `项目 (${projectName(scopeProjectID()!)})`
+
+    void dialog.show(
+      () => (
+        <CreateRuleFileDialog
+          baseDir={baseDir}
+          scopeLabel={scopeLabel}
+          onSaved={() => refresh()}
+          onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
+  }
+
+  const currentMemoryFile = () =>
+    memoryScope() === "global" ? files.latest?.memory.global : files.latest?.memory.project
+
+  const currentMemoryItems = createMemo(() => parseMemoryItems(currentMemoryFile()?.content))
+
+  const openCreateMemoryDialog = () => {
+    const file = currentMemoryFile()
+    if (!file) {
+      showToast({
+        variant: "error",
+        title: "未选择有效项目",
+        description: "请先选择一个有效项目，再添加项目记忆",
+      })
+      return
+    }
+    const isGlobal = memoryScope() === "global"
+    const scopeLabel = isGlobal ? "全局" : `项目 (${projectName(scopeProjectID()!)})`
+
+    void dialog.show(
+      () => (
+        <CreateMemoryItemDialog
+          file={file}
+          scopeLabel={scopeLabel}
+          onSaved={() => refresh()}
+          onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
+  }
+
+  const removeMemoryItem = async (rawLine: string) => {
+    const file = currentMemoryFile()
+    if (!file?.content) return
+    const lines = file.content.split("\n")
+    const nextLines = lines.filter((l) => l.trim() !== rawLine.trim())
+    const nextContent = nextLines.join("\n")
+    try {
+      await sdk.api.experimental.file.write({
+        path: file.path,
+        payload: encoder.encode(nextContent),
+      })
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: "记忆条目已删除",
+        description: "已从记忆账本中移除该条目",
+      })
+      refresh()
     } catch (cause) {
       showToast({
         variant: "error",
@@ -500,23 +615,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                   size="small"
                   variant="contrast"
                   icon="plus"
-                  onClick={() => {
-                    if (rulesScope() === "global") {
-                      openFileDialog(
-                        files.latest!.globalAgents,
-                        true,
-                        "创建全局规则 (AGENTS.md)",
-                        DEFAULT_PROJECT_AGENTS_TEMPLATE,
-                      )
-                    } else if (files.latest?.projectAgents) {
-                      openFileDialog(
-                        files.latest.projectAgents,
-                        true,
-                        `创建项目规则 (${projectName(scopeProjectID()!)})`,
-                        DEFAULT_PROJECT_AGENTS_TEMPLATE,
-                      )
-                    }
-                  }}
+                  onClick={openCreateRuleDialog}
                 >
                   创建规则
                 </Button>
@@ -530,6 +629,8 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                 />
               </div>
             </div>
+
+            {/* Scope Content */}
             <Show
               when={rulesScope() === "global"}
               fallback={
@@ -537,6 +638,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                   <div class="usage-status">{language.t("settings.rules.empty.projects")}</div>
                 }>
                   <div class="rules-rows">
+                    {/* Project Main Rule (AGENTS.md) */}
                     <div class="rules-row">
                       <ProjectSelect
                         projects={projects()}
@@ -545,7 +647,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       />
                       <div class="rules-row-copy">
                         <div class="rules-row-title-wrap">
-                          <span class="rules-row-title">{projectName(scopeProjectID()!)}</span>
+                          <span class="rules-row-title">项目 AGENTS.md (核心主规则)</span>
                           <Show
                             when={files.latest?.projectAgents?.content !== null}
                             fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
@@ -557,35 +659,102 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                           {files.latest?.projectAgents?.path ?? "—"}
                         </span>
                       </div>
-                      <Show when={files.latest?.projectAgents}>
-                        {(file) => (
+                      <Show
+                        when={files.latest?.projectAgents?.content !== null}
+                        fallback={
                           <Button
                             size="small"
-                            variant="ghost-muted"
+                            variant="contrast"
+                            icon="plus"
                             onClick={() =>
                               openFileDialog(
-                                file(),
-                                file().content === null,
-                                `编辑项目规则 (${projectName(scopeProjectID()!)})`,
-                                file().content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
+                                files.latest!.projectAgents!,
+                                true,
+                                `创建项目规则 (${projectName(scopeProjectID()!)})`,
+                                DEFAULT_PROJECT_AGENTS_TEMPLATE,
                               )
                             }
                           >
-                            <Icon name="pencil-line" size="small" />
-                            编辑
+                            创建主规则
                           </Button>
-                        )}
+                        }
+                      >
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() =>
+                            openFileDialog(
+                              files.latest!.projectAgents!,
+                              false,
+                              `编辑项目规则 (${projectName(scopeProjectID()!)})`,
+                              DEFAULT_PROJECT_AGENTS_TEMPLATE,
+                            )
+                          }
+                        >
+                          <Icon name="pencil-line" size="small" />
+                          编辑
+                        </Button>
                       </Show>
                     </div>
+
+                    {/* Additional Rules */}
+                    <div class="rules-section-sub mt-2">
+                      <span class="usage-section-title">
+                        独立规则列表
+                        <span class="text-11-regular text-v2-text-text-muted ml-1 font-normal">
+                          ({(files.latest?.instructions ?? []).length} 条)
+                        </span>
+                      </span>
+                      <Button size="small" variant="ghost-muted" icon="plus" onClick={openCreateRuleDialog}>
+                        + 新增独立规则
+                      </Button>
+                    </div>
+                    <Show when={(files.latest?.instructions ?? []).length > 0} fallback={
+                      <div class="usage-status">尚未配置独立规则。点击右上角【创建规则】或【+ 新增独立规则】添加规则文件。</div>
+                    }>
+                      <For each={files.latest?.instructions ?? []}>
+                        {(source) => (
+                          <div class="rules-row">
+                            <div class="rules-row-copy">
+                              <div class="rules-row-title-wrap">
+                                <span class="rules-row-title truncate">{source.replace(/\\/g, "/").split("/").pop()}</span>
+                                <span class="rules-status-badge rules-status-badge--active">独立规则</span>
+                              </div>
+                              <span class="rules-row-description rules-row-path">{source}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <Button
+                                size="small"
+                                variant="ghost-muted"
+                                aria-label={language.t("common.edit")}
+                                onClick={() => editInstruction(source)}
+                              >
+                                <Icon name="pencil" size="small" />
+                                编辑
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="ghost-muted"
+                                aria-label={language.t("common.delete")}
+                                onClick={() => void removeInstruction(source)}
+                              >
+                                <Icon name="trash" size="small" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </For>
+                    </Show>
                   </div>
                 </Show>
               }
             >
               <div class="rules-rows">
+                {/* Global Main Rule (AGENTS.md) */}
                 <div class="rules-row">
                   <div class="rules-row-copy">
                     <div class="rules-row-title-wrap">
-                      <span class="rules-row-title">{language.t("settings.rules.file.globalAgents")}</span>
+                      <span class="rules-row-title">全局 AGENTS.md (核心主规则)</span>
                       <Show
                         when={files.latest?.globalAgents.content !== null}
                         fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
@@ -597,37 +766,67 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       {files.latest?.globalAgents.path ?? "—"}
                     </span>
                   </div>
-                  <Button
-                    size="small"
-                    variant="ghost-muted"
-                    onClick={() =>
-                      openFileDialog(
-                        files.latest!.globalAgents,
-                        files.latest?.globalAgents.content === null,
-                        "编辑全局规则 (AGENTS.md)",
-                        files.latest?.globalAgents.content === null ? DEFAULT_PROJECT_AGENTS_TEMPLATE : undefined,
-                      )
+                  <Show
+                    when={files.latest?.globalAgents.content !== null}
+                    fallback={
+                      <Button
+                        size="small"
+                        variant="contrast"
+                        icon="plus"
+                        onClick={() =>
+                          openFileDialog(
+                            files.latest!.globalAgents,
+                            true,
+                            "创建全局规则 (AGENTS.md)",
+                            DEFAULT_PROJECT_AGENTS_TEMPLATE,
+                          )
+                        }
+                      >
+                        创建主规则
+                      </Button>
                     }
                   >
-                    <Icon name="pencil-line" size="small" />
-                    编辑
-                  </Button>
+                    <Button
+                      size="small"
+                      variant="ghost-muted"
+                      onClick={() =>
+                        openFileDialog(
+                          files.latest!.globalAgents,
+                          false,
+                          "编辑全局规则 (AGENTS.md)",
+                          DEFAULT_PROJECT_AGENTS_TEMPLATE,
+                        )
+                      }
+                    >
+                      <Icon name="pencil-line" size="small" />
+                      编辑
+                    </Button>
+                  </Show>
                 </div>
-              </div>
-              <div class="rules-rows">
-                <div class="rules-section-sub">
-                  <span class="usage-section-title">{language.t("settings.rules.sources")}</span>
-                  <Button size="small" variant="ghost-muted" icon="plus" onClick={addInstruction}>
-                    {language.t("settings.rules.sources.add")}
+
+                {/* Additional Rules */}
+                <div class="rules-section-sub mt-2">
+                  <span class="usage-section-title">
+                    独立规则列表
+                    <span class="text-11-regular text-v2-text-text-muted ml-1 font-normal">
+                      ({(files.latest?.instructions ?? []).length} 条)
+                    </span>
+                  </span>
+                  <Button size="small" variant="ghost-muted" icon="plus" onClick={openCreateRuleDialog}>
+                    + 新增独立规则
                   </Button>
                 </div>
                 <Show when={(files.latest?.instructions ?? []).length > 0} fallback={
-                  <div class="usage-status">{language.t("settings.rules.sources.empty")}</div>
+                  <div class="usage-status">尚未配置独立规则。点击右上角【创建规则】或【+ 新增独立规则】添加规则文件。</div>
                 }>
                   <For each={files.latest?.instructions ?? []}>
                     {(source) => (
                       <div class="rules-row">
                         <div class="rules-row-copy">
+                          <div class="rules-row-title-wrap">
+                            <span class="rules-row-title truncate">{source.replace(/\\/g, "/").split("/").pop()}</span>
+                            <span class="rules-status-badge rules-status-badge--active">独立规则</span>
+                          </div>
                           <span class="rules-row-description rules-row-path">{source}</span>
                         </div>
                         <div class="flex items-center gap-1">
@@ -638,6 +837,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                             onClick={() => editInstruction(source)}
                           >
                             <Icon name="pencil" size="small" />
+                            编辑
                           </Button>
                           <Button
                             size="small"
@@ -668,28 +868,13 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                   size="small"
                   variant="contrast"
                   icon="plus"
-                  onClick={() => {
-                    if (memoryScope() === "global") {
-                      openFileDialog(
-                        files.latest!.memory.global,
-                        true,
-                        "创建全局记忆 (MEMORY.md)",
-                        DEFAULT_PROJECT_MEMORY_TEMPLATE,
-                      )
-                    } else if (files.latest?.memory.project) {
-                      openFileDialog(
-                        files.latest.memory.project,
-                        true,
-                        `创建项目记忆 (${projectName(scopeProjectID()!)})`,
-                        DEFAULT_PROJECT_MEMORY_TEMPLATE,
-                      )
-                    }
-                  }}
+                  onClick={openCreateMemoryDialog}
                 >
                   创建记忆
                 </Button>
               </div>
             </div>
+
             <div class="rules-rows">
               <div class="rules-row">
                 <div class="rules-row-copy">
@@ -725,6 +910,8 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                 />
               </div>
             </div>
+
+            {/* Scope Content */}
             <Show
               when={memoryScope() === "global"}
               fallback={
@@ -732,6 +919,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                   <div class="usage-status">{language.t("settings.rules.empty.projects")}</div>
                 }>
                   <div class="rules-rows">
+                    {/* Project Memory Repo (MEMORY.md) */}
                     <div class="rules-row">
                       <ProjectSelect
                         projects={projects()}
@@ -740,7 +928,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                       />
                       <div class="rules-row-copy">
                         <div class="rules-row-title-wrap">
-                          <span class="rules-row-title">{language.t("settings.rules.memory.project")}</span>
+                          <span class="rules-row-title">项目记忆 (MEMORY.md 总账本)</span>
                           <Show
                             when={files.latest?.memory.project?.content !== null}
                             fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
@@ -752,35 +940,99 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                           {files.latest?.memory.project?.path ?? "—"}
                         </span>
                       </div>
-                      <Show when={files.latest?.memory.project}>
-                        {(file) => (
+                      <Show
+                        when={files.latest?.memory.project?.content !== null}
+                        fallback={
                           <Button
                             size="small"
-                            variant="ghost-muted"
+                            variant="contrast"
+                            icon="plus"
                             onClick={() =>
                               openFileDialog(
-                                file(),
-                                file().content === null,
-                                `编辑项目记忆 (${projectName(scopeProjectID()!)})`,
-                                file().content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
+                                files.latest!.memory.project!,
+                                true,
+                                `初始化项目记忆 (${projectName(scopeProjectID()!)})`,
+                                DEFAULT_PROJECT_MEMORY_TEMPLATE,
                               )
                             }
                           >
-                            <Icon name="pencil-line" size="small" />
-                            编辑
+                            初始化账本
                           </Button>
-                        )}
+                        }
+                      >
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() =>
+                            openFileDialog(
+                              files.latest!.memory.project!,
+                              false,
+                              `编辑项目记忆全文 (${projectName(scopeProjectID()!)})`,
+                              DEFAULT_PROJECT_MEMORY_TEMPLATE,
+                            )
+                          }
+                        >
+                          <Icon name="pencil-line" size="small" />
+                          编辑全文
+                        </Button>
                       </Show>
                     </div>
+
+                    {/* Recorded Memory Items */}
+                    <div class="rules-section-sub mt-2">
+                      <span class="usage-section-title">
+                        沉淀的记忆要点
+                        <span class="text-11-regular text-v2-text-text-muted ml-1 font-normal">
+                          ({currentMemoryItems().length} 条)
+                        </span>
+                      </span>
+                      <Button size="small" variant="ghost-muted" icon="plus" onClick={openCreateMemoryDialog}>
+                        + 新增记忆条目
+                      </Button>
+                    </div>
+
+                    <Show
+                      when={currentMemoryItems().length > 0}
+                      fallback={
+                        <div class="usage-status">暂无沉淀的记忆条目。点击右上角【创建记忆】或【+ 新增记忆条目】录入工作偏好与约定。</div>
+                      }
+                    >
+                      <div class="memory-items-list">
+                        <For each={currentMemoryItems()}>
+                          {(item) => (
+                            <div class="memory-item-card">
+                              <div class="memory-item-main">
+                                <div class="memory-item-header">
+                                  <span class="memory-item-tag">{item.category}</span>
+                                  <Show when={item.date}>
+                                    <span class="memory-item-date">{item.date}</span>
+                                  </Show>
+                                </div>
+                                <span class="memory-item-content">{item.content}</span>
+                              </div>
+                              <IconButton
+                                type="button"
+                                variant="ghost-muted"
+                                size="small"
+                                aria-label="删除此条记忆"
+                                onClick={() => void removeMemoryItem(item.raw)}
+                                icon={<Icon name="trash" size="small" />}
+                              />
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
                   </div>
                 </Show>
               }
             >
               <div class="rules-rows">
+                {/* Global Memory Repo (MEMORY.md) */}
                 <div class="rules-row">
                   <div class="rules-row-copy">
                     <div class="rules-row-title-wrap">
-                      <span class="rules-row-title">{language.t("settings.rules.memory.global")}</span>
+                      <span class="rules-row-title">全局记忆 (MEMORY.md 总账本)</span>
                       <Show
                         when={files.latest?.memory.global.content !== null}
                         fallback={<span class="rules-status-badge rules-status-badge--empty">未创建</span>}
@@ -790,22 +1042,89 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
                     </div>
                     <span class="rules-row-description rules-row-path">{files.latest?.memory.global.path ?? "—"}</span>
                   </div>
-                  <Button
-                    size="small"
-                    variant="ghost-muted"
-                    onClick={() =>
-                      openFileDialog(
-                        files.latest!.memory.global,
-                        files.latest?.memory.global.content === null,
-                        "编辑全局记忆 (MEMORY.md)",
-                        files.latest?.memory.global.content === null ? DEFAULT_PROJECT_MEMORY_TEMPLATE : undefined,
-                      )
+                  <Show
+                    when={files.latest?.memory.global.content !== null}
+                    fallback={
+                      <Button
+                        size="small"
+                        variant="contrast"
+                        icon="plus"
+                        onClick={() =>
+                          openFileDialog(
+                            files.latest!.memory.global,
+                            true,
+                            "初始化全局记忆 (MEMORY.md)",
+                            DEFAULT_PROJECT_MEMORY_TEMPLATE,
+                          )
+                        }
+                      >
+                        初始化账本
+                      </Button>
                     }
                   >
-                    <Icon name="pencil-line" size="small" />
-                    编辑
+                    <Button
+                      size="small"
+                      variant="ghost-muted"
+                      onClick={() =>
+                        openFileDialog(
+                          files.latest!.memory.global,
+                          false,
+                          "编辑全局记忆全文 (MEMORY.md)",
+                          DEFAULT_PROJECT_MEMORY_TEMPLATE,
+                        )
+                      }
+                    >
+                      <Icon name="pencil-line" size="small" />
+                      编辑全文
+                    </Button>
+                  </Show>
+                </div>
+
+                {/* Recorded Memory Items */}
+                <div class="rules-section-sub mt-2">
+                  <span class="usage-section-title">
+                    沉淀的记忆要点
+                    <span class="text-11-regular text-v2-text-text-muted ml-1 font-normal">
+                      ({currentMemoryItems().length} 条)
+                    </span>
+                  </span>
+                  <Button size="small" variant="ghost-muted" icon="plus" onClick={openCreateMemoryDialog}>
+                    + 新增记忆条目
                   </Button>
                 </div>
+
+                <Show
+                  when={currentMemoryItems().length > 0}
+                  fallback={
+                    <div class="usage-status">暂无沉淀的记忆条目。点击右上角【创建记忆】或【+ 新增记忆条目】录入工作偏好与约定。</div>
+                  }
+                >
+                  <div class="memory-items-list">
+                    <For each={currentMemoryItems()}>
+                      {(item) => (
+                        <div class="memory-item-card">
+                          <div class="memory-item-main">
+                            <div class="memory-item-header">
+                              <span class="memory-item-tag">{item.category}</span>
+                              <Show when={item.date}>
+                                <span class="memory-item-date">{item.date}</span>
+                              </Show>
+                            </div>
+                            <span class="memory-item-content">{item.content}</span>
+                          </div>
+                          <IconButton
+                            type="button"
+                            variant="ghost-muted"
+                            size="small"
+                            aria-label="删除此条记忆"
+                            onClick={() => void removeMemoryItem(item.raw)}
+                            icon={<Icon name="trash" size="small" />}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
               </div>
             </Show>
           </div>
@@ -834,67 +1153,6 @@ function ProjectSelect(props: {
       valueClass="truncate"
       aria-label={language.t("settings.workspaces.create.project")}
     />
-  )
-}
-
-function SourceAddDialog(props: { onSaved?: () => void; onClose?: () => void }) {
-  const language = useLanguage()
-  const sdk = useServerSDK()
-  const [value, setValue] = createSignal("")
-  const [saving, setSaving] = createSignal(false)
-
-  const save = async () => {
-    if (saving() || !value().trim()) return
-    setSaving(true)
-    try {
-      await sdk.api.experimental.config.update({ instruction: { source: value().trim() } })
-      showToast({
-        variant: "success",
-        icon: "circle-check",
-        title: language.t("settings.extensions.saved.title"),
-        description: language.t("settings.extensions.saved.description", { name: value().trim() }),
-      })
-      props.onSaved?.()
-      props.onClose?.()
-    } catch (cause) {
-      showToast({
-        variant: "error",
-        title: language.t("common.requestFailed"),
-        description: formatServerError(cause, language.t),
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog size="large" variant="settings" preventBackdropDismiss={saving()}>
-      <DialogHeader>
-        <DialogTitleGroup
-          title={language.t("settings.rules.sources.add.title")}
-          description={language.t("settings.rules.sources.add.description")}
-        />
-      </DialogHeader>
-      <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
-        <TextField
-          label={language.t("settings.rules.sources.add.label")}
-          value={value()}
-          onChange={setValue}
-          placeholder={language.t("settings.rules.sources.add.placeholder")}
-          autofocus
-        />
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
-          {language.t("common.cancel")}
-        </Button>
-        <Button variant="contrast" onClick={() => void save()} disabled={saving() || !value().trim()}>
-          <Show when={saving()} fallback={language.t("common.save")}>
-            <Loader class="custom-agent-dialog-spinner" />
-          </Show>
-        </Button>
-      </DialogFooter>
-    </Dialog>
   )
 }
 
@@ -1141,6 +1399,308 @@ function FileEditDialog(props: {
         </Button>
         <Button variant="contrast" onClick={() => void save()} disabled={saving()}>
           <Show when={saving()} fallback={props.isCreate ? "创建" : language.t("common.save")}>
+            <Loader class="custom-agent-dialog-spinner" />
+          </Show>
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  )
+}
+
+function CreateRuleFileDialog(props: {
+  baseDir: string
+  scopeLabel: string
+  onSaved?: () => void
+  onClose?: () => void
+}) {
+  const language = useLanguage()
+  const sdk = useServerSDK()
+  const [filename, setFilename] = createSignal("rules/code-standards.md")
+  const [content, setContent] = createSignal(
+    `# 规则名称\n\n## 适用范围与要求\n在此处详细说明智能体需要遵循的约束规范。\n\n## 具体准则\n- 准则 1：保持代码整洁与类型安全，严禁随意引入 any。\n- 准则 2：修改代码后必须进行验证与类型检查。\n`,
+  )
+  const [saving, setSaving] = createSignal(false)
+  const [viewMode, setViewMode] = createSignal<"edit" | "split" | "preview">("split")
+  const [showIssues, setShowIssues] = createSignal(false)
+
+  const issues = createMemo(() => validateMarkdown(content()))
+  const previewHtml = createMemo(() => renderMarkdownPreview(content()))
+
+  const resolvedPath = createMemo(() => {
+    const raw = filename().trim().replace(/\\/g, "/")
+    if (raw.startsWith("/") || /^[a-zA-Z]:/.test(raw)) return raw
+    const base = props.baseDir.replace(/\\/g, "/").replace(/\/+$/, "")
+    return base ? `${base}/${raw.replace(/^\/+/, "")}` : raw
+  })
+
+  const save = async () => {
+    if (saving() || !filename().trim()) return
+    setSaving(true)
+    try {
+      const fullPath = resolvedPath()
+      await sdk.api.experimental.file.write({
+        path: fullPath,
+        payload: encoder.encode(content()),
+      })
+      await sdk.api.experimental.config.update({
+        instruction: { source: fullPath },
+      })
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: "独立规则已成功创建并启用",
+        description: `规则文件 ${fullPath} 已添加至系统指令中`,
+      })
+      props.onSaved?.()
+      props.onClose?.()
+    } catch (cause) {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: formatServerError(cause, language.t),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog size="x-large" variant="settings" resizable maximizable preventBackdropDismiss={saving()}>
+      <DialogHeader>
+        <div class="flex w-full items-center justify-between">
+          <DialogTitleGroup
+            title={`创建独立规则文件 (${props.scopeLabel})`}
+            description="创建独立的规则文件并自动注册到系统上下文指令中"
+          />
+          <div class="rules-view-tabs mr-8">
+            <Button
+              size="small"
+              variant={viewMode() === "edit" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("edit")}
+            >
+              编辑
+            </Button>
+            <Button
+              size="small"
+              variant={viewMode() === "split" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("split")}
+            >
+              分屏对照
+            </Button>
+            <Button
+              size="small"
+              variant={viewMode() === "preview" ? "contrast" : "ghost-muted"}
+              onClick={() => setViewMode("preview")}
+            >
+              实时预览
+            </Button>
+          </div>
+        </div>
+      </DialogHeader>
+      <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
+        <div class="custom-agent-dialog-field mb-3">
+          <TextField
+            label="规则文件名 / 相对路径"
+            value={filename()}
+            onChange={setFilename}
+            placeholder="例如：rules/code-standards.md 或 conventions.md"
+            autofocus
+          />
+          <span class="text-11-regular text-v2-text-text-muted font-mono mt-1 break-all">
+            目标完整路径：{resolvedPath()}
+          </span>
+        </div>
+
+        {/* Syntax bar */}
+        <div class={`rules-syntax-bar ${issues().length === 0 ? "rules-syntax-bar--valid" : "rules-syntax-bar--warning"}`}>
+          <div class="flex items-center gap-2">
+            <Icon name={issues().length === 0 ? "circle-check" : "circle-exclamation"} size="small" />
+            <span>
+              {issues().length === 0 ? "Markdown 格式校验通过，语法规范" : `检测到 ${issues().length} 处 Markdown 语法建议`}
+            </span>
+          </div>
+          <Show when={issues().length > 0}>
+            <Button
+              size="small"
+              variant="ghost"
+              onClick={() => setShowIssues(!showIssues())}
+            >
+              {showIssues() ? "收起明细" : "查看明细"}
+            </Button>
+          </Show>
+        </div>
+
+        <Show when={showIssues() && issues().length > 0}>
+          <div class="rules-syntax-issues mb-3 rounded border border-v2-border bg-v2-surface-subtle p-2">
+            <For each={issues()}>
+              {(item) => (
+                <div class="rules-syntax-issue-item">
+                  <span class="rounded bg-v2-surface px-1.5 py-0.5 text-10-regular text-v2-text-muted">
+                    第 {item.line} 行
+                  </span>
+                  <span>{item.message}</span>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+
+        <Show when={viewMode() === "edit"}>
+          <textarea
+            class="custom-agent-dialog-textarea rules-editor"
+            value={content()}
+            rows={18}
+            onInput={(event) => setContent(event.currentTarget.value)}
+            spellcheck={false}
+          />
+        </Show>
+
+        <Show when={viewMode() === "preview"}>
+          <div
+            class="rules-preview-pane"
+            style={{ height: "480px" }}
+            innerHTML={previewHtml()}
+          />
+        </Show>
+
+        <Show when={viewMode() === "split"}>
+          <div class="rules-split-container">
+            <div class="rules-split-pane">
+              <textarea
+                class="custom-agent-dialog-textarea rules-editor"
+                style={{ height: "100%", "min-height": "100%" }}
+                value={content()}
+                onInput={(event) => setContent(event.currentTarget.value)}
+                spellcheck={false}
+              />
+            </div>
+            <div
+              class="rules-split-pane rules-preview-pane"
+              innerHTML={previewHtml()}
+            />
+          </div>
+        </Show>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
+          {language.t("common.cancel")}
+        </Button>
+        <Button variant="contrast" onClick={() => void save()} disabled={saving() || !filename().trim()}>
+          <Show when={saving()} fallback="保存并启用规则">
+            <Loader class="custom-agent-dialog-spinner" />
+          </Show>
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  )
+}
+
+function CreateMemoryItemDialog(props: {
+  file: FileRef
+  scopeLabel: string
+  onSaved?: () => void
+  onClose?: () => void
+}) {
+  const language = useLanguage()
+  const sdk = useServerSDK()
+  const [category, setCategory] = createSignal("项目偏好")
+  const [content, setContent] = createSignal("")
+  const [saving, setSaving] = createSignal(false)
+
+  const categories = [
+    { id: "项目偏好", label: "项目偏好" },
+    { id: "架构规范", label: "架构规范" },
+    { id: "开发约定", label: "开发约定" },
+    { id: "环境约束", label: "环境约束" },
+    { id: "关键决策", label: "关键决策" },
+    { id: "常用指令", label: "常用指令" },
+    { id: "其他", label: "其他" },
+  ]
+  const today = new Date().toISOString().slice(0, 10)
+
+  const previewText = createMemo(() => {
+    return `- **[${category()}]** (${today}): ${content().trim() || "（请输入记忆内容...）"}`
+  })
+
+  const save = async () => {
+    if (saving() || !content().trim()) return
+    setSaving(true)
+    try {
+      const current = props.file.content ?? "# 项目与全局记忆\n\n## 沉淀记忆\n"
+      const entry = `\n- **[${category()}]** (${today}): ${content().trim()}\n`
+      const nextContent = current + entry
+      await sdk.api.experimental.file.write({
+        path: props.file.path,
+        payload: encoder.encode(nextContent),
+      })
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: "记忆条目已添加",
+        description: `已成功追加至 ${props.scopeLabel} 记忆中`,
+      })
+      props.onSaved?.()
+      props.onClose?.()
+    } catch (cause) {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: formatServerError(cause, language.t),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog size="large" variant="settings" preventBackdropDismiss={saving()}>
+      <DialogHeader>
+        <DialogTitleGroup
+          title={`新增记忆条目 (${props.scopeLabel})`}
+          description="录入一条偏好、规范或约定，保存后将自动沉淀至 MEMORY.md 账本中"
+        />
+      </DialogHeader>
+      <DialogBody class="custom-agent-dialog-body" style={{ padding: "8px 24px 16px" }}>
+        <div class="custom-agent-dialog-field mb-3">
+          <label class="text-12-medium text-v2-text-text-base mb-1.5 block">记忆类别 / 标签</label>
+          <div class="flex flex-wrap gap-1.5">
+            <For each={categories}>
+              {(cat) => (
+                <Button
+                  size="small"
+                  variant={category() === cat.id ? "contrast" : "ghost-muted"}
+                  onClick={() => setCategory(cat.id)}
+                >
+                  {cat.label}
+                </Button>
+              )}
+            </For>
+          </div>
+        </div>
+
+        <div class="custom-agent-dialog-field mb-3">
+          <label class="text-12-medium text-v2-text-text-base mb-1.5 block">记忆具体内容</label>
+          <textarea
+            class="custom-agent-dialog-textarea"
+            rows={5}
+            value={content()}
+            onInput={(e) => setContent(e.currentTarget.value)}
+            placeholder="例如：本项目前端统一使用 SolidJS，所有组件放在 src/ 目录下；所有终端命令统一使用 bun 运行，禁止使用 npm/yarn。"
+            autofocus
+          />
+        </div>
+
+        <div class="rounded-lg border border-v2-border bg-v2-surface-subtle p-3 text-12-regular">
+          <div class="text-11-medium text-v2-text-text-muted mb-1">预览追加格式：</div>
+          <div class="font-mono text-12-regular text-v2-text-text-base">{previewText()}</div>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
+          {language.t("common.cancel")}
+        </Button>
+        <Button variant="contrast" onClick={() => void save()} disabled={saving() || !content().trim()}>
+          <Show when={saving()} fallback="保存记忆条目">
             <Loader class="custom-agent-dialog-spinner" />
           </Show>
         </Button>

@@ -62,6 +62,12 @@ export function agentID(name: string): string {
   return slug || "custom-agent"
 }
 
+export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao"])
+
+export function isBuiltinAgent(id: string): boolean {
+  return BUILTIN_AGENT_IDS.has(id.toLowerCase().trim())
+}
+
 /** Reads only user-defined agents (those without a `native: true` flag) from config documents. */
 export function readAgentEntries(entries: readonly ConfigEntryLike[]): CustomAgentEntry[] {
   const result: CustomAgentEntry[] = []
@@ -71,7 +77,9 @@ export function readAgentEntries(entries: readonly ConfigEntryLike[]): CustomAge
       if (typeof agent !== "object" || agent === null) continue
       const value = agent as Record<string, unknown>
       // A `native: true` entry is a built-in agent surfaced through config, not a user definition.
-      if (value.native === true) continue
+      // Built-in agents (build, plan, trae, trae-bao) whose prompts are customized by the user
+      // belong exclusively in the built-in agents section and must not be listed as custom agents.
+      if (value.native === true || isBuiltinAgent(id)) continue
       result.push({
         id,
         description: typeof value.description === "string" ? value.description : undefined,

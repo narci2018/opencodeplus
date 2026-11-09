@@ -20,8 +20,15 @@ Release notes for OpenCode V2, newest first.
 
 ### App
 
+#### Bug fixes
+
+- Fixed prompt-customized built-in agents (`build`, `plan`, `trae`, `trae-bao`) appearing duplicated under the "Custom agents" list. In `readAgentEntries`, built-in agent identifiers are now filtered out, ensuring built-in agents remain exclusively in the "Built-in agents" section with their `[已自定义提示词]` tag.
+
 #### Improvements
 
+- Implemented Scheme 1 ("真正条目化/多文件管理") for Rules & Memory:
+  - **Rules**: `AGENTS.md` is pinned as the Core System Rule with independent `[编辑]` / `[创建主规则]` actions. Clicking `+ 创建规则` opens a dialog to author and create discrete rule files (e.g. `rules/code-standards.md`), validating Markdown formatting with real-time error checking and split preview, and automatically registering the new rule in `config.instructions` so that every creation visibly adds a new row to the rules list.
+  - **Memory**: `MEMORY.md` serves as the centralized repository with an `[编辑全文]` action. Clicking `+ 创建记忆` opens a dialog to record itemized facts (category, date, content), formatting and appending them to `MEMORY.md` while rendering each entry in a structured card list with per-item deletion, so creating memory entries increases the visible list count (+1).
 - Enabled instant (0ms) loading for the "Usage statistics" settings page using a Stale-While-Revalidate (SWR) cache pattern backed by memory and persistent local storage. Dashboards, charts, and metrics render immediately on frame 0 with zero spinner delay.
 - Redesigned "Rules & memory" page layout according to user feedback:
   - Added dedicated `+ 创建规则` and `+ 创建记忆` buttons directly in the section headers alongside scope toggles for both Global and Project levels.
