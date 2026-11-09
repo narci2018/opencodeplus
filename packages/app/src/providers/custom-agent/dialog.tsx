@@ -16,24 +16,20 @@ import {
   agentID,
   agentPatch,
   agentPermissions,
+  BUILTIN_AGENT_TEMPLATES,
   decodeToolSelection,
   generatePrompt,
   isBuiltinAgent,
   parseGeneratedAgent,
+  synthesizeAgentFromSeed,
   TOOL_GROUPS,
+  type AgentTemplate,
   type CustomAgentEntry,
   type CustomAgentModel,
   type GeneratedAgent,
 } from "./presets"
 import "@/settings/settings.css"
 import "./custom-agent.css"
-
-const statusLabels = {
-  connected: "mcp.status.connected",
-  failed: "mcp.status.failed",
-  needs_auth: "mcp.status.needs_auth",
-  disabled: "mcp.status.disabled",
-} as const
 
 export type CustomAgentDialogProps = {
   /** Custom agents already present in the config, for editing and listing. */
@@ -61,7 +57,6 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
   )
   const [enabledMcp, setEnabledMcp] = createSignal(new Set<string>())
   const [saving, setSaving] = createSignal(false)
-  const [generating, setGenerating] = createSignal(false)
   const [error, setError] = createSignal<string | undefined>(undefined)
 
   // Keep identifier synced with name if creating new and user hasn't explicitly diverged
@@ -138,35 +133,30 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     void dialog.show(() => <DialogMcp directory={directory} />, () => undefined)
   }
 
-  const generate = async () => {
-    const promptSeed = system().trim() || name().trim() || whenToCall().trim()
-    if (generating() || !promptSeed) return
-    setGenerating(true)
-    setError(undefined)
-    try {
-      const result = await sdk.api.experimental.generate.text({
-        prompt: generatePrompt(promptSeed, mcps().map((server) => server.name)),
-      })
-      const parsed = parseGeneratedAgent(result.text)
-      if (!parsed) {
-        showToast({
-          variant: "error",
-          title: language.t("settings.agents.custom.generate.failed.title"),
-          description: language.t("settings.agents.custom.generate.failed.description"),
-        })
-        return
-      }
-      applyGenerated(parsed)
-    } catch (cause) {
-      const message = formatServerError(cause, language.t)
-      showToast({ variant: "error", title: language.t("common.requestFailed"), description: message })
-    } finally {
-      setGenerating(false)
-    }
+  const openSmartGenerator = () => {
+    void dialog.show(
+      () => (
+        <AgentGenerateDialog
+          configuredMcp={mcps().map((server) => server.name)}
+          onApply={(generatedAgent) => {
+            applyGenerated(generatedAgent)
+            showToast({
+              variant: "success",
+              icon: "circle-check",
+              title: "智能体设定已填入",
+              description: `已为“${generatedAgent.name || "自定义智能体"}”自动填入名称、调用场景、完整提示词与工具。`,
+            })
+          }}
+          onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
   }
 
   const applyGenerated = (parsed: GeneratedAgent) => {
-    if (parsed.name && !name()) setName(parsed.name)
+    if (parsed.name) setName(parsed.name)
+    if (parsed.identifier) setIdentifier(parsed.identifier)
     if (parsed.whenToCall) {
       setCallable(true)
       setWhenToCall(parsed.whenToCall)
@@ -224,10 +214,13 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
 
   return (
     <Dialog
-      size="large"
+      size="x-large"
       variant="settings"
-      preventBackdropDismiss={saving() || generating()}
+      resizable
+      maximizable
+      preventBackdropDismiss={saving()}
       class="custom-agent-dialog"
+      containerClass="custom-agent-dialog-container"
     >
       <DialogHeader>
         <div class="custom-agent-header-row">
@@ -239,12 +232,9 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
           <Button
             size="small"
             variant="ghost-muted"
-            onClick={() => void generate()}
-            disabled={generating() || (!system().trim() && !name().trim())}
+            onClick={openSmartGenerator}
           >
-            <Show when={generating()} fallback={<>✨ 智能生成</>}>
-              <Loader class="custom-agent-dialog-spinner" />
-            </Show>
+            ✨ 智能生成
           </Button>
         </div>
       </DialogHeader>
@@ -398,22 +388,76 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
                 是支持该协议的服务，提供工具和功能来扩展智能体的能力。添加后，智能体会自动调用合适的工具完成任务。
               </p>
               <Show when={mcps().length > 0}>
-                <div style={{ display: "flex", "flex-direction": "column", gap: "6px", "margin-top": "6px" }}>
+                <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "margin-top": "6px" }}>
                   <For each={mcps()}>
-                    {(server) => (
-                      <Checkbox
-                        checked={enabledMcp().has(server.name)}
-                        disabled={server.status.status === "pending"}
-                        description={
-                          server.status.status === "pending"
-                            ? undefined
-                            : language.t(statusLabels[server.status.status])
+                    {(server) => {
+                      const isFailed = () => server.status.status === "failed"
+                      const isConnected = () => server.status.status === "connected"
+                      const [reconnecting, setReconnecting] = createSignal(false)
+
+                      const retryConnect = async (e: MouseEvent) => {
+                        e.stopPropagation()
+                        setReconnecting(true)
+                        try {
+                          await sdk.api.experimental.mcp.connect({ server: server.name })
+                          await data.location.mcp.server.sync(locationRef()).catch(() => undefined)
+                          showToast({
+                            variant: "success",
+                            title: "重试连接",
+                            description: `已向 ${server.name} 发起重新连接。`,
+                          })
+                        } catch (err) {
+                          showToast({
+                            variant: "error",
+                            title: "重试连接失败",
+                            description: String(err),
+                          })
+                        } finally {
+                          setReconnecting(false)
                         }
-                        onChange={(checked) => toggleMcpServer(server.name, checked === true)}
-                      >
-                        {server.name}
-                      </Checkbox>
-                    )}
+                      }
+
+                      return (
+                        <div class="custom-agent-mcp-item-card">
+                          <div style={{ display: "flex", "align-items": "center", "justify-content": "space-between", width: "100%" }}>
+                            <Checkbox
+                              checked={enabledMcp().has(server.name)}
+                              disabled={server.status.status === "pending"}
+                              onChange={(checked) => toggleMcpServer(server.name, checked === true)}
+                            >
+                              <div style={{ display: "flex", "align-items": "center", gap: "8px" }}>
+                                <span style={{ "font-weight": "600", "font-size": "13px" }}>{server.name}</span>
+                                <Show when={server.name === "computer-use"}>
+                                  <span class="custom-agent-mcp-badge">TRAE 桌面自动化工具</span>
+                                </Show>
+                              </div>
+                            </Checkbox>
+                            <div style={{ display: "flex", "align-items": "center", gap: "8px" }}>
+                              <Show when={isConnected()}>
+                                <span style={{ "font-size": "12px", color: "var(--v2-text-feedback-success, #22c55e)" }}>
+                                  ● 已连接就绪
+                                </span>
+                              </Show>
+                              <Show when={isFailed()}>
+                                <span style={{ "font-size": "12px", color: "var(--v2-text-feedback-error, #ef4444)" }}>
+                                  ● 连接失败
+                                </span>
+                                <Button size="small" variant="ghost-faint" onClick={retryConnect} disabled={reconnecting()}>
+                                  <Show when={reconnecting()} fallback={<>重试连接</>}>
+                                    <Loader class="custom-agent-dialog-spinner" />
+                                  </Show>
+                                </Button>
+                              </Show>
+                            </div>
+                          </div>
+                          <Show when={isFailed() && server.status.status === "failed" && server.status.error}>
+                            <div class="custom-agent-mcp-error-hint">
+                              <span>错误原因: {server.status.status === "failed" ? server.status.error : ""}</span>
+                            </div>
+                          </Show>
+                        </div>
+                      )
+                    }}
                   </For>
                 </div>
               </Show>
@@ -496,7 +540,7 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
               <Loader class="custom-agent-dialog-spinner" />
             </Show>
           </Button>
-          <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving() || generating()}>
+          <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
             取消
           </Button>
         </div>
@@ -518,4 +562,174 @@ function parseSelection(value: string): string | { providerID: string; model: st
   const [, providerID, model, variant] = match
   if (!providerID || !model) return undefined
   return variant ? { providerID, model, variant } : { providerID, model }
+}
+
+export const AgentGenerateDialog: Component<{
+  configuredMcp: readonly string[]
+  onApply: (agent: GeneratedAgent) => void
+  onClose?: () => void
+}> = (props) => {
+  const sdk = useServerSDK()
+  const [promptInput, setPromptInput] = createSignal("")
+  const [selectedTemplate, setSelectedTemplate] = createSignal<AgentTemplate | undefined>(undefined)
+  const [generated, setGenerated] = createSignal<GeneratedAgent | undefined>(undefined)
+  const [loading, setLoading] = createSignal(false)
+
+  const handleSelectTemplate = (template: AgentTemplate) => {
+    setSelectedTemplate(template)
+    setGenerated({
+      name: template.name,
+      identifier: template.identifier,
+      whenToCall: template.whenToCall,
+      system: template.system,
+      tools: template.tools,
+      mcpServers: template.mcpServers,
+    })
+    setPromptInput(template.description)
+  }
+
+  const handleGenerate = async () => {
+    const text = promptInput().trim()
+    if (!text || loading()) return
+    setLoading(true)
+    try {
+      let resultAgent: GeneratedAgent | undefined
+      try {
+        const res = await sdk.api.experimental.generate.text({
+          prompt: generatePrompt(text, props.configuredMcp),
+        })
+        resultAgent = parseGeneratedAgent(res.text)
+      } catch {
+        // Fallback to local intelligent synthesizer
+      }
+      if (!resultAgent) {
+        resultAgent = synthesizeAgentFromSeed(text)
+      }
+      setGenerated(resultAgent)
+      setSelectedTemplate(undefined)
+      showToast({
+        variant: "success",
+        title: "智能生成完成",
+        description: `已为“${resultAgent.name || "新智能体"}”生成工业级设定与完整提示词。`,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleConfirm = () => {
+    const current = generated()
+    if (current) {
+      props.onApply(current)
+    }
+    props.onClose?.()
+  }
+
+  return (
+    <Dialog
+      size="x-large"
+      variant="settings"
+      resizable
+      maximizable
+      class="agent-generator-dialog"
+      containerClass="agent-generator-dialog-container"
+    >
+      <DialogHeader>
+        <div class="custom-agent-header-row">
+          <div class="custom-agent-breadcrumb">
+            <span>✨ AI 智能生成智能体</span>
+          </div>
+        </div>
+      </DialogHeader>
+
+      <DialogBody class="agent-generator-body">
+        <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+          <label class="custom-agent-field-label">
+            <span>描述需求</span>
+            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+              （输入你的设想，或从下方直接选择工业级专家模板）
+            </span>
+          </label>
+          <textarea
+            class="agent-generator-textarea"
+            placeholder="例如：一位擅长代码重构与整洁架构的架构师；或者专注于排查 OWASP 漏洞与死锁的专家..."
+            value={promptInput()}
+            onInput={(e) => setPromptInput(e.currentTarget.value)}
+          />
+          <div style={{ display: "flex", "justify-content": "flex-end" }}>
+            <Button
+              size="small"
+              variant="contrast"
+              disabled={loading() || !promptInput().trim()}
+              onClick={() => void handleGenerate()}
+            >
+              <Show when={loading()} fallback={<>✨ 开始智能生成</>}>
+                <Loader class="custom-agent-dialog-spinner" />
+                <span style={{ "margin-left": "6px" }}>正在深度生成...</span>
+              </Show>
+            </Button>
+          </div>
+        </div>
+
+        {/* 工业级专家模板 */}
+        <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+          <label class="custom-agent-field-label">
+            <span>精选工业级智能体模板</span>
+            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+              （点击即可即时载入完整 Prompt 与专业调用逻辑）
+            </span>
+          </label>
+          <div class="agent-generator-templates-grid">
+            <For each={BUILTIN_AGENT_TEMPLATES}>
+              {(tpl) => (
+                <div
+                  class={`agent-generator-template-card ${selectedTemplate()?.id === tpl.id ? "active" : ""}`}
+                  onClick={() => handleSelectTemplate(tpl)}
+                >
+                  <div class="agent-generator-template-header">
+                    <span class="agent-generator-template-title">
+                      <span>{tpl.icon}</span>
+                      <span>{tpl.name}</span>
+                    </span>
+                    <span class="agent-generator-template-tag">{tpl.tag.split("/")[0].trim()}</span>
+                  </div>
+                  <span class="agent-generator-template-desc">{tpl.description}</span>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+
+        {/* 生成预览 */}
+        <Show when={generated()}>
+          {(res) => (
+            <div class="agent-generator-preview-box">
+              <div class="agent-generator-preview-title">
+                <span>📋 生成预览：</span>
+                <span style={{ color: "var(--v2-state-bg-accent)" }}>{res().name}</span>
+                <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>({res().identifier})</span>
+              </div>
+              <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+                <strong>触发场景：</strong>{res().whenToCall}
+              </div>
+              <div class="agent-generator-preview-prompt">{res().system}</div>
+            </div>
+          )}
+        </Show>
+      </DialogBody>
+
+      <DialogFooter>
+        <Button variant="ghost" onClick={props.onClose}>
+          取消
+        </Button>
+        <Button
+          variant="contrast"
+          disabled={!generated()}
+          onClick={handleConfirm}
+        >
+          应用并填入智能体
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  )
 }

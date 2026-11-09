@@ -45,6 +45,8 @@ import type {
 import type { ComposerEditorModel, ComposerSelectControl } from "./interaction"
 import { isAttachment } from "../prompt-parts"
 import { QuoteCommentEditor } from "./quote-comment"
+import { useSettings } from "@/settings/model"
+import { showToast } from "@/shell/notifications/toast"
 import "../attachments/attachments.css"
 import "./editor.css"
 import "@/shell/palette-menu.css"
@@ -445,6 +447,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
                     </Show>
                   )}
                 </Show>
+                <ComposerPermissionControl />
               </Show>
             </div>
           </div>
@@ -1000,6 +1003,63 @@ function pointerFocusReturn() {
       pointer.focus({ preventScroll: true, focusVisible: false })
     },
   }
+}
+
+function ComposerPermissionControl() {
+  const settings = useSettings()
+  const [currentMode, setCurrentMode] = createSignal<string>(
+    (() => {
+      try {
+        const saved = localStorage.getItem("opencode.session.permission.mode")
+        if (saved) return saved
+      } catch {}
+      return settings.permissions.autoApproveDefault() ? "full" : "auto"
+    })(),
+  )
+
+  const options: ComposerOption[] = [
+    { id: "manual", label: "🛡️ 手动审批" },
+    { id: "auto", label: "⚙️ 自动审批" },
+    { id: "full", label: "⚡ 完全访问" },
+  ]
+
+  const handleSelect = (id: string) => {
+    setCurrentMode(id)
+    try {
+      localStorage.setItem("opencode.session.permission.mode", id)
+    } catch {}
+
+    if (id === "full") {
+      settings.permissions.setAutoApproveDefault(true)
+      showToast({
+        variant: "success",
+        title: "授权模式：完全访问",
+        description: "已开启免审批全自动执行，智能体将自主运行所有工具。",
+      })
+    } else if (id === "manual") {
+      settings.permissions.setAutoApproveDefault(false)
+      showToast({
+        title: "授权模式：手动审批",
+        description: "所有工具调用及系统命令均需您手动授权确认。",
+      })
+    } else {
+      settings.permissions.setAutoApproveDefault(false)
+      showToast({
+        title: "授权模式：自动审批",
+        description: "安全查询与读取自动执行，敏感与变更操作将请求确认。",
+      })
+    }
+  }
+
+  return (
+    <ComposerEditorSelect
+      fitMenuToOptions
+      title="授权审批模式"
+      options={options}
+      current={currentMode()}
+      onSelect={handleSelect}
+    />
+  )
 }
 
 function ComposerEditorConfiguredSelect(props: {

@@ -1,6 +1,6 @@
 export * as TraePlugin from "./trae.js"
 
-import { mkdirSync } from "node:fs"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { define } from "@opencode/plugin/effect/plugin"
@@ -47,10 +47,39 @@ export const Plugin = define({
     try {
       mkdirSync(cwd, { recursive: true })
     } catch {}
+
+    // Resolve or extract executable to real filesystem (Bun's embedded "B:/~BUN/..." files cannot be spawned directly)
+    const executable = yield* Effect.promise(async () => {
+      if (existsSync(binding.path)) return binding.path
+      try {
+        const binDir = path.join(cwd, "bin", `${binding.version}-${binding.sha256?.slice(0, 16) ?? "embedded"}`)
+        mkdirSync(binDir, { recursive: true })
+        const exeName = process.platform === "win32" ? "open-computer-use.exe" : "open-computer-use"
+        const target = path.join(binDir, exeName)
+        if (existsSync(target)) return target
+
+        // Read embedded asset via Bun.file
+        // @ts-ignore
+        if (typeof Bun !== "undefined") {
+          // @ts-ignore
+          const file = Bun.file(binding.path)
+          const arrayBuffer = await file.arrayBuffer()
+          const bytes = new Uint8Array(arrayBuffer)
+          if (bytes.byteLength > 0) {
+            writeFileSync(target, bytes, { mode: 0o755 })
+            return target
+          }
+        }
+      } catch (err) {
+        console.error("Failed to extract embedded computer-use binary:", err)
+      }
+      return binding.path
+    })
+
     yield* ctx.mcp.transform((editor) => {
       editor.set("computer-use", {
         type: "local",
-        command: [binding.path, "mcp"],
+        command: [executable, "mcp"],
         cwd,
       })
     })
