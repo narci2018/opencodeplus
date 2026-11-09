@@ -71,6 +71,7 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
     clientName: string
     version: string
     channel: string
+    ip: string
     screenResolution: string
     timezone: string
     language: string
@@ -82,10 +83,18 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
     id: string
   } | null>(null)
 
-  const version = () => platform.version ?? "0.0.1-dev-01"
-  const channel = () => "dev"
-  const clientName = () => "desktop"
-  const userAgent = createMemo(() => `opencode/${channel()}/${version()}/${clientName()}`)
+  // Original values (stored as BAK when fingerprint is active)
+  const originalVersion = () => platform.version ?? "0.0.1-dev-01"
+  const originalChannel = () => "dev"
+  const originalClientName = () => "desktop"
+  const originalUserAgent = createMemo(() => `opencode/${originalChannel()}/${originalVersion()}/${originalClientName()}`)
+
+  // Active values: fingerprint overrides original
+  const version = () => fingerprint()?.version ?? originalVersion()
+  const channel = () => fingerprint()?.channel ?? originalChannel()
+  const clientName = () => fingerprint()?.clientName ?? originalClientName()
+  const userAgent = createMemo(() => fingerprint()?.userAgent ?? originalUserAgent())
+  const activeIp = () => fingerprint()?.ip ?? egress()?.ip
 
   const checkEgress = async () => {
     if (!platform.checkEgress) {
@@ -175,6 +184,23 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
   const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
   const randPick = <T,>(arr: T[]): T => arr[randInt(0, arr.length - 1)]
 
+  const randomIpByCountry = (): string => {
+    const countryRanges: [number, number][] = [
+      [1, 50],       // US
+      [51, 100],     // CN
+      [101, 130],    // JP
+      [131, 160],    // DE
+      [161, 180],    // GB
+      [181, 200],    // FR
+      [201, 220],    // KR
+      [221, 235],    // RU
+      [236, 245],    // BR
+      [246, 255],    // AU
+    ]
+    const [min, max] = randPick(countryRanges)
+    return `${min}.${randInt(0, 255)}.${randInt(0, 255)}.${randInt(1, 254)}`
+  }
+
   const generateFingerprint = () => {
     const browsers = [
       { name: "Chrome", ver: () => `${randInt(120, 131)}.${randInt(0, 9)}.${randInt(1000, 9999)}.${randInt(100, 999)}` },
@@ -214,6 +240,7 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
       clientName: randPick(clientNames),
       version: `${randInt(0, 9)}.${randInt(0, 9)}.${randInt(0, 99)}-dev-${randInt(1, 99)}`,
       channel: randPick(channels),
+      ip: randomIpByCountry(),
       screenResolution: randPick(resolutions),
       timezone: randPick(timezones),
       language: randPick(langs),
@@ -229,7 +256,17 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
       variant: "success",
       icon: "reset",
       title: "已生成随机客户端指纹",
-      description: `UA: ${ua.slice(0, 60)}…`,
+      description: `UA: ${ua.slice(0, 60)}… · IP: ${fp.ip}`,
+    })
+  }
+
+  const restoreOriginalValues = () => {
+    setFingerprint(null)
+    showToast({
+      variant: "default",
+      icon: "reset",
+      title: "已恢复原始客户端标识",
+      description: `UA: ${originalUserAgent()}`,
     })
   }
 
@@ -265,6 +302,12 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
               <Icon name="reset" size="small" />
               <span>随机生成客户端指纹</span>
             </Button>
+            <Show when={fingerprint()}>
+              <Button variant="outline" size="small" onClick={restoreOriginalValues}>
+                <Icon name="reset" size="small" />
+                <span>恢复原始值</span>
+              </Button>
+            </Show>
             <Button variant="outline" size="small" onClick={() => copyText(userAgent(), "User-Agent")}>
               复制 UA
             </Button>
@@ -325,11 +368,13 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
           <div class="diagnostics-info-card">
             <span class="diagnostics-info-label">网络出口 IP 状态</span>
             <div class="diagnostics-info-value">
-              <span>{egress()?.ip ?? (checkingEgress() ? "检测中…" : "未检测")}</span>
-              <Button variant="ghost" size="small" disabled={checkingEgress()} onClick={checkEgress}>
-                <Icon name="refresh" size="small" />
-                <span>刷新</span>
-              </Button>
+              <span>{activeIp() ?? (checkingEgress() ? "检测中…" : "未检测")}</span>
+              <Show when={!fingerprint()}>
+                <Button variant="ghost" size="small" disabled={checkingEgress()} onClick={checkEgress}>
+                  <Icon name="refresh" size="small" />
+                  <span>刷新</span>
+                </Button>
+              </Show>
             </div>
           </div>
 
@@ -365,12 +410,28 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
           <tbody>
             <tr>
               <td><code>User-Agent</code></td>
-              <td><code>{userAgent()}</code></td>
+              <td>
+                <code>{userAgent()}</code>
+                <Show when={fingerprint()}>
+                  <br />
+                  <code style={{ color: "var(--v2-text-text-muted)", "font-size": "11px" }}>
+                    原始: {originalUserAgent()} (BAK)
+                  </code>
+                </Show>
+              </td>
               <td><span class="diagnostics-header-badge">核心版本标识</span></td>
             </tr>
             <tr>
               <td><code>x-opencode-client</code></td>
-              <td><code>{clientName()}</code></td>
+              <td>
+                <code>{clientName()}</code>
+                <Show when={fingerprint()}>
+                  <br />
+                  <code style={{ color: "var(--v2-text-text-muted)", "font-size": "11px" }}>
+                    原始: {originalClientName()} (BAK)
+                  </code>
+                </Show>
+              </td>
               <td><span class="diagnostics-header-badge">宿主模式</span></td>
             </tr>
             <tr>
