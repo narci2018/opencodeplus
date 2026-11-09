@@ -2,19 +2,13 @@
 
 Release notes for OpenCode V2, newest first.
 
-## Unreleased
-
-### Desktop
-
-#### Bug fixes
-
-- Fixed packaged desktop builds downloading upstream official CLI from npm instead of bundling the local CLI build. `findBuiltCliDirectory` now checks all target candidate directory formats (`cli-windows-x64`, `cli-windows-x64-baseline`, `windows-x64`) in `packages/cli/dist` and properly embeds the locally compiled binary.
+## v0.0.1-dev-01
 
 ### Core
 
 #### Bug fixes
 
-- Resolved `computer-use` MCP server showing "Failed" on Windows by automatically extracting embedded Bun virtual binaries (`B:/~BUN/...`) to real physical executable paths in `packages/core/src/plugin/trae/trae.ts`.
+- Resolved `computer-use` MCP server showing "Failed" with `NotFound: ChildProcess.spawn (B:/~BUN/root/open-computer-use-*.exe mcp)` on Windows by extracting embedded Bun virtual binaries to physical disk paths (`%TEMP%/opencode-computer-use/bin/.../open-computer-use.exe`) with executable permissions and fallback resolution.
 
 #### Improvements
 
@@ -26,30 +20,28 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
+- Fixed "创建" (Create) button permanently disabled in Custom Agent dialog by preventing blank "何时调用" from blocking submission, auto-defaulting descriptions, and supporting Unicode/Chinese names in slug generation.
+- Fixed AI Smart Generation (`✨ AI 智能生成智能体`) destroying parent dialog state. Converted generator into an internal stacked modal overlay so parent form state is preserved in place; clicking "应用并填入智能体" immediately populates all fields (Name, System Prompt, Identifier, Trigger scene, Tool checkboxes) in real-time and enables the "创建" button.
 - Fixed prompt-customized built-in agents (`build`, `plan`, `trae`, `trae-bao`) appearing duplicated under the "Custom agents" list. In `readAgentEntries`, built-in agent identifiers are now filtered out, ensuring built-in agents remain exclusively in the "Built-in agents" section with their `[已自定义提示词]` tag.
 
 #### Improvements
 
 - Added window maximize (`maximizable`) and bottom-right corner drag resizing (`resizable`) to the Custom Agent dialog.
-- Implemented real, high-value AI Intelligent Generation (`✨ 智能生成`) for Custom Agents:
-  - Supports custom requirement synthesis via LLM API and built-in structured prompt generation.
-  - Curated 6 industry-grade expert agent templates with 800+ word structured prompts: 全栈架构专家 (system-architect), 代码安全与合规审计员 (security-auditor), 单元与集成测试专家 (testing-specialist), 性能调优与并发专家 (performance-engineer), 技术写作与文档操盘手 (tech-writer), and 桌面自动化与系统操控专员 (desktop-automation).
-  - Real-time preview and one-click application to agent configuration (name, slug, system prompt, when-to-call, tools).
-- Optimized Home panel layout to utilize 100% full screen width:
-  - Removed narrow `max-w-[1080px]` wrapper, pinning projects and quick navigation to the far left, and session tracking cards to the far right.
-  - Added a smooth mouse draggable vertical divider with `col-resize` cursor and persisted width in `localStorage`.
-- Added Permission Authorization Mode selector in the session chat composer toolbar:
-  - Options: `🛡️ 手动审批` (Manual approval), `⚙️ 自动审批` (Auto approval for safe tools), and `⚡ 完全访问` (Full access autonomous mode).
-  - Synchronizes with project and global permission settings and shows status toast feedback upon switching.
-- Enhanced MCP server display in Custom Agent dialog:
-  - Shows clear status badges (已连接就绪 / 连接失败).
-  - Added "TRAE 桌面自动化工具" badge for `computer-use`.
-  - Displays detailed failure error reasons and provides a "重试连接" button.
-- Completely aligned Custom Agent creation and editing UI with TRAE CN's native design:
-  - Fixed prompt field visibility in edit mode by placing the large, editable `提示词` (0/10000) directly under `名称*` (0/20) and adding `overflow-y: auto` to prevent clipping.
-  - Implemented the exact TRAE CN visual structure: Avatar box, Name (0/20), System Prompt (0/10000), "可被其他智能体调用" card with English identifier (0/50) and when-to-call (0/5000), "工具 - MCP" with server connector cards, "工具 - 内置" (阅读, 编辑, 终端, 预览, 联网搜索), and `✨ 智能生成`.
+- Curated 6 industry-grade expert agent templates with 800+ word structured prompts in AI Smart Generation: 全栈架构专家 (system-architect), 代码安全与合规审计员 (security-auditor), 单元与集成测试专家 (testing-specialist), 性能调优与并发专家 (performance-engineer), 技术写作与文档操盘手 (tech-writer), and 桌面自动化与系统操控专员 (desktop-automation).
+- Optimized Home panel layout to utilize 100% full screen width with mouse draggable vertical divider and localStorage width persistence.
+- Added Permission Authorization Mode selector in the session chat composer toolbar (`🛡️ 手动审批`, `⚙️ 自动审批`, `⚡ 完全访问`).
+- Aligned Custom Agent creation and editing UI with TRAE CN's native design.
+
+### Desktop
+
+#### Bug fixes
+
+- Fixed packaged desktop builds downloading upstream official CLI from npm instead of bundling the local CLI build. `findBuiltCliDirectory` now checks all target candidate directory formats (`cli-windows-x64`, `cli-windows-x64-baseline`, `windows-x64`) in `packages/cli/dist` and properly embeds the locally compiled binary.
+
+#### Improvements
+
 - Integrated TRAE CN's **"模板库" (Template Library)**:
-  - Added 10 categories (全部, 内容制作, 数据分析, 投资与金融, 视频与图像, 办公协同, 产品开发, 策略与研究, 法务与合规, 学习与教育) featuring real business scenarios (e.g., 连锁超市营收复盘分析报告, 制造工厂效益经营简报, 连锁门店经营分析报告, 外卖会员体验对比报告).
+  - Added 10 categories (全部, 内容制作, 数据分析, 投资与金融, 视频与图像, 办公协同, 产品开发, 策略与研究, 法务与合规, 学习与教育) featuring real business scenarios.
   - Truly functional "一键开始" action that configures prompts, selects recommended agents (`trae` / `trae-bao`), and launches interactive sessions directly.
 - Integrated TRAE CN's **"插件市场" (Plugin Marketplace)**:
   - Curated official and community MCP tool services (Playwright browser automation, Web Fetch, SQLite, Postgres, GitHub, Git, File System, Sequential Thinking, Docker, Feishu/Lark, Memory Graph, Python Runner).

@@ -1,6 +1,7 @@
 export * as TraePlugin from "./trae.js"
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import os from "node:os"
 import path from "node:path"
 import { define } from "@opencode/plugin/effect/plugin"
@@ -9,6 +10,8 @@ import { Agent } from "../../agent.js"
 import ComputerBinding from "./computer-binding.js"
 import systemPrompt from "./system.md" with { type: "text" }
 import traeBaoPrompt from "./trae-bao.md" with { type: "text" }
+
+const require = createRequire(import.meta.url)
 
 // The TRAE agent is a built-in orchestrator over Code Mode, browser, and desktop tools. The
 // computer-use MCP server rides along: its native binary ships embedded in the CLI (resolved
@@ -48,32 +51,72 @@ export const Plugin = define({
       mkdirSync(cwd, { recursive: true })
     } catch {}
 
-    // Resolve or extract executable to real filesystem (Bun's embedded "B:/~BUN/..." files cannot be spawned directly)
+    // Resolve or extract executable to real filesystem
+    // (Bun's embedded "B:/~BUN/..." or "/$bunfs/..." files are virtual and cannot be spawned by OS)
     const executable = yield* Effect.promise(async () => {
-      if (existsSync(binding.path)) return binding.path
+      const isVirtualPath = (p: string) =>
+        p.includes("~BUN") ||
+        p.includes("bunfs") ||
+        p.startsWith("/$bunfs") ||
+        /^[a-zA-Z]:[/\\]~BUN/i.test(p)
+
+      // If it's a real physical binary on disk, use it directly
+      if (!isVirtualPath(binding.path) && existsSync(binding.path)) {
+        return binding.path
+      }
+
+      const exeName = process.platform === "win32" ? "open-computer-use.exe" : "open-computer-use"
+      const binDir = path.join(cwd, "bin", `${binding.version}-${binding.sha256?.slice(0, 16) ?? "embedded"}`)
+      const target = path.join(binDir, exeName)
+
       try {
-        const binDir = path.join(cwd, "bin", `${binding.version}-${binding.sha256?.slice(0, 16) ?? "embedded"}`)
         mkdirSync(binDir, { recursive: true })
-        const exeName = process.platform === "win32" ? "open-computer-use.exe" : "open-computer-use"
-        const target = path.join(binDir, exeName)
-        if (existsSync(target)) return target
+        if (existsSync(target)) {
+          const stats = statSync(target)
+          if (stats.size > 0) return target
+        }
 
         // Read embedded asset via Bun.file
         // @ts-ignore
-        if (typeof Bun !== "undefined") {
+        if (typeof Bun !== "undefined" && typeof Bun.file === "function") {
           // @ts-ignore
           const file = Bun.file(binding.path)
           const arrayBuffer = await file.arrayBuffer()
           const bytes = new Uint8Array(arrayBuffer)
           if (bytes.byteLength > 0) {
-            writeFileSync(target, bytes, { mode: 0o755 })
-            return target
+            const temp = path.join(binDir, `${exeName}.${process.pid}.${Date.now()}.tmp`)
+            writeFileSync(temp, bytes, { mode: 0o755 })
+            try {
+              renameSync(temp, target)
+            } catch {
+              try {
+                copyFileSync(temp, target)
+                unlinkSync(temp)
+              } catch {}
+            }
+            if (existsSync(target) && statSync(target).size > 0) {
+              return target
+            }
           }
         }
       } catch (err) {
         console.error("Failed to extract embedded computer-use binary:", err)
       }
-      return binding.path
+
+      // Fallback: check node_modules resolution
+      try {
+        const manifestPath = require.resolve("open-computer-use/package.json")
+        const root = path.dirname(manifestPath)
+        const fallbackExe =
+          process.platform === "win32"
+            ? path.join(root, "dist", "windows", process.arch === "arm64" ? "arm64" : "amd64", "open-computer-use.exe")
+            : process.platform === "linux"
+              ? path.join(root, "dist", "linux", process.arch === "arm64" ? "arm64" : "amd64", "open-computer-use")
+              : undefined
+        if (fallbackExe && existsSync(fallbackExe)) return fallbackExe
+      } catch {}
+
+      return existsSync(target) ? target : binding.path
     })
 
     yield* ctx.mcp.transform((editor) => {

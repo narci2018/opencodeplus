@@ -54,12 +54,11 @@ export const TOOL_GROUPS: readonly ToolGroup[] = [
  * Keeps only characters safe for an agent id and a Markdown file name.
  */
 export function agentID(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+  const trimmed = name.trim().toLowerCase()
+  const slug = trimmed
+    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
-  return slug || "custom-agent"
+  return slug || (trimmed ? `agent-${Date.now().toString(36)}` : "custom-agent")
 }
 
 export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao"])

@@ -102,9 +102,10 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     setEnabledMcp(decodeToolSelection({ permissions: props.editing?.permissions, configuredMcp: names }).mcp)
   })
 
+  const [smartGeneratorOpen, setSmartGeneratorOpen] = createSignal(false)
+
   const canSave = createMemo(() => {
     if (!name().trim() || !effectiveId().trim() || isReservedName() || conflict()) return false
-    if (callable() && !whenToCall().trim()) return false
     return true
   })
 
@@ -130,28 +131,11 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
 
   const addMcpServer = () => {
     const directory = data.location.default().directory
-    void dialog.show(() => <DialogMcp directory={directory} />, () => undefined)
+    void dialog.push(() => <DialogMcp directory={directory} />, () => undefined)
   }
 
   const openSmartGenerator = () => {
-    void dialog.show(
-      () => (
-        <AgentGenerateDialog
-          configuredMcp={mcps().map((server) => server.name)}
-          onApply={(generatedAgent) => {
-            applyGenerated(generatedAgent)
-            showToast({
-              variant: "success",
-              icon: "circle-check",
-              title: "智能体设定已填入",
-              description: `已为“${generatedAgent.name || "自定义智能体"}”自动填入名称、调用场景、完整提示词与工具。`,
-            })
-          }}
-          onClose={() => dialog.close()}
-        />
-      ),
-      () => undefined,
-    )
+    setSmartGeneratorOpen(true)
   }
 
   const applyGenerated = (parsed: GeneratedAgent) => {
@@ -174,11 +158,13 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
     setSaving(true)
     setError(undefined)
     try {
+      const effectiveDescription =
+        whenToCall().trim() || `${name().trim()}：在需要相关专长或任务时由其他智能体与用户调用。`
       const modelValue = parseSelection(model().trim()) ?? undefined
       await sdk.api.experimental.config.update({
         agent: agentPatch({
           id: effectiveId(),
-          description: whenToCall(),
+          description: effectiveDescription,
           system: system(),
           model: modelValue as CustomAgentModel | undefined,
           mode: callable() ? "all" : "primary",
@@ -545,6 +531,48 @@ export const CustomAgentDialog: Component<CustomAgentDialogProps> = (props) => {
           </Button>
         </div>
       </DialogFooter>
+
+      {/* Internal AI Smart Generation Modal Overlay */}
+      <Show when={smartGeneratorOpen()}>
+        <div
+          class="custom-agent-generator-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSmartGeneratorOpen(false)
+          }}
+        >
+          <div class="custom-agent-generator-modal">
+            <div class="custom-agent-generator-modal-header">
+              <div class="custom-agent-generator-modal-title">
+                <span>✨ AI 智能生成智能体</span>
+              </div>
+              <button
+                type="button"
+                class="custom-agent-generator-modal-close"
+                onClick={() => setSmartGeneratorOpen(false)}
+                title="关闭"
+              >
+                <Icon name="xmark" size="small" />
+              </button>
+            </div>
+            <div class="agent-generator-body">
+              <AgentGenerateForm
+                configuredMcp={mcps().map((server) => server.name)}
+                onApply={(generatedAgent) => {
+                  applyGenerated(generatedAgent)
+                  setSmartGeneratorOpen(false)
+                  showToast({
+                    variant: "success",
+                    icon: "circle-check",
+                    title: "✨ 智能体设定已自动填入",
+                    description: `已为“${generatedAgent.name || "自定义智能体"}”填入名称、触发场景、完整提示词与工具权限。点击右下角“${props.editing ? "保存" : "创建"}”即可生效！`,
+                  })
+                }}
+                onClose={() => setSmartGeneratorOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      </Show>
     </Dialog>
   )
 }
@@ -564,7 +592,7 @@ function parseSelection(value: string): string | { providerID: string; model: st
   return variant ? { providerID, model, variant } : { providerID, model }
 }
 
-export const AgentGenerateDialog: Component<{
+export const AgentGenerateForm: Component<{
   configuredMcp: readonly string[]
   onApply: (agent: GeneratedAgent) => void
   onClose?: () => void
@@ -609,7 +637,7 @@ export const AgentGenerateDialog: Component<{
       setSelectedTemplate(undefined)
       showToast({
         variant: "success",
-        title: "智能生成完成",
+        title: "✨ 智能生成完成",
         description: `已为“${resultAgent.name || "新智能体"}”生成工业级设定与完整提示词。`,
       })
     } finally {
@@ -625,6 +653,103 @@ export const AgentGenerateDialog: Component<{
     props.onClose?.()
   }
 
+  return (
+    <>
+      <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+        <label class="custom-agent-field-label">
+          <span>描述需求</span>
+          <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+            （输入你的设想，或从下方直接选择工业级专家模板）
+          </span>
+        </label>
+        <textarea
+          class="agent-generator-textarea"
+          placeholder="例如：一位擅长代码重构与整洁架构的架构师；或者专注于排查 OWASP 漏洞与死锁的专家..."
+          value={promptInput()}
+          onInput={(e) => setPromptInput(e.currentTarget.value)}
+        />
+        <div style={{ display: "flex", "justify-content": "flex-end" }}>
+          <Button
+            size="small"
+            variant="contrast"
+            disabled={loading() || !promptInput().trim()}
+            onClick={() => void handleGenerate()}
+          >
+            <Show when={loading()} fallback={<>✨ 开始智能生成</>}>
+              <Loader class="custom-agent-dialog-spinner" />
+              <span style={{ "margin-left": "6px" }}>正在深度生成...</span>
+            </Show>
+          </Button>
+        </div>
+      </div>
+
+      {/* 工业级专家模板 */}
+      <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
+        <label class="custom-agent-field-label">
+          <span>精选工业级智能体模板</span>
+          <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+            （点击即可即时载入完整 Prompt 与专业调用逻辑）
+          </span>
+        </label>
+        <div class="agent-generator-templates-grid">
+          <For each={BUILTIN_AGENT_TEMPLATES}>
+            {(tpl) => (
+              <div
+                class={`agent-generator-template-card ${selectedTemplate()?.id === tpl.id ? "active" : ""}`}
+                onClick={() => handleSelectTemplate(tpl)}
+              >
+                <div class="agent-generator-template-header">
+                  <span class="agent-generator-template-title">
+                    <span>{tpl.icon}</span>
+                    <span>{tpl.name}</span>
+                  </span>
+                  <span class="agent-generator-template-tag">{tpl.tag.split("/")[0].trim()}</span>
+                </div>
+                <span class="agent-generator-template-desc">{tpl.description}</span>
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+
+      {/* 生成预览 */}
+      <Show when={generated()}>
+        {(res) => (
+          <div class="agent-generator-preview-box">
+            <div class="agent-generator-preview-title">
+              <span>📋 生成预览：</span>
+              <span style={{ color: "var(--v2-state-bg-accent)" }}>{res().name}</span>
+              <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>({res().identifier})</span>
+            </div>
+            <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
+              <strong>触发场景：</strong>{res().whenToCall}
+            </div>
+            <div class="agent-generator-preview-prompt">{res().system}</div>
+          </div>
+        )}
+      </Show>
+
+      <div class="custom-agent-generator-modal-footer">
+        <Button variant="ghost" onClick={props.onClose}>
+          取消
+        </Button>
+        <Button
+          variant="contrast"
+          disabled={!generated()}
+          onClick={handleConfirm}
+        >
+          应用并填入智能体
+        </Button>
+      </div>
+    </>
+  )
+}
+
+export const AgentGenerateDialog: Component<{
+  configuredMcp: readonly string[]
+  onApply: (agent: GeneratedAgent) => void
+  onClose?: () => void
+}> = (props) => {
   return (
     <Dialog
       size="x-large"
@@ -643,93 +768,12 @@ export const AgentGenerateDialog: Component<{
       </DialogHeader>
 
       <DialogBody class="agent-generator-body">
-        <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
-          <label class="custom-agent-field-label">
-            <span>描述需求</span>
-            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-              （输入你的设想，或从下方直接选择工业级专家模板）
-            </span>
-          </label>
-          <textarea
-            class="agent-generator-textarea"
-            placeholder="例如：一位擅长代码重构与整洁架构的架构师；或者专注于排查 OWASP 漏洞与死锁的专家..."
-            value={promptInput()}
-            onInput={(e) => setPromptInput(e.currentTarget.value)}
-          />
-          <div style={{ display: "flex", "justify-content": "flex-end" }}>
-            <Button
-              size="small"
-              variant="contrast"
-              disabled={loading() || !promptInput().trim()}
-              onClick={() => void handleGenerate()}
-            >
-              <Show when={loading()} fallback={<>✨ 开始智能生成</>}>
-                <Loader class="custom-agent-dialog-spinner" />
-                <span style={{ "margin-left": "6px" }}>正在深度生成...</span>
-              </Show>
-            </Button>
-          </div>
-        </div>
-
-        {/* 工业级专家模板 */}
-        <div style={{ display: "flex", "flex-direction": "column", gap: "8px" }}>
-          <label class="custom-agent-field-label">
-            <span>精选工业级智能体模板</span>
-            <span style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-              （点击即可即时载入完整 Prompt 与专业调用逻辑）
-            </span>
-          </label>
-          <div class="agent-generator-templates-grid">
-            <For each={BUILTIN_AGENT_TEMPLATES}>
-              {(tpl) => (
-                <div
-                  class={`agent-generator-template-card ${selectedTemplate()?.id === tpl.id ? "active" : ""}`}
-                  onClick={() => handleSelectTemplate(tpl)}
-                >
-                  <div class="agent-generator-template-header">
-                    <span class="agent-generator-template-title">
-                      <span>{tpl.icon}</span>
-                      <span>{tpl.name}</span>
-                    </span>
-                    <span class="agent-generator-template-tag">{tpl.tag.split("/")[0].trim()}</span>
-                  </div>
-                  <span class="agent-generator-template-desc">{tpl.description}</span>
-                </div>
-              )}
-            </For>
-          </div>
-        </div>
-
-        {/* 生成预览 */}
-        <Show when={generated()}>
-          {(res) => (
-            <div class="agent-generator-preview-box">
-              <div class="agent-generator-preview-title">
-                <span>📋 生成预览：</span>
-                <span style={{ color: "var(--v2-state-bg-accent)" }}>{res().name}</span>
-                <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>({res().identifier})</span>
-              </div>
-              <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-                <strong>触发场景：</strong>{res().whenToCall}
-              </div>
-              <div class="agent-generator-preview-prompt">{res().system}</div>
-            </div>
-          )}
-        </Show>
+        <AgentGenerateForm
+          configuredMcp={props.configuredMcp}
+          onApply={props.onApply}
+          onClose={props.onClose}
+        />
       </DialogBody>
-
-      <DialogFooter>
-        <Button variant="ghost" onClick={props.onClose}>
-          取消
-        </Button>
-        <Button
-          variant="contrast"
-          disabled={!generated()}
-          onClick={handleConfirm}
-        >
-          应用并填入智能体
-        </Button>
-      </DialogFooter>
     </Dialog>
   )
 }
