@@ -91,6 +91,7 @@ jobs:
       CSC_IDENTITY_AUTO_DISCOVERY: false
       ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
       ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
     outputs:
       sha: ${{ steps.tag.outputs.sha || github.sha }}
     steps:
