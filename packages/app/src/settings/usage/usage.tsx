@@ -122,6 +122,52 @@ function Pagination(props: {
   )
 }
 
+type StatsData = Awaited<ReturnType<ReturnType<typeof useServerSDK>["api"]["experimental"]["session"]["stats"]>>
+const statsCache = new Map<UsageRange, StatsData>()
+const sessionsCache = new Map<UsageRange, SessionInfo[]>()
+
+function getCachedStats(range: UsageRange): StatsData | undefined {
+  const mem = statsCache.get(range)
+  if (mem) return mem
+  try {
+    const raw = localStorage.getItem(`opencode.usage.stats.${range}`)
+    if (raw) {
+      const parsed = JSON.parse(raw) as StatsData
+      statsCache.set(range, parsed)
+      return parsed
+    }
+  } catch {}
+  return undefined
+}
+
+function setCachedStats(range: UsageRange, data: StatsData) {
+  statsCache.set(range, data)
+  try {
+    localStorage.setItem(`opencode.usage.stats.${range}`, JSON.stringify(data))
+  } catch {}
+}
+
+function getCachedSessions(range: UsageRange): SessionInfo[] | undefined {
+  const mem = sessionsCache.get(range)
+  if (mem) return mem
+  try {
+    const raw = sessionStorage.getItem(`opencode.usage.sessions.${range}`)
+    if (raw) {
+      const parsed = JSON.parse(raw) as SessionInfo[]
+      sessionsCache.set(range, parsed)
+      return parsed
+    }
+  } catch {}
+  return undefined
+}
+
+function setCachedSessions(range: UsageRange, data: SessionInfo[]) {
+  sessionsCache.set(range, data)
+  try {
+    sessionStorage.setItem(`opencode.usage.sessions.${range}`, JSON.stringify(data.slice(0, 100)))
+  } catch {}
+}
+
 export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
   const language = useLanguage()
   const sdk = useServerSDK()
@@ -159,8 +205,10 @@ export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
         tools: "none",
       })
+      if (result) setCachedStats(current, result)
       return result
     },
+    { initialValue: getCachedStats(range()) },
   )
 
   const [sessions, sessionsActions] = createResource(
@@ -191,8 +239,10 @@ export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
         cursor = result.cursor.next ?? undefined
         if (!cursor) break
       }
+      if (all.length > 0) setCachedSessions(current, all)
       return all
     },
+    { initialValue: getCachedSessions(range()) ?? [] },
   )
 
   const [projects] = createResource(connected, async () => {

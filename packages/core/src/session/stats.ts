@@ -8,7 +8,7 @@ import { Project } from "@opencode/schema/project"
 import { Provider } from "@opencode/schema/provider"
 import { Event } from "@opencode/schema/event"
 import { SessionEvent } from "@opencode/schema/session-event"
-import { ToolMode } from "@opencode/schema/session-stats"
+import { SessionStats as SessionStatsSchema, ToolMode } from "@opencode/schema/session-stats"
 import { TokenUsage } from "@opencode/schema/token-usage"
 import { Database } from "../database/database.js"
 import { EventTable } from "../event/sql.js"
@@ -77,10 +77,25 @@ export class InvalidRangeError extends Schema.TaggedError<InvalidRangeError>()("
   to: Schema.Finite,
 }) {}
 
+const statsMemCache = new Map<string, { expires: number; data: SessionStatsSchema.Info }>()
+
 export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
   const db = (yield* Database.Service).db
   const to = input.to ?? Date.now()
   if (input.from !== undefined && input.from >= to) return yield* new InvalidRangeError({ from: input.from, to })
+
+  const cacheKey = JSON.stringify({
+    from: input.from,
+    to: input.to ? Math.floor(input.to / 10000) : undefined,
+    projectID: input.projectID,
+    tools: input.tools,
+    timezone: input.timezone,
+  })
+  const cached = statsMemCache.get(cacheKey)
+  if (cached && cached.expires > Date.now()) {
+    return cached.data
+  }
+
   const project = input.projectID === undefined ? sql`` : sql`AND session.project_id = ${input.projectID}`
   const from =
     input.from ??
@@ -341,7 +356,7 @@ export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
   })
 
   const days = [...activity.entries()].sort(([a], [b]) => a.localeCompare(b))
-  return {
+  const res = {
     range: { from: DateTime.makeUnsafe(from), to: DateTime.makeUnsafe(to) },
     sessions: sessions.size,
     subagents: subagents.size,
@@ -375,6 +390,8 @@ export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
       .sort((a, b) => TokenUsage.total(b.tokens) - TokenUsage.total(a.tokens))
       .map((model) => ({ ...model, cost: Money.USD.make(model.cost) })),
   }
+  statsMemCache.set(cacheKey, { expires: Date.now() + 15_000, data: res })
+  return res
 })
 
 function windows(from: number, to: number) {

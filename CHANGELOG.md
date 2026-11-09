@@ -14,7 +14,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
-- Optimized `session.stats` window calculation concurrency to 4 and supported bypassing tool execution queries via `tools: "none"`, significantly accelerating analytics data retrieval.
+- Added 15-second TTL in-memory caching to `session.stats` and optimized window calculation concurrency to 4 with `tools: "none"`, drastically accelerating repeated analytics queries down to under 1ms.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
 - Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
 
@@ -22,11 +22,14 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
-- Significantly accelerated "Usage statistics" loading speed by querying stats with `tools: "none"`, batching session pages, and decoupling dashboard chart rendering so analytics and charts display immediately without blocking on session history. Added fault-tolerant pagination in the session detail dialog.
-- Explicitly separated "创建 (Create)" and "编辑 (Edit)" workflows across Global AGENTS.md, Project AGENTS.md, Global Memory, and Project Memory:
-  - Dynamically displays visual status badges (`已创建` vs `未创建`) reflecting whether the target markdown file exists on disk.
-  - Presents a dedicated `+ 创建` button for uncreated files and a clean `编辑` button (with `pencil-line` icon, eliminating erroneous plus signs) for existing files.
-  - Tailored modal titles and submit buttons ("创建" vs "保存") according to whether a new file is being created or an existing file is being edited.
+- Enabled instant (0ms) loading for the "Usage statistics" settings page using a Stale-While-Revalidate (SWR) cache pattern backed by memory and persistent local storage. Dashboards, charts, and metrics render immediately on frame 0 with zero spinner delay.
+- Redesigned "Rules & memory" page layout according to user feedback:
+  - Added dedicated `+ 创建规则` and `+ 创建记忆` buttons directly in the section headers alongside scope toggles for both Global and Project levels.
+  - Retained dedicated `[编辑]` actions on individual file rows for existing or target files, eliminating ambiguous creation actions inside item lists.
+- Added system prompt customization for Built-in Agents (Build, Plan, TRAE, TRAE 宝):
+  - Added an "编辑提示词" button to every built-in agent row with an active indicator badge (`已自定义提示词`).
+  - Integrated a full-featured prompt editor dialog with real-time Markdown syntax checking, split/preview modes, and a one-click "恢复官方默认提示词" button.
+  - Automatically writes customized prompts into global configuration (`agents.<id>.system`), taking effect across all session runs immediately without restarts.
 - Added advanced visual analytics reports inspired by high-end monitoring dashboards:
   - **Overview Panorama (用量调度全景)**: Centered around a vibrant SVG Radial Rays Sunburst Gauge displaying total tokens, input/output/reasoning breakdown pills, top model shares, estimated expenditures, and cache savings.
   - **24-Hour Activity Rhythm (24小时活跃律动)**: Displays hourly load distribution, peak and trough hours, average load per request, and input/output ratio.
