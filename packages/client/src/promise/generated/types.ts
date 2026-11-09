@@ -4819,6 +4819,27 @@ export type ExperimentalNetworkProxyInput = {
 
 export type ExperimentalNetworkProxyOutput = { status: number; statusText: string; body: string }
 
+export type ExperimentalNetworkFingerprintInput = {
+  readonly fingerprint: {
+    readonly userAgent: string
+    readonly clientName: string
+    readonly version: string
+    readonly channel: string
+    readonly ip: string
+    readonly screenResolution: string
+    readonly timezone: string
+    readonly language: string
+    readonly platform: string
+    readonly hardwareConcurrency: number
+    readonly deviceMemory: number
+    readonly colorDepth: number
+    readonly pixelRatio: number
+    readonly id: string
+  } | null
+}
+
+export type ExperimentalNetworkFingerprintOutput = { ok: boolean }
+
 export type ExperimentalRulesFilesInput = {
   readonly location?: { readonly directory?: string | undefined } | undefined
 }
@@ -5058,6 +5079,12 @@ export type NetworkProxyInput = ExperimentalNetworkProxyInput
 
 /** @deprecated Use `ExperimentalNetworkProxyOutput`. Removed in the next minor. */
 export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
+
+/** @deprecated Use `ExperimentalNetworkFingerprintInput`. Removed in the next minor. */
+export type NetworkFingerprintInput = ExperimentalNetworkFingerprintInput
+
+/** @deprecated Use `ExperimentalNetworkFingerprintOutput`. Removed in the next minor. */
+export type NetworkFingerprintOutput = ExperimentalNetworkFingerprintOutput
 
 /** @deprecated Use `ExperimentalRulesFilesInput`. Removed in the next minor. */
 export type RulesFilesInput = ExperimentalRulesFilesInput

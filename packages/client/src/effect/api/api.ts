@@ -2774,9 +2774,33 @@ export type ExperimentalNetworkProxyOperation<E = never> = (
   input: ExperimentalNetworkProxyInput,
 ) => Effect.Effect<ExperimentalNetworkProxyOutput, E>
 
+export type ExperimentalNetworkFingerprintInput = {
+  readonly fingerprint: {
+    readonly userAgent: string
+    readonly clientName: string
+    readonly version: string
+    readonly channel: string
+    readonly ip: string
+    readonly screenResolution: string
+    readonly timezone: string
+    readonly language: string
+    readonly platform: string
+    readonly hardwareConcurrency: number
+    readonly deviceMemory: number
+    readonly colorDepth: number
+    readonly pixelRatio: number
+    readonly id: string
+  } | null
+}
+export type ExperimentalNetworkFingerprintOutput = { readonly ok: boolean }
+export type ExperimentalNetworkFingerprintOperation<E = never> = (
+  input: ExperimentalNetworkFingerprintInput,
+) => Effect.Effect<ExperimentalNetworkFingerprintOutput, E>
+
 export interface ExperimentalNetworkApi<E = never> {
   readonly egress: ExperimentalNetworkEgressOperation<E>
   readonly proxy: ExperimentalNetworkProxyOperation<E>
+  readonly fingerprint: ExperimentalNetworkFingerprintOperation<E>
 }
 
 export type ExperimentalRulesFilesInput = {
@@ -3072,6 +3096,15 @@ export type NetworkProxyOutput = ExperimentalNetworkProxyOutput
 /** @deprecated Use `ExperimentalNetworkProxyOperation`. Removed in the next minor. */
 export type NetworkProxyOperation<E = never> = ExperimentalNetworkProxyOperation<E>
 
+/** @deprecated Use `ExperimentalNetworkFingerprintInput`. Removed in the next minor. */
+export type NetworkFingerprintInput = ExperimentalNetworkFingerprintInput
+
+/** @deprecated Use `ExperimentalNetworkFingerprintOutput`. Removed in the next minor. */
+export type NetworkFingerprintOutput = ExperimentalNetworkFingerprintOutput
+
+/** @deprecated Use `ExperimentalNetworkFingerprintOperation`. Removed in the next minor. */
+export type NetworkFingerprintOperation<E = never> = ExperimentalNetworkFingerprintOperation<E>
+
 /** @deprecated Use `ExperimentalRulesFilesInput`. Removed in the next minor. */
 export type RulesFilesInput = ExperimentalRulesFilesInput
 
@@ -3193,6 +3226,9 @@ export interface AppApi<E = never> {
 
     /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
     readonly proxy: ExperimentalNetworkProxyOperation<E>
+
+    /** @deprecated Use `client.experimental.network.fingerprint`. Removed in the next minor. */
+    readonly fingerprint: ExperimentalNetworkFingerprintOperation<E>
   }
 
   /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */

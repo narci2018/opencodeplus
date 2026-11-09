@@ -24,6 +24,27 @@ export const ProxyResponse = Schema.Struct({
   body: Schema.String,
 })
 
+export const FingerprintData = Schema.Struct({
+  userAgent: Schema.String,
+  clientName: Schema.String,
+  version: Schema.String,
+  channel: Schema.String,
+  ip: Schema.String,
+  screenResolution: Schema.String,
+  timezone: Schema.String,
+  language: Schema.String,
+  platform: Schema.String,
+  hardwareConcurrency: Schema.Number,
+  deviceMemory: Schema.Number,
+  colorDepth: Schema.Number,
+  pixelRatio: Schema.Number,
+  id: Schema.String,
+})
+
+export const FingerprintRequest = Schema.Struct({
+  fingerprint: Schema.NullOr(FingerprintData),
+})
+
 export const NetworkGroup = HttpApiGroup.make("server.network")
   .add(
     HttpApiEndpoint.get("network.egress", "/api/experimental/network/egress", {
@@ -49,6 +70,20 @@ export const NetworkGroup = HttpApiGroup.make("server.network")
         summary: "Proxy an HTTP request",
         description:
           "Experimental: may change without compatibility guarantees. Make an HTTP request from the service process on behalf of the renderer, avoiding browser CORS restrictions. Used by the custom-model test-connection flow.",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.post("network.fingerprint", "/api/experimental/network/fingerprint", {
+      payload: FingerprintRequest,
+      success: Schema.Struct({ ok: Schema.Boolean }),
+      error: InvalidRequestError,
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "experimental.network.fingerprint",
+        summary: "Update client fingerprint",
+        description:
+          "Experimental: Set or clear the client fingerprint that overrides default request headers. Pass null to restore original values.",
       }),
     ),
   )

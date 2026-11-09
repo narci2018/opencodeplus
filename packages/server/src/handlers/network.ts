@@ -2,6 +2,9 @@ import { EgressInfo, ProxyResponse } from "@opencode/protocol/groups/network"
 import { InvalidRequestError } from "@opencode/protocol/errors"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
+import fs from "fs"
+import path from "path"
+import { Global } from "@opencode/util/global"
 import { Api } from "../api"
 
 export const NetworkHandler = HttpApiBuilder.group(Api, "server.network", (handlers) =>
@@ -62,6 +65,32 @@ export const NetworkHandler = HttpApiBuilder.group(Api, "server.network", (handl
           statusText: response.statusText,
           body,
         })
+      }),
+    )
+    .handle(
+      "network.fingerprint",
+      Effect.fn("server.network.fingerprint")(function* (req) {
+        const input = req.payload
+        const configPath = Global.Path.config
+        const fingerprintPath = path.join(configPath, "fingerprint.json")
+
+        if (input.fingerprint === null) {
+          yield* Effect.tryPromise({
+            try: () => fs.promises.unlink(fingerprintPath).catch(() => undefined),
+            catch: (cause) => new InvalidRequestError({ message: `Failed to clear fingerprint: ${cause instanceof Error ? cause.message : String(cause)}` }),
+          })
+        } else {
+          const data = {
+            active: true,
+            ...input.fingerprint,
+            updatedAt: new Date().toISOString(),
+          }
+          yield* Effect.tryPromise({
+            try: () => fs.promises.writeFile(fingerprintPath, JSON.stringify(data, null, 2), "utf-8"),
+            catch: (cause) => new InvalidRequestError({ message: `Failed to save fingerprint: ${cause instanceof Error ? cause.message : String(cause)}` }),
+          })
+        }
+        return { ok: true }
       }),
     ),
 )

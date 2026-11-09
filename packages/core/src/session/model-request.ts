@@ -1,5 +1,8 @@
 export * as SessionModelRequest from "./model-request.js"
 
+import fs from "fs"
+import path from "path"
+import { Global } from "@opencode/util/global"
 import {
   ai,
   GenerationOptions,
@@ -55,6 +58,26 @@ const customHeaders = (): Record<string, string> => {
     const parsed = JSON.parse(raw)
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
       return parsed as Record<string, string>
+    }
+  } catch {}
+  return {}
+}
+
+/** 客户端指纹标头：由诊断页面生成并持久化到配置文件 */
+const fingerprintHeaders = (): Record<string, string> => {
+  try {
+    const configPath = Global.Path.config
+    const fingerprintPath = path.join(configPath, "fingerprint.json")
+    const raw = fs.readFileSync(fingerprintPath, "utf-8")
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && parsed.active) {
+      const headers: Record<string, string> = {}
+      if (parsed.userAgent) headers["User-Agent"] = parsed.userAgent
+      if (parsed.clientName) headers["x-opencode-client"] = parsed.clientName
+      if (parsed.version) headers["x-opencode-version"] = parsed.version
+      if (parsed.channel) headers["x-opencode-channel"] = parsed.channel
+      if (parsed.ip) headers["x-client-ip"] = parsed.ip
+      return headers
     }
   } catch {}
   return {}
@@ -322,6 +345,7 @@ export const layer = Layer.effect(
             "x-opencode-session": affinity,
             "x-opencode-client": app.name,
             ...customHeaders(),
+            ...fingerprintHeaders(),
           },
         },
         // TODO: Persist cache lineage so nested forks reuse the root session's cache key.

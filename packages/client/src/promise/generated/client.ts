@@ -316,6 +316,8 @@ import type {
   ExperimentalNetworkEgressOutput,
   ExperimentalNetworkProxyInput,
   ExperimentalNetworkProxyOutput,
+  ExperimentalNetworkFingerprintInput,
+  ExperimentalNetworkFingerprintOutput,
   ExperimentalRulesFilesInput,
   ExperimentalRulesFilesOutput,
   ConfigGetInput,
@@ -1744,6 +1746,18 @@ export function make(options: ClientOptions) {
             },
             requestOptions,
           ),
+        fingerprint: (input: ExperimentalNetworkFingerprintInput, requestOptions?: RequestOptions) =>
+          request<ExperimentalNetworkFingerprintOutput>(
+            {
+              method: "POST",
+              path: `/api/experimental/network/fingerprint`,
+              body: { fingerprint: input["fingerprint"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401],
+              empty: false,
+            },
+            requestOptions,
+          ),
       },
       rules: {
         files: (input?: ExperimentalRulesFilesInput, requestOptions?: RequestOptions) =>
@@ -2824,6 +2838,8 @@ export function make(options: ClientOptions) {
       egress: client.experimental.network.egress,
       /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
       proxy: client.experimental.network.proxy,
+      /** @deprecated Use `client.experimental.network.fingerprint`. Removed in the next minor. */
+      fingerprint: client.experimental.network.fingerprint,
     },
     /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */
     rules: {

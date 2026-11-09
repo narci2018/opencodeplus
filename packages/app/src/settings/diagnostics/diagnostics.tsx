@@ -6,6 +6,7 @@ import { TextField } from "@opencode/ui/text-field"
 import { Switch } from "@opencode/ui/switch"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform, type NetworkEgress } from "@/runtime/platform/platform"
+import { useServerSDK } from "@/runtime/server/client"
 import { showToast } from "@/shell/notifications/toast"
 import { uuid } from "@opencode/util/uuid"
 import "./diagnostics.css"
@@ -55,6 +56,7 @@ const HEADER_PRESETS = [
 export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (props) => {
   const language = useLanguage()
   const platform = usePlatform()
+  const sdk = useServerSDK()
 
   const [egress, setEgress] = createSignal<NetworkEgress | null>(null)
   const [checkingEgress, setCheckingEgress] = createSignal(false)
@@ -197,7 +199,7 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
       [236, 245],    // BR
       [246, 255],    // AU
     ]
-    const [min, max] = randPick(countryRanges)
+    const [min] = randPick(countryRanges)
     return `${min}.${randInt(0, 255)}.${randInt(0, 255)}.${randInt(1, 254)}`
   }
 
@@ -252,6 +254,10 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
       id: uuid(),
     }
     setFingerprint(fp)
+    // Persist fingerprint to core via API
+    void sdk.api.experimental.network.fingerprint({ fingerprint: fp }).catch(() => {
+      // Silently fail - fingerprint still works locally for display
+    })
     showToast({
       variant: "success",
       icon: "reset",
@@ -262,6 +268,10 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
 
   const restoreOriginalValues = () => {
     setFingerprint(null)
+    // Clear fingerprint from core via API
+    void sdk.api.experimental.network.fingerprint({ fingerprint: null }).catch(() => {
+      // Silently fail
+    })
     showToast({
       variant: "default",
       icon: "reset",

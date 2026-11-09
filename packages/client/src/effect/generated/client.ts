@@ -314,6 +314,8 @@ import type {
   ExperimentalNetworkEgressOutput,
   ExperimentalNetworkProxyInput,
   ExperimentalNetworkProxyOutput,
+  ExperimentalNetworkFingerprintInput,
+  ExperimentalNetworkFingerprintOutput,
   ExperimentalRulesFilesInput,
   ExperimentalRulesFilesOutput,
   ConfigGetInput,
@@ -1936,9 +1938,18 @@ const EndpointExperimentalNetworkProxy = (raw: RawClient["server.network"]) => (
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointExperimentalNetworkFingerprint =
+  (raw: RawClient["server.network"]) => (input: ExperimentalNetworkFingerprintInput) =>
+    preserveEffect<ExperimentalNetworkFingerprintOutput>()(
+      raw["network.fingerprint"]({ payload: { fingerprint: input["fingerprint"] } }).pipe(
+        Effect.mapError(mapClientError),
+      ),
+    )
+
 const adaptGroupExperimentalNetwork = (raw: RawClient["server.network"]) => ({
   egress: EndpointExperimentalNetworkEgress(raw),
   proxy: EndpointExperimentalNetworkProxy(raw),
+  fingerprint: EndpointExperimentalNetworkFingerprint(raw),
 })
 
 const EndpointExperimentalRulesFiles = (raw: RawClient["server.rules"]) => (input?: ExperimentalRulesFilesInput) =>
@@ -2121,6 +2132,8 @@ const adaptClient = (raw: RawClient) => {
       egress: client.experimental.network.egress,
       /** @deprecated Use `client.experimental.network.proxy`. Removed in the next minor. */
       proxy: client.experimental.network.proxy,
+      /** @deprecated Use `client.experimental.network.fingerprint`. Removed in the next minor. */
+      fingerprint: client.experimental.network.fingerprint,
     },
     /** @deprecated Use `client.experimental.rules`. Removed in the next minor. */
     rules: {
