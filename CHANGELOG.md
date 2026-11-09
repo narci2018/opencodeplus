@@ -36,6 +36,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
+- Fixed Windows desktop packaging failure during GitHub Actions CI caused by 504 Gateway Time-out on electron-builder binary tool downloads. Explicitly disabled code signing auto-discovery (`-c.win.sign=null`, `CSC_IDENTITY_AUTO_DISCOVERY=false`) in unsigned pack steps and added npmmirror fallback as well as GitHub Actions builder cache.
 - Fixed packaged desktop builds downloading upstream official CLI from npm instead of bundling the local CLI build. `findBuiltCliDirectory` now checks all target candidate directory formats (`cli-windows-x64`, `cli-windows-x64-baseline`, `windows-x64`) in `packages/cli/dist` and properly embeds the locally compiled binary.
 
 #### Improvements
