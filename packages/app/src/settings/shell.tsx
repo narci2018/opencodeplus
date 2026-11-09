@@ -29,8 +29,8 @@ import { SettingsAgents } from "./agents/agents"
 import { SettingsTemplates } from "./templates/templates"
 import { SettingsMarketplace } from "./marketplace/marketplace"
 import { SettingsAutomation } from "./automation/automation"
-import { SettingsUsage } from "./usage/usage"
-import { SettingsRules } from "./rules/rules"
+import { SettingsUsage, prefetchUsage } from "./usage/usage"
+import { SettingsRules, prefetchRules } from "./rules/rules"
 import { SettingsServerDataScope } from "./server-scope"
 import { SettingsNavigation, type SettingsNavGroup } from "./navigation"
 import { SettingsProjectGeneral } from "./workspaces/project"
@@ -232,6 +232,19 @@ function RootSettings() {
   })
 
   const prefetchWorkspaces = useWorkspacesPrefetch(reachable)
+  const serverContext = useServerCtx(reachable)
+  const prefetchUsageTab = () => {
+    const current = serverContext()
+    if (current && current.sdk.connection.status() === "connected") {
+      void prefetchUsage(current.sdk)
+    }
+  }
+  const prefetchRulesTab = () => {
+    const current = serverContext()
+    if (current && current.sdk.connection.status() === "connected") {
+      void prefetchRules(current.sdk)
+    }
+  }
   const activeDirectory = useSettingsDirectory(reachable)
   createEffect(() => {
     const view = surface.view()
@@ -256,7 +269,14 @@ function RootSettings() {
       items: serverTabs.map((item) => ({
         ...item,
         label: language.t(item.label),
-        onPrefetch: item.value === "workspaces" ? prefetchWorkspaces : undefined,
+        onPrefetch:
+          item.value === "workspaces"
+            ? prefetchWorkspaces
+            : item.value === "usage"
+              ? prefetchUsageTab
+              : item.value === "rules"
+                ? prefetchRulesTab
+                : undefined,
       })),
     },
     {

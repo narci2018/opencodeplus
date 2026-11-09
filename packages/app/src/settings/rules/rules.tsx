@@ -316,6 +316,42 @@ function formatInline(text: string): string {
   return s
 }
 
+type RulesData = Awaited<ReturnType<ReturnType<typeof useServerSDK>["api"]["experimental"]["rules"]["files"]>>
+const rulesCache = new Map<string, RulesData>()
+
+function getCachedRules(id?: string): RulesData | undefined {
+  const key = id ?? "default"
+  const mem = rulesCache.get(key)
+  if (mem) return mem
+  try {
+    const raw = sessionStorage.getItem(`opencode.rules.files.${key}`)
+    if (raw) {
+      const parsed = JSON.parse(raw) as RulesData
+      rulesCache.set(key, parsed)
+      return parsed
+    }
+  } catch {}
+  return undefined
+}
+
+function setCachedRules(id: string | undefined, data: RulesData) {
+  const key = id ?? "default"
+  rulesCache.set(key, data)
+  try {
+    sessionStorage.setItem(`opencode.rules.files.${key}`, JSON.stringify(data))
+  } catch {}
+}
+
+export function prefetchRules(sdk: ReturnType<typeof useServerSDK>) {
+  if (sdk.connection.status() !== "connected") return
+  void sdk.api.experimental.rules
+    .files()
+    .then((res) => {
+      if (res) setCachedRules(undefined, res)
+    })
+    .catch(() => undefined)
+}
+
 export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) => {
   const language = useLanguage()
   const sdk = useServerSDK()
@@ -327,21 +363,26 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
 
   const connected = () => sdk.connection.status() === "connected"
 
-  const [bootstrap] = createResource(connected, async () => {
-    if (!connected()) return undefined
-    return sdk.api.experimental.rules.files().catch(() => undefined)
-  })
+  let lastFiles: RulesData | undefined = getCachedRules(projectID())
 
   const [files, filesActions] = createResource(
     () => [connected(), projectID()] as const,
-    async ([active, id]) => {
+    async ([active, id]): Promise<RulesData | undefined> => {
       if (!active) return undefined
-      const directory = (bootstrap.latest?.memory.projects ?? []).find((item) => item.projectID === id)?.directory
+      const cached = getCachedRules(id)
+      const directory = (cached?.memory.projects ?? getCachedRules(undefined)?.memory.projects ?? lastFiles?.memory.projects ?? []).find(
+        (item) => item.projectID === id,
+      )?.directory
       const result = await sdk.api.experimental.rules
         .files(directory ? { location: { directory } } : undefined)
         .catch(() => undefined)
+      if (result) {
+        lastFiles = result
+        setCachedRules(id, result)
+      }
       return result
     },
+    { initialValue: getCachedRules(projectID()) },
   )
 
   const refresh = () => void filesActions.refetch()
@@ -383,7 +424,7 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
     }
   }
 
-  const projects = createMemo(() => bootstrap.latest?.memory.projects ?? [])
+  const projects = createMemo(() => files.latest?.memory.projects ?? getCachedRules(projectID())?.memory.projects ?? [])
   const projectOptions = createMemo(() => projects().map((item) => ({ id: item.projectID, label: item.name })))
   const projectName = (id: string) => projectOptions().find((option) => option.id === id)?.label ?? id
 
@@ -562,12 +603,15 @@ export const SettingsRules: Component<{ headerAction?: JSX.Element }> = (props) 
           </div>
         }
       >
-        <Show when={!files.loading} fallback={
-          <div class="usage-status">
-            <Loader class="usage-status-spinner" />
-            <span>{language.t("settings.usage.loading")}</span>
-          </div>
-        }>
+        <Show
+          when={files.latest !== undefined || getCachedRules(projectID()) !== undefined}
+          fallback={
+            <div class="usage-status">
+              <Loader class="usage-status-spinner" />
+              <span>{language.t("settings.usage.loading")}</span>
+            </div>
+          }
+        >
           <div class="usage-section">
             <span class="usage-section-title">{language.t("settings.rules.imports")}</span>
             <div class="rules-rows">

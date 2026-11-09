@@ -202,7 +202,9 @@ export function Dialog(props: DialogProps) {
     }
     restored = { width: container.style.width, height: container.style.height }
     container.style.width = "calc(100vw - 24px)"
-    container.style.height = "calc(100vh - 24px)"
+    container.style.height = "calc(100vh - max(44px, env(titlebar-area-height, 44px)) - 24px)"
+    container.style.marginTop = "calc(max(44px, env(titlebar-area-height, 44px)) + 8px)"
+    container.style.marginLeft = ""
     setMaximized(true)
   }
 

@@ -390,7 +390,7 @@ export const get = Effect.fn("SessionStats.get")(function* (input: Input = {}) {
       .sort((a, b) => TokenUsage.total(b.tokens) - TokenUsage.total(a.tokens))
       .map((model) => ({ ...model, cost: Money.USD.make(model.cost) })),
   }
-  statsMemCache.set(cacheKey, { expires: Date.now() + 15_000, data: res })
+  statsMemCache.set(cacheKey, { expires: Date.now() + 300_000, data: res })
   return res
 })
 

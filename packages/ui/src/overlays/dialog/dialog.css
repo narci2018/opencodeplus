@@ -203,7 +203,10 @@
     }
 
     &[data-maximized] {
-      border-radius: 0;
+      border-radius: 6px;
+      margin-top: calc(max(44px, env(titlebar-area-height, 44px)) + 8px) !important;
+      height: calc(100vh - max(44px, env(titlebar-area-height, 44px)) - 24px) !important;
+      width: calc(100vw - 24px) !important;
 
       [data-slot="dialog-resize-handle"] {
         display: none;

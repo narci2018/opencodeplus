@@ -16,6 +16,12 @@ Release notes for OpenCode V2, newest first.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
 - Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
 
+### UI
+
+#### Bug fixes
+
+- Fixed maximized dialog header buttons (smart generator, restore, close) being obstructed by the native Windows window caption control buttons (minimize, maximize, close) in Electron by enforcing a safe top clearance of `max(44px, env(titlebar-area-height, 44px)) + 8px`.
+
 ### App
 
 #### Bug fixes
@@ -26,6 +32,9 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Added navigation prefetch (`onPrefetch`) for "会话跟踪统计" (Usage) and "规则与记忆" (Rules and Memory) tabs to warm up queries before clicking.
+- Eliminated redundant network round-trips and implemented multi-tier caching (memory + `sessionStorage`) for rules and memory files, replacing full-screen spinners with stale-while-revalidate rendering to prevent UI lag.
+- Increased session statistics backend memory cache TTL to 5 minutes and limited initial session paging to accelerate statistics tab rendering.
 - Added window maximize (`maximizable`) and bottom-right corner drag resizing (`resizable`) to the Custom Agent dialog.
 - Curated 6 industry-grade expert agent templates with 800+ word structured prompts in AI Smart Generation: 全栈架构专家 (system-architect), 代码安全与合规审计员 (security-auditor), 单元与集成测试专家 (testing-specialist), 性能调优与并发专家 (performance-engineer), 技术写作与文档操盘手 (tech-writer), and 桌面自动化与系统操控专员 (desktop-automation).
 - Optimized Home panel layout to utilize 100% full screen width with mouse draggable vertical divider and localStorage width persistence.

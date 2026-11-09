@@ -15,7 +15,7 @@ type ViewTab = "projects" | "models"
 type SortOrder = "asc" | "desc"
 
 const DAY = 24 * 60 * 60 * 1000
-const MAX_SESSION_PAGES = 3
+const MAX_SESSION_PAGES = 1
 const SESSION_BATCH_SIZE = 100
 const MESSAGE_PAGES = 100
 
@@ -166,6 +166,25 @@ function setCachedSessions(range: UsageRange, data: SessionInfo[]) {
   try {
     sessionStorage.setItem(`opencode.usage.sessions.${range}`, JSON.stringify(data.slice(0, 100)))
   } catch {}
+}
+
+export function prefetchUsage(sdk: ReturnType<typeof useServerSDK>) {
+  if (sdk.connection.status() !== "connected") return
+  void sdk.api.experimental.session
+    .stats({
+      tools: "none",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+    })
+    .then((res) => {
+      if (res) setCachedStats("all", res)
+    })
+    .catch(() => undefined)
+  void sdk.api.session
+    .list({ limit: 100, order: "desc" })
+    .then((res) => {
+      if (res?.data?.length) setCachedSessions("all", res.data)
+    })
+    .catch(() => undefined)
 }
 
 export const SettingsUsage: Component<SettingsUsageProps> = (props) => {
