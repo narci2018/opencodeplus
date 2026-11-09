@@ -12,6 +12,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Connected custom headers configured in settings or environment variables (`process.env.OPENCODE_CUSTOM_HEADERS`) to `base.http.headers` in `SessionModelRequest.prepare`, attaching user-defined debugging and gateway headers to outbound model requests.
 - Added 15-second TTL in-memory caching to `session.stats` and optimized window calculation concurrency to 4 with `tools: "none"`, drastically accelerating repeated analytics queries down to under 1ms.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
 - Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
@@ -34,6 +35,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Added new "请求诊断与标头" (Diagnostics & Headers) settings tab directly below the "实验" (Experimental) tab, providing read-only client request metadata inspection (complete `User-Agent`, client type, project hash, session affinity explanation, authentication type, network egress IP status) and custom request headers management (CRUD, presets, toggle, local storage persistence).
 - Added dedicated "网络设置" (Network Settings) tab situated immediately below "偏好设置" (Preferences) with a globe icon; migrated network proxy configuration and egress checking out of Preferences into Network Settings, and updated search catalog keywords for direct navigation.
 - Added navigation prefetch (`onPrefetch`) for "会话跟踪统计" (Usage) and "规则与记忆" (Rules and Memory) tabs to warm up queries before clicking.
 - Eliminated redundant network round-trips and implemented multi-tier caching (memory + `sessionStorage`) for rules and memory files, replacing full-screen spinners with stale-while-revalidate rendering to prevent UI lag.

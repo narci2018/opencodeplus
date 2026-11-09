@@ -13,6 +13,7 @@ import { SettingsGeneral } from "./general/general"
 import { SettingsNetwork } from "./network/network"
 import { SettingsAppearance } from "./appearance/appearance"
 import { experimentalSettingsAvailable, SettingsExperimental } from "./experimental/experimental"
+import { SettingsDiagnostics } from "./diagnostics/diagnostics"
 import { SettingsKeybinds } from "./keybinds/keybinds"
 import { SettingsNotifications } from "./notifications/notifications"
 import { SettingsProviders } from "./providers/providers"
@@ -82,6 +83,10 @@ const serverPages = {
 
 const experimentalTab = [
   { value: "experimental", icon: pageIcons.experimental, label: "settings.tab.experimental" },
+] as const
+
+const diagnosticsTab = [
+  { value: "diagnostics", icon: pageIcons.diagnostics, label: "settings.tab.diagnostics" },
 ] as const
 
 const aboutTab = [{ value: "about", icon: pageIcons.about, label: "settings.tab.about" }] as const
@@ -297,6 +302,9 @@ function RootSettings() {
       ? [{ items: experimentalTab.map((item) => ({ ...item, label: language.t(item.label) })) }]
       : []),
     {
+      items: diagnosticsTab.map((item) => ({ ...item, label: language.t(item.label) })),
+    },
+    {
       items: [...aboutTab.map((item) => ({ ...item, label: language.t(item.label) })), ...pluginTabs("about")],
     },
   ])
@@ -332,6 +340,9 @@ function RootSettings() {
       <PluginSettingsPages />
       <Tabs.Content value="experimental" class="settings-panel">
         <SettingsExperimental />
+      </Tabs.Content>
+      <Tabs.Content value="diagnostics" class="settings-panel">
+        <SettingsDiagnostics />
       </Tabs.Content>
       <Tabs.Content value="about" class="settings-panel settings-about">
         <SettingsAbout active={surface.view().tab === "about"} />

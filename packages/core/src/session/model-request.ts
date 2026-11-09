@@ -47,6 +47,19 @@ const envToken = (name: string, value: number) => {
   return Number.isFinite(input) && input > 0 ? Math.floor(input) : value
 }
 
+/** 用户自定义附加标头：由设置面或环境变量注入 */
+const customHeaders = (): Record<string, string> => {
+  const raw = process.env.OPENCODE_CUSTOM_HEADERS
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>
+    }
+  } catch {}
+  return {}
+}
+
 const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
 const IMAGE_BYTES_TARGET = 15 * 1024 * 1024 // 15 MiB
 const IMAGE_REMOVED =
@@ -308,6 +321,7 @@ export const layer = Layer.effect(
             "x-opencode-project": session.projectID,
             "x-opencode-session": affinity,
             "x-opencode-client": app.name,
+            ...customHeaders(),
           },
         },
         // TODO: Persist cache lineage so nested forks reuse the root session's cache key.
