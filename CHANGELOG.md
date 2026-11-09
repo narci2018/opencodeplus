@@ -26,12 +26,15 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
+- Fixed deformed and collapsed action buttons in the MCP server dialog (`McpServerDialog` and `SourceAddDialog`): added defensive fallback translations for `common.confirm`, assigned consistent minimum widths, and ensured proper flex alignment.
+- Fixed "新建自动化流水线" (New Automation Pipeline) dialog content clipping: added window maximize (`maximizable`) and corner resize (`resizable`) capabilities, expanded default dimensions to 720×660px, made dialog body scrollable, and updated the prompt textarea styling.
 - Fixed "创建" (Create) button permanently disabled in Custom Agent dialog by preventing blank "何时调用" from blocking submission, auto-defaulting descriptions, and supporting Unicode/Chinese names in slug generation.
 - Fixed AI Smart Generation (`✨ AI 智能生成智能体`) destroying parent dialog state. Converted generator into an internal stacked modal overlay so parent form state is preserved in place; clicking "应用并填入智能体" immediately populates all fields (Name, System Prompt, Identifier, Trigger scene, Tool checkboxes) in real-time and enables the "创建" button.
 - Fixed prompt-customized built-in agents (`build`, `plan`, `trae`, `trae-bao`) appearing duplicated under the "Custom agents" list. In `readAgentEntries`, built-in agent identifiers are now filtered out, ensuring built-in agents remain exclusively in the "Built-in agents" section with their `[已自定义提示词]` tag.
 
 #### Improvements
 
+- Added dedicated "网络设置" (Network Settings) tab situated immediately below "偏好设置" (Preferences) with a globe icon; migrated network proxy configuration and egress checking out of Preferences into Network Settings, and updated search catalog keywords for direct navigation.
 - Added navigation prefetch (`onPrefetch`) for "会话跟踪统计" (Usage) and "规则与记忆" (Rules and Memory) tabs to warm up queries before clicking.
 - Eliminated redundant network round-trips and implemented multi-tier caching (memory + `sessionStorage`) for rules and memory files, replacing full-screen spinners with stale-while-revalidate rendering to prevent UI lag.
 - Increased session statistics backend memory cache TTL to 5 minutes and limited initial session paging to accelerate statistics tab rendering.

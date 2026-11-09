@@ -188,9 +188,39 @@
   color: #3b82f6;
 }
 
+.automation-create-dialog-container {
+  width: min(calc(100vw - 48px), 720px) !important;
+  height: min(calc(100vh - 100px), 660px) !important;
+  max-height: calc(100vh - 64px) !important;
+}
+
 .automation-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 0;
+  gap: 16px;
+  padding: 8px 4px 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.automation-prompt-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--v2-background-bg-layer-01);
+  border: 1px solid var(--v2-border-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--v2-text-text-base);
+  resize: vertical;
+  min-height: 110px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.automation-prompt-textarea:focus {
+  border-color: var(--v2-border-border-focus);
 }

@@ -266,19 +266,21 @@ export const McpServerDialog: Component<{
         </Show>
       </DialogBody>
       <DialogFooter>
-        <Show when={props.editing}>
-          <Button variant="ghost" onClick={() => void remove()} disabled={saving()}>
-            {language.t("common.delete")}
-          </Button>
-        </Show>
-        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
-          {language.t("common.cancel")}
-        </Button>
-        <Button variant="contrast" onClick={() => void save()} disabled={!canSave() || saving()}>
-          <Show when={saving()} fallback={language.t("common.confirm")}>
-            <Loader class="custom-agent-dialog-spinner" />
+        <div style={{ display: "flex", "align-items": "center", "justify-content": "flex-end", gap: "10px", width: "100%" }}>
+          <Show when={props.editing}>
+            <Button variant="danger" onClick={() => void remove()} disabled={saving()} style={{ "margin-right": "auto", "min-width": "64px" }}>
+              {language.t("common.delete") ?? "删除"}
+            </Button>
           </Show>
-        </Button>
+          <Button variant="neutral" onClick={() => props.onClose?.()} disabled={saving()} style={{ "min-width": "64px" }}>
+            {language.t("common.cancel") ?? "取消"}
+          </Button>
+          <Button variant="contrast" onClick={() => void save()} disabled={!canSave() || saving()} style={{ "min-width": "64px" }}>
+            <Show when={saving()} fallback={props.editing ? (language.t("common.save") ?? "保存") : (language.t("ui.common.confirm") ?? "确认")}>
+              <Loader class="custom-agent-dialog-spinner" />
+            </Show>
+          </Button>
+        </div>
       </DialogFooter>
     </Dialog>
   )
@@ -344,14 +346,16 @@ const SourceAddDialog: Component<{
         </Show>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={() => props.onClose?.()} disabled={saving()}>
-          {language.t("common.cancel")}
-        </Button>
-        <Button variant="contrast" onClick={() => void save()} disabled={saving() || !value().trim()}>
-          <Show when={saving()} fallback={language.t("common.confirm")}>
-            <Loader class="custom-agent-dialog-spinner" />
-          </Show>
-        </Button>
+        <div style={{ display: "flex", "align-items": "center", "justify-content": "flex-end", gap: "10px", width: "100%" }}>
+          <Button variant="neutral" onClick={() => props.onClose?.()} disabled={saving()} style={{ "min-width": "64px" }}>
+            {language.t("common.cancel") ?? "取消"}
+          </Button>
+          <Button variant="contrast" onClick={() => void save()} disabled={saving() || !value().trim()} style={{ "min-width": "64px" }}>
+            <Show when={saving()} fallback={language.t("ui.common.confirm") ?? "确认"}>
+              <Loader class="custom-agent-dialog-spinner" />
+            </Show>
+          </Button>
+        </div>
       </DialogFooter>
     </Dialog>
   )

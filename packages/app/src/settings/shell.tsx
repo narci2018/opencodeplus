@@ -10,6 +10,7 @@ import type { LocalProject } from "@/shell/state/layout"
 import { DialogServer } from "@/servers/connect/dialog"
 import { LocationProvider } from "@/workspaces/location"
 import { SettingsGeneral } from "./general/general"
+import { SettingsNetwork } from "./network/network"
 import { SettingsAppearance } from "./appearance/appearance"
 import { experimentalSettingsAvailable, SettingsExperimental } from "./experimental/experimental"
 import { SettingsKeybinds } from "./keybinds/keybinds"
@@ -44,6 +45,7 @@ import "@/settings/settings.css"
 
 const rootClientTabs = [
   { value: "general", icon: pageIcons.general, label: "settings.tab.preferences" },
+  { value: "network", icon: pageIcons.network, label: "settings.tab.network" },
   { value: "appearance", icon: pageIcons.appearance, label: "settings.general.section.appearance" },
   { value: "notifications", icon: pageIcons.notifications, label: "settings.tab.notifications" },
   { value: "shortcuts", icon: pageIcons.shortcuts, label: "settings.tab.shortcuts" },
@@ -314,6 +316,9 @@ function RootSettings() {
     >
       <Tabs.Content value="general" class="settings-panel">
         <SettingsGeneral />
+      </Tabs.Content>
+      <Tabs.Content value="network" class="settings-panel">
+        <SettingsNetwork />
       </Tabs.Content>
       <Tabs.Content value="appearance" class="settings-panel">
         <SettingsAppearance />

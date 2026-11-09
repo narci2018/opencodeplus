@@ -63,7 +63,7 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
     available: "desktop",
   },
   {
-    tab: "general",
+    tab: "network",
     label: "settings.general.row.networkProxy.title",
     target: "settings-network-proxy",
     keywords: "proxy 代理 network vpn egress ip",

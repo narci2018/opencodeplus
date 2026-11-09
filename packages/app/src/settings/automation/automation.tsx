@@ -333,7 +333,7 @@ function CreateAutomationDialog(props: {
   const canSave = () => name().trim().length > 0 && prompt().trim().length > 0
 
   return (
-    <Dialog size="large">
+    <Dialog size="large" maximizable resizable containerClass="automation-create-dialog-container">
       <DialogHeader>
         <DialogTitleGroup title="新建自动化流水线" description="设定执行周期与提示词，让智能体在后台定时自动巡检并交付结果。" />
       </DialogHeader>
@@ -392,7 +392,7 @@ function CreateAutomationDialog(props: {
               自动执行提示词
             </span>
             <textarea
-              class="template-prompt-preview"
+              class="automation-prompt-textarea"
               rows={6}
               placeholder="请输入定时触发时发给智能体的指令内容…"
               value={prompt()}
@@ -402,26 +402,29 @@ function CreateAutomationDialog(props: {
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={props.onClose}>
-          取消
-        </Button>
-        <Button
-          variant="contrast"
-          disabled={!canSave()}
-          onClick={() => {
-            props.onSave({
-              id: `auto-${Date.now()}`,
-              name: name().trim(),
-              description: desc().trim() || "定时自动化任务",
-              schedule: schedule(),
-              agent: agent(),
-              prompt: prompt().trim(),
-              enabled: true,
-            })
-          }}
-        >
-          保存并启用
-        </Button>
+        <div style={{ display: "flex", "align-items": "center", "justify-content": "flex-end", gap: "10px", width: "100%" }}>
+          <Button variant="neutral" onClick={props.onClose} style={{ "min-width": "64px" }}>
+            取消
+          </Button>
+          <Button
+            variant="contrast"
+            disabled={!canSave()}
+            onClick={() => {
+              props.onSave({
+                id: `auto-${Date.now()}`,
+                name: name().trim(),
+                description: desc().trim() || "定时自动化任务",
+                schedule: schedule(),
+                agent: agent(),
+                prompt: prompt().trim(),
+                enabled: true,
+              })
+            }}
+            style={{ "min-width": "88px" }}
+          >
+            保存并启用
+          </Button>
+        </div>
       </DialogFooter>
     </Dialog>
   )
