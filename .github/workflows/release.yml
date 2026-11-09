@@ -89,6 +89,7 @@ jobs:
       OPENCODE_DRY_RUN: ${{ needs.plan.outputs.dry_run }}
       OPENCODE_UPDATE_REPO: ${{ github.repository }}
       CSC_IDENTITY_AUTO_DISCOVERY: false
+      ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
       ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
     outputs:
       sha: ${{ steps.tag.outputs.sha || github.sha }}

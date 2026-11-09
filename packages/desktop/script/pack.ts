@@ -9,6 +9,7 @@ import { getCurrentCli, resolveChannel } from "./utils"
 // macOS: the .app as a tarball. Windows: the unpacked app in app/, or with OPENCODE_DESKTOP_APP, the NSIS
 // installer around that (signed) app. Linux: AppImage, deb and rpm. The release workflow signs afterwards.
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false"
+process.env.ELECTRON_MIRROR ||= "https://npmmirror.com/mirrors/electron/"
 process.env.ELECTRON_BUILDER_BINARIES_MIRROR ||= "https://npmmirror.com/mirrors/electron-builder-binaries/"
 
 const dir = path.resolve(import.meta.dir, "..")
@@ -38,7 +39,7 @@ await mkdir(out, { recursive: true })
 if (app) {
   // The installer uses the channel's icons; the rest of the app is already built and signed.
   await $`bun ./script/copy-icons.ts ${resolveChannel()}`
-  await $`bunx electron-builder ${flags} --prepackaged ${app} -c.win.sign=null -c.win.forceCodeSigning=false`
+  await $`bunx electron-builder ${flags} --prepackaged ${app}`
   await cp(`dist/opencode-desktop-win-${cli.cpu}.exe`, path.join(out, `opencode-desktop-win-${cli.cpu}.exe`))
 
   // electron-builder writes the update manifest next to the installer even for `--publish never`; the release
@@ -67,7 +68,7 @@ if (!app && os === "mac") {
 }
 
 if (!app && os === "win") {
-  await $`bunx electron-builder ${flags} --dir -c.win.sign=null -c.win.forceCodeSigning=false`
+  await $`bunx electron-builder ${flags} --dir`
   const unpacked = path.join("dist", cli.cpu === "arm64" ? "win-arm64-unpacked" : "win-unpacked")
   await writeUpdateConfig(path.join(unpacked, "resources"))
   await cp(unpacked, path.join(out, "app"), { recursive: true })
