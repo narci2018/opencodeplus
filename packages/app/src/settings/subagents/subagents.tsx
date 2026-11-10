@@ -9,7 +9,8 @@ import { showToast } from "@/shell/notifications/toast"
 import { Button } from "@opencode/ui/button"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { Icon } from "@opencode/ui/icon"
-import { createMemo, createResource, For, Show } from "solid-js"
+import { Tabs } from "@opencode/ui/tabs"
+import { createMemo, createResource, createSignal, For, Show } from "solid-js"
 import "@/settings/settings.css"
 
 type SubagentAccess = "default" | "allow" | "deny"
@@ -26,10 +27,10 @@ type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "other"
 
 const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "other"]
 
-/** Classifies a subagent by origin so the page can group them. */
+/** Classifies a subagent by origin so the page can group and tab them. */
 function groupOf(id: string): SubagentGroupKey {
-  if (id === "general" || id === "explore") return "builtin"
-  if (id.startsWith("agy-")) return "antigravity"
+  if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
+  if (id.startsWith("agy-") || id === "agy") return "antigravity"
   if (id.startsWith("trae")) return "trae"
   return "other"
 }
@@ -49,6 +50,9 @@ export const SettingsSubAgents = () => {
   const sdk = useServerSDK()
   const data = useData()
   const dialog = useDialog()
+
+  const [activeTab, setActiveTab] = createSignal<SubagentGroupKey>("builtin")
+  const [searchQuery, setSearchQuery] = createSignal("")
 
   const [agents, agentsActions] = createResource(
     () => sdk.connection.status() === "connected",
@@ -80,12 +84,41 @@ export const SettingsSubAgents = () => {
     },
   )
 
-  const groups = createMemo(() => {
+  const allBuckets = createMemo(() => {
     const items = agents() ?? []
-    const buckets: Record<SubagentGroupKey, SubagentItem[]> = { builtin: [], antigravity: [], trae: [], other: [] }
+    const buckets: Record<SubagentGroupKey, SubagentItem[]> = {
+      builtin: [],
+      antigravity: [],
+      trae: [],
+      other: [],
+    }
     for (const item of items) buckets[groupOf(item.id)].push(item)
     for (const key of GROUP_ORDER) buckets[key].sort((a, b) => a.id.localeCompare(b.id))
     return buckets
+  })
+
+  const filteredBuckets = createMemo(() => {
+    const q = searchQuery().trim().toLowerCase()
+    const raw = allBuckets()
+    if (!q) return raw
+
+    const filtered: Record<SubagentGroupKey, SubagentItem[]> = {
+      builtin: [],
+      antigravity: [],
+      trae: [],
+      other: [],
+    }
+
+    for (const key of GROUP_ORDER) {
+      filtered[key] = raw[key].filter(
+        (item) =>
+          item.name.toLowerCase().includes(q) ||
+          item.id.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q),
+      )
+    }
+
+    return filtered
   })
 
   const stateOf = (id: string): SubagentAccess => access()?.[id] ?? "default"
@@ -132,7 +165,19 @@ export const SettingsSubAgents = () => {
     )
   }
 
-  const total = () => (agents() ?? []).length
+  const companionLabel = (key: SubagentGroupKey) => {
+    if (key === "builtin") return language.t("settings.subagents.companion.builtin")
+    if (key === "antigravity") return language.t("settings.subagents.companion.antigravity")
+    if (key === "trae") return language.t("settings.subagents.companion.trae")
+    return language.t("settings.subagents.companion.other")
+  }
+
+  const groupIconName = (key: SubagentGroupKey) => {
+    if (key === "builtin") return "box"
+    if (key === "antigravity") return "sliders"
+    if (key === "trae") return "code"
+    return "terminal"
+  }
 
   return (
     <div class="settings-tab-body">
@@ -141,63 +186,239 @@ export const SettingsSubAgents = () => {
         <span class="text-11-regular text-v2-text-text-muted">{language.t("settings.subagents.description")}</span>
       </div>
 
-      <For each={GROUP_ORDER}>
-        {(key) => {
-          const items = () => groups()[key]
-          return (
-            <div class="settings-models-group" data-component={`subagents-${key}-section`}>
-              <div class="settings-models-group-header">
-                <span class="settings-models-group-title">
-                  {language.t(`settings.subagents.group.${key}`)}
-                </span>
-                <span class="text-11-regular text-v2-text-text-muted">{items().length}</span>
-              </div>
-              <div class="settings-models-group-items">
-                <For each={items()}>
-                  {(item) => (
-                    <div class="settings-models-row">
-                      <div class="settings-models-row-copy">
-                        <div class="flex items-center gap-2">
-                          <span class="settings-models-row-title font-medium">{item.name}</span>
-                          <span class="text-10-regular px-1.5 py-0.5 rounded bg-v2-surface-subtle text-v2-text-muted border border-v2-border-subtle">
-                            {item.id}
-                          </span>
-                        </div>
-                        <span class="settings-models-row-description">{item.description}</span>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <select
-                          class="subagent-access-select text-12-regular bg-v2-surface border border-v2-border rounded px-2 py-1"
-                          value={stateOf(item.id)}
-                          onChange={(event) => void setAccess(item.id, event.currentTarget.value as SubagentAccess)}
-                          aria-label={language.t("settings.subagents.access.label", { id: item.id })}
-                        >
-                          <option value="default">{language.t("settings.subagents.access.default")}</option>
-                          <option value="allow">{language.t("settings.subagents.access.allow")}</option>
-                          <option value="deny">{language.t("settings.subagents.access.deny")}</option>
-                        </select>
-                        <Button size="small" variant="ghost-muted" onClick={() => openPromptEditor(item)}>
-                          <Icon name="pencil-line" size="small" />
-                          {language.t("settings.subagents.editPrompt")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </For>
-                <Show when={items().length === 0}>
-                  <span class="text-12-regular text-v2-text-text-muted">
-                    {language.t("settings.subagents.group.empty")}
-                  </span>
-                </Show>
-              </div>
-            </div>
-          )
-        }}
-      </For>
+      <div class="subagent-tabs-header">
+        {/* State explanation banner */}
+        <div class="subagent-rule-banner">
+          <span class="font-medium text-v2-text-base">{language.t("settings.subagents.rule.title")}:</span>
+          <span class="subagent-rule-badge is-default" title={language.t("settings.subagents.rule.default")}>
+            <Icon name="lock" size="small" />
+            {language.t("settings.subagents.rule.default")}
+          </span>
+          <span class="subagent-rule-badge is-allow" title={language.t("settings.subagents.rule.allow")}>
+            <Icon name="globe" size="small" />
+            {language.t("settings.subagents.rule.allow")}
+          </span>
+          <span class="subagent-rule-badge is-deny" title={language.t("settings.subagents.rule.deny")}>
+            <Icon name="circle-xmark" size="small" />
+            {language.t("settings.subagents.rule.deny")}
+          </span>
+        </div>
 
-      <Show when={total() === 0}>
-        <span class="text-12-regular text-v2-text-text-muted">{language.t("settings.subagents.empty")}</span>
-      </Show>
+        {/* Search bar */}
+        <div class="subagent-search-bar">
+          <Icon name="magnifying-glass" size="small" class="subagent-search-icon" />
+          <input
+            type="text"
+            class="subagent-search-input"
+            placeholder={language.t("settings.subagents.search.placeholder")}
+            value={searchQuery()}
+            onInput={(e) => setSearchQuery(e.currentTarget.value)}
+          />
+          <Show when={searchQuery().length > 0}>
+            <button
+              type="button"
+              class="subagent-search-clear"
+              aria-label={language.t("settings.subagents.search.clear")}
+              onClick={() => setSearchQuery("")}
+            >
+              <Icon name="close-small" size="small" />
+            </button>
+          </Show>
+        </div>
+      </div>
+
+      {/* Tabs navigation */}
+      <Tabs
+        variant="pill"
+        value={activeTab()}
+        onChange={(val) => {
+          if (val === "builtin" || val === "antigravity" || val === "trae" || val === "other") {
+            setActiveTab(val)
+          }
+        }}
+        class="settings-subtabs"
+      >
+        <Tabs.List>
+          <For each={GROUP_ORDER}>
+            {(key) => {
+              const count = () => allBuckets()[key].length
+              return (
+                <Tabs.Trigger value={key}>
+                  {language.t(`settings.subagents.group.${key}`)}
+                  <span class="subagent-tab-badge">{count()}</span>
+                </Tabs.Trigger>
+              )
+            }}
+          </For>
+        </Tabs.List>
+
+        <For each={GROUP_ORDER}>
+          {(key) => {
+            const rawItems = () => allBuckets()[key]
+            const items = () => filteredBuckets()[key]
+            const isSearching = () => searchQuery().trim().length > 0
+
+            return (
+              <Tabs.Content value={key}>
+                <div class="subagent-card-list">
+                  <For each={items()}>
+                    {(item) => {
+                      const currentAccess = () => stateOf(item.id)
+
+                      return (
+                        <div class="subagent-card" data-component={`subagent-card-${item.id}`}>
+                          <div class="subagent-card-header">
+                            <div class="subagent-card-lead">
+                              <div class="subagent-avatar">
+                                <Icon name={groupIconName(key)} size="normal" />
+                              </div>
+                              <div class="subagent-meta">
+                                <div class="subagent-title-row">
+                                  <span class="subagent-title">{item.name}</span>
+                                  <span class="subagent-id-pill">{item.id}</span>
+                                  <span class="subagent-companion-tag">
+                                    <Icon name="lock" size="small" />
+                                    {companionLabel(key)}
+                                  </span>
+                                  <Show when={currentAccess() === "default"}>
+                                    <span class="subagent-rule-badge is-default">
+                                      {language.t("settings.subagents.badge.default")}
+                                    </span>
+                                  </Show>
+                                  <Show when={currentAccess() === "allow"}>
+                                    <span class="subagent-rule-badge is-allow">
+                                      {language.t("settings.subagents.badge.allow")}
+                                    </span>
+                                  </Show>
+                                  <Show when={currentAccess() === "deny"}>
+                                    <span class="subagent-rule-badge is-deny">
+                                      {language.t("settings.subagents.badge.deny")}
+                                    </span>
+                                  </Show>
+                                </div>
+                                <Show when={item.description}>
+                                  <p class="subagent-desc">{item.description}</p>
+                                </Show>
+                              </div>
+                            </div>
+
+                            <div class="subagent-card-actions">
+                              {/* 3-State Segmented Control */}
+                              <div
+                                class="subagent-segmented-control"
+                                role="radiogroup"
+                                aria-label={language.t("settings.subagents.access.label", { id: item.id })}
+                              >
+                                <button
+                                  type="button"
+                                  class="subagent-segment-btn"
+                                  classList={{
+                                    "is-active": currentAccess() === "default",
+                                    "is-default": currentAccess() === "default",
+                                  }}
+                                  title={language.t("settings.subagents.rule.default")}
+                                  onClick={() => void setAccess(item.id, "default")}
+                                >
+                                  {language.t("settings.subagents.access.default")}
+                                </button>
+                                <button
+                                  type="button"
+                                  class="subagent-segment-btn"
+                                  classList={{
+                                    "is-active": currentAccess() === "allow",
+                                    "is-allow": currentAccess() === "allow",
+                                  }}
+                                  title={language.t("settings.subagents.rule.allow")}
+                                  onClick={() => void setAccess(item.id, "allow")}
+                                >
+                                  {language.t("settings.subagents.access.allow")}
+                                </button>
+                                <button
+                                  type="button"
+                                  class="subagent-segment-btn"
+                                  classList={{
+                                    "is-active": currentAccess() === "deny",
+                                    "is-deny": currentAccess() === "deny",
+                                  }}
+                                  title={language.t("settings.subagents.rule.deny")}
+                                  onClick={() => void setAccess(item.id, "deny")}
+                                >
+                                  {language.t("settings.subagents.access.deny")}
+                                </button>
+                              </div>
+
+                              <Button size="small" variant="ghost-muted" onClick={() => openPromptEditor(item)}>
+                                <Icon name="pencil-line" size="small" />
+                                {language.t("settings.subagents.editPrompt")}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }}
+                  </For>
+
+                  {/* Empty state when searching and no match */}
+                  <Show when={isSearching() && items().length === 0}>
+                    <div class="subagent-guide-card">
+                      <Icon name="magnifying-glass" size="large" class="text-v2-icon-icon-muted" />
+                      <span class="text-13-medium text-v2-text-base">
+                        {language.t("settings.subagents.search.empty")}
+                      </span>
+                      <Button size="small" variant="outline" onClick={() => setSearchQuery("")}>
+                        {language.t("settings.subagents.search.clear")}
+                      </Button>
+                    </div>
+                  </Show>
+
+                  {/* Empty state when no items at all in this group */}
+                  <Show when={!isSearching() && rawItems().length === 0}>
+                    <Show
+                      when={key === "trae"}
+                      fallback={
+                        <Show
+                          when={key === "other"}
+                          fallback={
+                            <div class="subagent-guide-card">
+                              <span class="text-13-regular text-v2-text-text-muted">
+                                {language.t("settings.subagents.group.empty")}
+                              </span>
+                            </div>
+                          }
+                        >
+                          <div class="subagent-guide-card">
+                            <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                            <span class="text-13-medium text-v2-text-base">
+                              {language.t("settings.subagents.empty.other.title")}
+                            </span>
+                            <span class="text-12-regular text-v2-text-text-muted">
+                              {language.t("settings.subagents.empty.other.description")}
+                            </span>
+                          </div>
+                        </Show>
+                      }
+                    >
+                      <div class="subagent-guide-card">
+                        <Icon name="code" size="large" class="text-v2-icon-icon-muted" />
+                        <span class="text-13-medium text-v2-text-base">
+                          {language.t("settings.subagents.empty.trae.title")}
+                        </span>
+                        <span class="text-12-regular text-v2-text-text-muted">
+                          {language.t("settings.subagents.empty.trae.description")}
+                        </span>
+                        <div class="subagent-code-block">
+                          powershell -ExecutionPolicy Bypass -File .\import-trae-agent.ps1
+                        </div>
+                      </div>
+                    </Show>
+                  </Show>
+                </div>
+              </Tabs.Content>
+            )
+          }}
+        </For>
+      </Tabs>
     </div>
   )
 }
+

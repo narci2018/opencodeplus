@@ -1,6 +1,5 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import type { Plugin } from "@opencode/plugin/effect"
 import { Agent } from "@opencode/core/agent"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"

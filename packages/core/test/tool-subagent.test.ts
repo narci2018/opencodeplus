@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test as bunTest } from "bun:test"
 import { Deferred, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { LanguageModel } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
@@ -958,4 +958,213 @@ describe("SubagentTool", () => {
       ),
     ),
   )
+
+  describe("companion isolation and suite rules", () => {
+    bunTest("suiteOf correctly classifies agent IDs", () => {
+      expect(SubagentTool.suiteOf("build")).toBe("builtin")
+      expect(SubagentTool.suiteOf("plan")).toBe("builtin")
+      expect(SubagentTool.suiteOf("general")).toBe("builtin")
+      expect(SubagentTool.suiteOf("explore")).toBe("builtin")
+
+      expect(SubagentTool.suiteOf("agy")).toBe("antigravity")
+      expect(SubagentTool.suiteOf("agy-planning-architect")).toBe("antigravity")
+      expect(SubagentTool.suiteOf("agy-coding-worker")).toBe("antigravity")
+
+      expect(SubagentTool.suiteOf("trae")).toBe("trae")
+      expect(SubagentTool.suiteOf("trae-bao")).toBe("trae")
+      expect(SubagentTool.suiteOf("trae-code-writer")).toBe("trae")
+
+      expect(SubagentTool.suiteOf("custom-agent")).toBe("other")
+      expect(SubagentTool.suiteOf("analyzer")).toBe("other")
+    })
+
+    bunTest("isCompanion correctly enforces suite matching by default", () => {
+      // Antigravity suite
+      expect(SubagentTool.isCompanion("agy", "agy-planning-architect")).toBe(true)
+      expect(SubagentTool.isCompanion("agy-coding-worker", "agy-code-reviewer")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "agy-planning-architect")).toBe(false)
+      expect(SubagentTool.isCompanion("trae", "agy-planning-architect")).toBe(false)
+
+      // Builtin suite
+      expect(SubagentTool.isCompanion("build", "general")).toBe(true)
+      expect(SubagentTool.isCompanion("plan", "explore")).toBe(true)
+      expect(SubagentTool.isCompanion("agy", "general")).toBe(false)
+      expect(SubagentTool.isCompanion("trae", "explore")).toBe(false)
+
+      // TRAE suite
+      expect(SubagentTool.isCompanion("trae", "trae-code-writer")).toBe(true)
+      expect(SubagentTool.isCompanion("trae-bao", "trae-code-writer")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "trae-code-writer")).toBe(false)
+      expect(SubagentTool.isCompanion("agy", "trae-code-writer")).toBe(false)
+
+      // Undefined caller
+      expect(SubagentTool.isCompanion(undefined, "agy-planning-architect")).toBe(false)
+      expect(SubagentTool.isCompanion(undefined, "general")).toBe(false)
+    })
+
+    it.live("enforces companion isolation on tool execution under default state", () =>
+      tmpdirScoped().pipe(
+        Effect.flatMap((dir) =>
+          Effect.gen(function* () {
+            const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
+            const sessions = yield* Session.Service
+            const parent = yield* sessions.create({ location, model: parentModel })
+            yield* withSubagent(parent.location)
+            const locations = yield* LocationServiceMap.Service
+            const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+
+            // Register an antigravity subagent and an antigravity caller
+            yield* Agent.Service.use((agents) =>
+              agents.transform((editor) => {
+                editor.update(Agent.ID.make("agy"), (agent) => {
+                  agent.mode = "primary"
+                  agent.permissions.push({ action: "*", resource: "*", effect: "allow" })
+                })
+                editor.update(Agent.ID.make("agy-test-worker"), (agent) => {
+                  agent.mode = "subagent"
+                  agent.model = childModel
+                })
+              }),
+            ).pipe(Effect.provide(locations.get(parent.location)))
+
+            // 1. Calling agy-test-worker from default "build" caller -> fails with companion isolation message
+            const crossSuiteCall = yield* executeTool(registry, {
+              sessionID: parent.id,
+              agent: Agent.ID.make("build"),
+              messageID: SessionMessage.ID.make("msg_cross_suite"),
+              call: {
+                type: "tool-call",
+                id: "call-cross-suite",
+                name: SubagentTool.name,
+                input: { agent: "agy-test-worker", description: "cross suite", prompt: "should fail" },
+              },
+            })
+            expect(crossSuiteCall).toEqual({
+              status: "error",
+              error: {
+                type: "tool.execution",
+                message: expect.stringContaining("is restricted to its companion agent by default"),
+              },
+            })
+
+            // 2. Calling agy-test-worker from companion "agy" caller -> succeeds
+            const companionCall = yield* executeTool(registry, {
+              sessionID: parent.id,
+              agent: Agent.ID.make("agy"),
+              messageID: SessionMessage.ID.make("msg_companion"),
+              call: {
+                type: "tool-call",
+                id: "call-companion",
+                name: SubagentTool.name,
+                input: { agent: "agy-test-worker", description: "companion work", prompt: "should work" },
+              },
+            })
+            expect(companionCall).toMatchObject({
+              status: "completed",
+              metadata: { status: "completed" },
+            })
+          }),
+        ),
+      ),
+    )
+
+    it.live("allows cross-suite calling when subagent is explicitly set to allow", () =>
+      tmpdirScoped().pipe(
+        Effect.flatMap((dir) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() =>
+              Bun.write(
+                path.join(dir.path, "opencode.json"),
+                JSON.stringify({ experimental: { subagent_access: { "agy-test-worker": "allow" } } }),
+              ),
+            )
+            const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
+            const sessions = yield* Session.Service
+            const parent = yield* sessions.create({ location, model: parentModel })
+            yield* withSubagent(parent.location)
+            const locations = yield* LocationServiceMap.Service
+            const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+
+            yield* Agent.Service.use((agents) =>
+              agents.transform((editor) => {
+                editor.update(Agent.ID.make("agy-test-worker"), (agent) => {
+                  agent.mode = "subagent"
+                  agent.model = childModel
+                })
+              }),
+            ).pipe(Effect.provide(locations.get(parent.location)))
+
+            const allowCall = yield* executeTool(registry, {
+              sessionID: parent.id,
+              agent: Agent.ID.make("build"),
+              messageID: SessionMessage.ID.make("msg_allow"),
+              call: {
+                type: "tool-call",
+                id: "call-allowed",
+                name: SubagentTool.name,
+                input: { agent: "agy-test-worker", description: "allowed work", prompt: "now allowed" },
+              },
+            })
+            expect(allowCall).toMatchObject({
+              status: "completed",
+              metadata: { status: "completed" },
+            })
+          }),
+        ),
+      ),
+    )
+
+    it.live("blocks even companion callers when subagent is set to deny", () =>
+      tmpdirScoped().pipe(
+        Effect.flatMap((dir) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() =>
+              Bun.write(
+                path.join(dir.path, "opencode.json"),
+                JSON.stringify({ experimental: { subagent_access: { "agy-test-worker": "deny" } } }),
+              ),
+            )
+            const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
+            const sessions = yield* Session.Service
+            const parent = yield* sessions.create({ location, model: parentModel })
+            yield* withSubagent(parent.location)
+            const locations = yield* LocationServiceMap.Service
+            const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+
+            yield* Agent.Service.use((agents) =>
+              agents.transform((editor) => {
+                editor.update(Agent.ID.make("agy"), (agent) => {
+                  agent.mode = "primary"
+                  agent.permissions.push({ action: "*", resource: "*", effect: "allow" })
+                })
+                editor.update(Agent.ID.make("agy-test-worker"), (agent) => {
+                  agent.mode = "subagent"
+                  agent.model = childModel
+                })
+              }),
+            ).pipe(Effect.provide(locations.get(parent.location)))
+
+            const denyCall = yield* executeTool(registry, {
+              sessionID: parent.id,
+              agent: Agent.ID.make("agy"),
+              messageID: SessionMessage.ID.make("msg_deny"),
+              call: {
+                type: "tool-call",
+                id: "call-denied",
+                name: SubagentTool.name,
+                input: { agent: "agy-test-worker", description: "denied work", prompt: "should be denied" },
+              },
+            })
+            expect(denyCall).toEqual({
+              status: "error",
+              error: {
+                type: "tool.execution",
+                message: "Subagent denied: agy-test-worker is disabled",
+              },
+            })
+          }),
+        ),
+      ),
+    )
+  })
 })

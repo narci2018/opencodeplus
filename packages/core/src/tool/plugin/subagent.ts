@@ -16,6 +16,38 @@ import { SubagentJob } from "../../session/subagent-job.js"
 
 export const name = "subagent"
 
+export type SubagentSuite = "builtin" | "antigravity" | "trae" | "other"
+
+export function suiteOf(id: string): SubagentSuite {
+  if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
+  if (id.startsWith("agy-") || id === "agy") return "antigravity"
+  if (id.startsWith("trae")) return "trae"
+  return "other"
+}
+
+export function isCompanion(
+  callerID: string | undefined,
+  subagentID: string,
+  callerPermissions?: Permission.Ruleset,
+): boolean {
+  if (!callerID) return false
+  const subSuite = suiteOf(subagentID)
+  const callerSuite = suiteOf(callerID)
+
+  if (subSuite === "antigravity") return callerSuite === "antigravity"
+  if (subSuite === "trae") return callerSuite === "trae"
+  if (subSuite === "builtin") return callerSuite === "builtin"
+  if (callerSuite === subSuite && subSuite !== "other") return true
+
+  const subPrefix = subagentID.includes("-") ? subagentID.split("-")[0] : undefined
+  if (subPrefix && (callerID === subPrefix || callerID.startsWith(`${subPrefix}-`))) return true
+
+  if (callerPermissions && Permission.evaluate("subagent", subagentID, callerPermissions).effect === "allow") {
+    return true
+  }
+  return false
+}
+
 const backgroundResult = (sessionID: SessionSchema.ID) => ({
   sessionID,
   status: "running" as const,
@@ -143,11 +175,17 @@ export const Plugin = {
                 return yield* new ToolFailure({ message: `Agent ${input.agent} cannot run as a subagent` })
               // A per-subagent availability override settles the call before the caller's own rules:
               // `deny` blocks every caller, `allow` lets any caller use it without asking, and
-              // `default`/absent defers to the caller's configured subagent permissions.
+              // `default`/absent restricts the subagent to its companion agent suite.
               const access = Config.latest(yield* config.entries(), "experimental")?.subagent_access?.[agent.id]
               if (access === "deny")
                 return yield* new ToolFailure({ message: `Subagent denied: ${agent.id} is disabled` })
-              if (access !== "allow")
+              if (access !== "allow") {
+                const caller = yield* agents.resolve(context.agent)
+                if (!isCompanion(context.agent, agent.id, caller?.permissions)) {
+                  return yield* new ToolFailure({
+                    message: `Subagent denied: ${agent.id} is restricted to its companion agent by default. Change its status to "allow" in Settings -> SubAgents to allow ${context.agent ?? "other agents"} to use it.`,
+                  })
+                }
                 yield* permission
                   .assert({
                     action: name,
@@ -156,6 +194,7 @@ export const Plugin = {
                     ...Permission.invocation(context),
                   })
                   .pipe(Effect.mapError((error) => new ToolFailure({ message: `Subagent denied: ${agent.id}`, error })))
+              }
 
               const existing =
                 input.sessionID === undefined
@@ -298,9 +337,10 @@ export const Plugin = {
             if (agent.mode === "primary" || agent.hidden) return false
             const state = access[agent.id]
             // `allow` surfaces the subagent regardless of the caller's own rules; `deny` hides it;
-            // `default`/absent keep the caller's configured subagent permissions.
+            // `default`/absent restricts the subagent to its companion agent suite.
             if (state === "allow") return true
             if (state === "deny") return false
+            if (!isCompanion(event.agent, agent.id, selected.permissions)) return false
             return Permission.evaluate(name, agent.id, selected.permissions).effect !== "deny"
           })
           .toSorted((a, b) => a.id.localeCompare(b.id))
