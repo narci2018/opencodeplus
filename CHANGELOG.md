@@ -15,6 +15,7 @@ Release notes for OpenCode V2, newest first.
 - Connected custom headers configured in settings or environment variables (`process.env.OPENCODE_CUSTOM_HEADERS`) to `base.http.headers` in `SessionModelRequest.prepare`, attaching user-defined debugging and gateway headers to outbound model requests.
 - Added 15-second TTL in-memory caching to `session.stats` and optimized window calculation concurrency to 4 with `tools: "none"`, drastically accelerating repeated analytics queries down to under 1ms.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.
+- Reverse-engineered the Google Antigravity desktop agent system and integrated its 29 swarm agents as built-in opencode subagents (`agy-*`, mode `subagent`). This ports Antigravity's parallel swarm orchestration: Pipeline Conductor → Swarm Orchestrator → Workers, coordinated through file-based blackboards and stigmergy. Users can invoke any of them via the `subagent` tool in background or foreground mode, enabling parallel, emergent multi-agent workflows. The extracted role prompts are preserved under `packages/core/src/plugin/antigravity/*.md`.
 - Connected `Project.Service` to `RulesFiles.get` so project lists and project-level rules (`AGENTS.md`) and memory (`MEMORY.md`) are automatically enumerated and resolved across all registered workspaces.
 
 ### UI
