@@ -39,6 +39,8 @@ const DEFAULT_PROMPTS: Record<string, string> = {
 2. 多任务拆解与并发：面对复杂需求，自动解耦与模块化拆分。
 3. 结论式高效汇报：先给结论和核心依据，后附详细信息与文件路径。
 4. 工具驱动与验证：熟练使用工具，所有操作以真实代码证据为准。`,
+  agy: `你是 Antigravity 反重力主智能体，继承了 Google Antigravity 桌面智能体的并行 swarm 编排能力。你的职责是作为用户面对的主入口：理解目标、决定 swarm 规模、并行派出子智能体、监督进度、综合结果交付。`,
+  claude: `你是 Claude Desktop Conductor，继承了 Anthropic 官方 Claude 桌面智能体系统与 Cowork 编排能力。你作为用户面对的主入口与总指挥：负责理解目标、主动交互澄清、任务编排跟踪、调度 Claude 伴生子智能体、产出高质量成果与深度严谨验证。`,
 }
 
 type BuiltinAgentItem = {
@@ -79,6 +81,20 @@ const DEFAULT_BUILTIN_AGENTS: BuiltinAgentItem[] = [
       "Trae CN 开发者伙伴助理：跨会话与跨项目记忆、多任务拆解并行推进、敏捷开发协作者与专属助理。",
     mode: "all",
     prompt: DEFAULT_PROMPTS["trae-bao"],
+  },
+  {
+    id: "agy",
+    name: "Antigravity",
+    description: "反重力主智能体：Antigravity 并行 swarm 编排指挥中枢，动态调度并行子智能体群与黑板协调。",
+    mode: "all",
+    prompt: DEFAULT_PROMPTS.agy,
+  },
+  {
+    id: "claude",
+    name: "Claude",
+    description: "Claude 官方桌面主智能体：王者级桌面智能体系统，兼具任务规划、主动交互澄清、高质量产出物交付与伴生智能体编排。",
+    mode: "all",
+    prompt: DEFAULT_PROMPTS.claude,
   },
 ]
 

@@ -58,13 +58,18 @@ export function agentID(name: string): string {
   const slug = trimmed
     .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
-  return slug || (trimmed ? `agent-${Date.now().toString(36)}` : "custom-agent")
+  return slug || "custom-agent"
 }
 
-export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao"])
+export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao", "agy", "claude"])
 
 export function isBuiltinAgent(id: string): boolean {
-  return BUILTIN_AGENT_IDS.has(id.toLowerCase().trim())
+  const normalized = id.toLowerCase().trim()
+  return (
+    BUILTIN_AGENT_IDS.has(normalized) ||
+    normalized.startsWith("agy-") ||
+    normalized.startsWith("claude-")
+  )
 }
 
 /** Reads only user-defined agents (those without a `native: true` flag) from config documents. */

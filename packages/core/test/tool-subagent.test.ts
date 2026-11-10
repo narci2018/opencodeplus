@@ -974,6 +974,12 @@ describe("SubagentTool", () => {
       expect(SubagentTool.suiteOf("trae-bao")).toBe("trae")
       expect(SubagentTool.suiteOf("trae-code-writer")).toBe("trae")
 
+      expect(SubagentTool.suiteOf("claude")).toBe("claude")
+      expect(SubagentTool.suiteOf("claude-cowork")).toBe("claude")
+      expect(SubagentTool.suiteOf("claude-coder")).toBe("claude")
+      expect(SubagentTool.suiteOf("claude-researcher")).toBe("claude")
+      expect(SubagentTool.suiteOf("claude-verifier")).toBe("claude")
+
       expect(SubagentTool.suiteOf("custom-agent")).toBe("other")
       expect(SubagentTool.suiteOf("analyzer")).toBe("other")
     })
@@ -996,6 +1002,15 @@ describe("SubagentTool", () => {
       expect(SubagentTool.isCompanion("trae-bao", "trae-code-writer")).toBe(true)
       expect(SubagentTool.isCompanion("build", "trae-code-writer")).toBe(false)
       expect(SubagentTool.isCompanion("agy", "trae-code-writer")).toBe(false)
+
+      // Claude suite
+      expect(SubagentTool.isCompanion("claude", "claude-cowork")).toBe(true)
+      expect(SubagentTool.isCompanion("claude", "claude-coder")).toBe(true)
+      expect(SubagentTool.isCompanion("claude-coder", "claude-verifier")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "claude-cowork")).toBe(false)
+      expect(SubagentTool.isCompanion("agy", "claude-coder")).toBe(false)
+      expect(SubagentTool.isCompanion("trae", "claude-researcher")).toBe(false)
+      expect(SubagentTool.isCompanion("claude", "agy-planning-architect")).toBe(false)
 
       // Undefined caller
       expect(SubagentTool.isCompanion(undefined, "agy-planning-architect")).toBe(false)

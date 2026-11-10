@@ -117,6 +117,7 @@ import { WarmingPlugin } from "./warming.js"
 import { WellKnownPlugin } from "../wellknown/plugin.js"
 import { TraePlugin } from "./trae/trae.js"
 import { AntigravityPlugin } from "./antigravity/antigravity.js"
+import { ClaudePlugin } from "./claude/claude.js"
 import { MemoryPlugin } from "./memory.js"
 
 const services = [
@@ -246,6 +247,7 @@ const pre = [
   PlanPlugin.Plugin,
   TraePlugin.Plugin,
   AntigravityPlugin.Plugin,
+  ClaudePlugin.Plugin,
   MemoryPlugin.Plugin,
 
 

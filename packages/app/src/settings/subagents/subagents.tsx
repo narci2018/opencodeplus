@@ -23,15 +23,20 @@ type SubagentItem = {
   native?: boolean
 }
 
-type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "other"
+type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "other"
 
-const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "other"]
+const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "other"]
 
 /** Classifies a subagent by origin so the page can group and tab them. */
 function groupOf(id: string): SubagentGroupKey {
   if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
+
   if (id.startsWith("agy-") || id === "agy") return "antigravity"
+
   if (id.startsWith("trae")) return "trae"
+
+  if (id.startsWith("claude-") || id === "claude") return "claude"
+
   return "other"
 }
 
@@ -56,10 +61,13 @@ export const SettingsSubAgents = () => {
 
   const [agents, agentsActions] = createResource(
     () => sdk.connection.status() === "connected",
-    async (connected) => {
-      if (!connected) return [] as SubagentItem[]
+    async (connected): Promise<SubagentItem[]> => {
+      if (!connected) return []
+
       const res = await sdk.api.agent.list().catch(() => undefined)
-      if (!res?.data) return [] as SubagentItem[]
+
+      if (!res?.data) return []
+
       return normalizeAgentList(res.data)
         .filter((item) => item.mode === "subagent" && !item.hidden)
         .map(toItem)
@@ -68,44 +76,57 @@ export const SettingsSubAgents = () => {
 
   const [access, accessActions] = createResource(
     () => sdk.connection.status() === "connected",
-    async (connected) => {
-      if (!connected) return {} as Record<string, SubagentAccess>
+    async (connected): Promise<Record<string, SubagentAccess>> => {
+      if (!connected) return {}
+
       const entries = await sdk.api.config.get().catch(() => [])
       const map: Record<string, SubagentAccess> = {}
+
       for (const entry of entries) {
         if (entry.type !== "document") continue
-        const experimental = (entry.info as { experimental?: { subagent_access?: Record<string, unknown> } })
+
+        // SAFETY: Document entries carry an untyped config info payload; experimental subagent_access is guarded below.
+        const experimental = (entry.info as { experimental?: { subagent_access?: Record<string, string | undefined> } })
           ?.experimental
+
         for (const [id, value] of Object.entries(experimental?.subagent_access ?? {})) {
           if (value === "allow" || value === "deny" || value === "default") map[id] = value
         }
       }
+
       return map
     },
   )
 
   const allBuckets = createMemo(() => {
     const items = agents() ?? []
+
     const buckets: Record<SubagentGroupKey, SubagentItem[]> = {
       builtin: [],
       antigravity: [],
       trae: [],
+      claude: [],
       other: [],
     }
+
     for (const item of items) buckets[groupOf(item.id)].push(item)
+
     for (const key of GROUP_ORDER) buckets[key].sort((a, b) => a.id.localeCompare(b.id))
+
     return buckets
   })
 
   const filteredBuckets = createMemo(() => {
     const q = searchQuery().trim().toLowerCase()
     const raw = allBuckets()
+
     if (!q) return raw
 
     const filtered: Record<SubagentGroupKey, SubagentItem[]> = {
       builtin: [],
       antigravity: [],
       trae: [],
+      claude: [],
       other: [],
     }
 
@@ -167,15 +188,25 @@ export const SettingsSubAgents = () => {
 
   const companionLabel = (key: SubagentGroupKey) => {
     if (key === "builtin") return language.t("settings.subagents.companion.builtin")
+
     if (key === "antigravity") return language.t("settings.subagents.companion.antigravity")
+
     if (key === "trae") return language.t("settings.subagents.companion.trae")
+
+    if (key === "claude") return language.t("settings.subagents.companion.claude")
+
     return language.t("settings.subagents.companion.other")
   }
 
   const groupIconName = (key: SubagentGroupKey) => {
     if (key === "builtin") return "box"
+
     if (key === "antigravity") return "sliders"
+
     if (key === "trae") return "code"
+
+    if (key === "claude") return "brain"
+
     return "terminal"
   }
 
@@ -232,7 +263,7 @@ export const SettingsSubAgents = () => {
         variant="pill"
         value={activeTab()}
         onChange={(val) => {
-          if (val === "builtin" || val === "antigravity" || val === "trae" || val === "other") {
+          if (val === "builtin" || val === "antigravity" || val === "trae" || val === "claude" || val === "other") {
             setActiveTab(val)
           }
         }}
@@ -377,22 +408,37 @@ export const SettingsSubAgents = () => {
                       when={key === "trae"}
                       fallback={
                         <Show
-                          when={key === "other"}
+                          when={key === "claude"}
                           fallback={
-                            <div class="subagent-guide-card">
-                              <span class="text-13-regular text-v2-text-text-muted">
-                                {language.t("settings.subagents.group.empty")}
-                              </span>
-                            </div>
+                            <Show
+                              when={key === "other"}
+                              fallback={
+                                <div class="subagent-guide-card">
+                                  <span class="text-13-regular text-v2-text-text-muted">
+                                    {language.t("settings.subagents.group.empty")}
+                                  </span>
+                                </div>
+                              }
+                            >
+                              <div class="subagent-guide-card">
+                                <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                                <span class="text-13-medium text-v2-text-base">
+                                  {language.t("settings.subagents.empty.other.title")}
+                                </span>
+                                <span class="text-12-regular text-v2-text-text-muted">
+                                  {language.t("settings.subagents.empty.other.description")}
+                                </span>
+                              </div>
+                            </Show>
                           }
                         >
                           <div class="subagent-guide-card">
-                            <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                            <Icon name="brain" size="large" class="text-v2-icon-icon-muted" />
                             <span class="text-13-medium text-v2-text-base">
-                              {language.t("settings.subagents.empty.other.title")}
+                              {language.t("settings.subagents.empty.claude.title")}
                             </span>
                             <span class="text-12-regular text-v2-text-text-muted">
-                              {language.t("settings.subagents.empty.other.description")}
+                              {language.t("settings.subagents.empty.claude.description")}
                             </span>
                           </div>
                         </Show>
