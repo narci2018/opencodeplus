@@ -118,6 +118,7 @@ import { WellKnownPlugin } from "../wellknown/plugin.js"
 import { TraePlugin } from "./trae/trae.js"
 import { AntigravityPlugin } from "./antigravity/antigravity.js"
 import { ClaudePlugin } from "./claude/claude.js"
+import { CodexPlugin } from "./codex/codex.js"
 import { MemoryPlugin } from "./memory.js"
 
 const services = [
@@ -248,6 +249,7 @@ const pre = [
   TraePlugin.Plugin,
   AntigravityPlugin.Plugin,
   ClaudePlugin.Plugin,
+  CodexPlugin.Plugin,
   MemoryPlugin.Plugin,
 
 

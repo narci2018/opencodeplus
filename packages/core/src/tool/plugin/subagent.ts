@@ -16,13 +16,14 @@ import { SubagentJob } from "../../session/subagent-job.js"
 
 export const name = "subagent"
 
-export type SubagentSuite = "builtin" | "antigravity" | "trae" | "claude" | "other"
+export type SubagentSuite = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "other"
 
 export function suiteOf(id: string): SubagentSuite {
   if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
   if (id.startsWith("agy-") || id === "agy") return "antigravity"
   if (id.startsWith("trae")) return "trae"
   if (id.startsWith("claude-") || id === "claude") return "claude"
+  if (id.startsWith("codex-") || id === "codex") return "codex"
   return "other"
 }
 
@@ -38,6 +39,7 @@ export function isCompanion(
   if (subSuite === "antigravity") return callerSuite === "antigravity"
   if (subSuite === "trae") return callerSuite === "trae"
   if (subSuite === "claude") return callerSuite === "claude"
+  if (subSuite === "codex") return callerSuite === "codex"
   if (subSuite === "builtin") return callerSuite === "builtin"
   if (callerSuite === subSuite && subSuite !== "other") return true
 

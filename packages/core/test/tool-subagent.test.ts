@@ -980,6 +980,12 @@ describe("SubagentTool", () => {
       expect(SubagentTool.suiteOf("claude-researcher")).toBe("claude")
       expect(SubagentTool.suiteOf("claude-verifier")).toBe("claude")
 
+      expect(SubagentTool.suiteOf("codex")).toBe("codex")
+      expect(SubagentTool.suiteOf("codex-coder")).toBe("codex")
+      expect(SubagentTool.suiteOf("codex-researcher")).toBe("codex")
+      expect(SubagentTool.suiteOf("codex-docs")).toBe("codex")
+      expect(SubagentTool.suiteOf("codex-verifier")).toBe("codex")
+
       expect(SubagentTool.suiteOf("custom-agent")).toBe("other")
       expect(SubagentTool.suiteOf("analyzer")).toBe("other")
     })
@@ -1011,6 +1017,18 @@ describe("SubagentTool", () => {
       expect(SubagentTool.isCompanion("agy", "claude-coder")).toBe(false)
       expect(SubagentTool.isCompanion("trae", "claude-researcher")).toBe(false)
       expect(SubagentTool.isCompanion("claude", "agy-planning-architect")).toBe(false)
+
+      // Codex suite
+      expect(SubagentTool.isCompanion("codex", "codex-coder")).toBe(true)
+      expect(SubagentTool.isCompanion("codex", "codex-researcher")).toBe(true)
+      expect(SubagentTool.isCompanion("codex", "codex-docs")).toBe(true)
+      expect(SubagentTool.isCompanion("codex", "codex-verifier")).toBe(true)
+      expect(SubagentTool.isCompanion("codex-coder", "codex-verifier")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "codex-coder")).toBe(false)
+      expect(SubagentTool.isCompanion("agy", "codex-researcher")).toBe(false)
+      expect(SubagentTool.isCompanion("claude", "codex-docs")).toBe(false)
+      expect(SubagentTool.isCompanion("trae", "codex-verifier")).toBe(false)
+      expect(SubagentTool.isCompanion("codex", "agy-planning-architect")).toBe(false)
 
       // Undefined caller
       expect(SubagentTool.isCompanion(undefined, "agy-planning-architect")).toBe(false)

@@ -61,14 +61,15 @@ export function agentID(name: string): string {
   return slug || "custom-agent"
 }
 
-export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao", "agy", "claude"])
+export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao", "agy", "claude", "codex"])
 
 export function isBuiltinAgent(id: string): boolean {
   const normalized = id.toLowerCase().trim()
   return (
     BUILTIN_AGENT_IDS.has(normalized) ||
     normalized.startsWith("agy-") ||
-    normalized.startsWith("claude-")
+    normalized.startsWith("claude-") ||
+    normalized.startsWith("codex-")
   )
 }
 

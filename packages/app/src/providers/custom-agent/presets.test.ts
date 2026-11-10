@@ -51,6 +51,8 @@ describe("readAgentEntries", () => {
             "agy-coding-worker": { system: "Customized system prompt for worker" },
             claude: { system: "Customized system prompt for claude" },
             "claude-cowork": { system: "Customized system prompt for cowork" },
+            codex: { system: "Customized system prompt for codex" },
+            "codex-coder": { system: "Customized system prompt for coder" },
           },
         },
       },

@@ -23,9 +23,9 @@ type SubagentItem = {
   native?: boolean
 }
 
-type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "other"
+type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "other"
 
-const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "other"]
+const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "codex", "other"]
 
 /** Classifies a subagent by origin so the page can group and tab them. */
 function groupOf(id: string): SubagentGroupKey {
@@ -36,6 +36,8 @@ function groupOf(id: string): SubagentGroupKey {
   if (id.startsWith("trae")) return "trae"
 
   if (id.startsWith("claude-") || id === "claude") return "claude"
+
+  if (id.startsWith("codex-") || id === "codex") return "codex"
 
   return "other"
 }
@@ -106,6 +108,7 @@ export const SettingsSubAgents = () => {
       antigravity: [],
       trae: [],
       claude: [],
+      codex: [],
       other: [],
     }
 
@@ -127,6 +130,7 @@ export const SettingsSubAgents = () => {
       antigravity: [],
       trae: [],
       claude: [],
+      codex: [],
       other: [],
     }
 
@@ -195,6 +199,8 @@ export const SettingsSubAgents = () => {
 
     if (key === "claude") return language.t("settings.subagents.companion.claude")
 
+    if (key === "codex") return language.t("settings.subagents.companion.codex")
+
     return language.t("settings.subagents.companion.other")
   }
 
@@ -206,6 +212,8 @@ export const SettingsSubAgents = () => {
     if (key === "trae") return "code"
 
     if (key === "claude") return "brain"
+
+    if (key === "codex") return "sparkles"
 
     return "terminal"
   }
@@ -263,7 +271,14 @@ export const SettingsSubAgents = () => {
         variant="pill"
         value={activeTab()}
         onChange={(val) => {
-          if (val === "builtin" || val === "antigravity" || val === "trae" || val === "claude" || val === "other") {
+          if (
+            val === "builtin" ||
+            val === "antigravity" ||
+            val === "trae" ||
+            val === "claude" ||
+            val === "codex" ||
+            val === "other"
+          ) {
             setActiveTab(val)
           }
         }}
@@ -411,22 +426,37 @@ export const SettingsSubAgents = () => {
                           when={key === "claude"}
                           fallback={
                             <Show
-                              when={key === "other"}
+                              when={key === "codex"}
                               fallback={
-                                <div class="subagent-guide-card">
-                                  <span class="text-13-regular text-v2-text-text-muted">
-                                    {language.t("settings.subagents.group.empty")}
-                                  </span>
-                                </div>
+                                <Show
+                                  when={key === "other"}
+                                  fallback={
+                                    <div class="subagent-guide-card">
+                                      <span class="text-13-regular text-v2-text-text-muted">
+                                        {language.t("settings.subagents.group.empty")}
+                                      </span>
+                                    </div>
+                                  }
+                                >
+                                  <div class="subagent-guide-card">
+                                    <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                                    <span class="text-13-medium text-v2-text-base">
+                                      {language.t("settings.subagents.empty.other.title")}
+                                    </span>
+                                    <span class="text-12-regular text-v2-text-text-muted">
+                                      {language.t("settings.subagents.empty.other.description")}
+                                    </span>
+                                  </div>
+                                </Show>
                               }
                             >
                               <div class="subagent-guide-card">
-                                <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                                <Icon name="sparkles" size="large" class="text-v2-icon-icon-muted" />
                                 <span class="text-13-medium text-v2-text-base">
-                                  {language.t("settings.subagents.empty.other.title")}
+                                  {language.t("settings.subagents.empty.codex.title")}
                                 </span>
                                 <span class="text-12-regular text-v2-text-text-muted">
-                                  {language.t("settings.subagents.empty.other.description")}
+                                  {language.t("settings.subagents.empty.codex.description")}
                                 </span>
                               </div>
                             </Show>

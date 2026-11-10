@@ -7,6 +7,14 @@ node_modules
 .idea
 .vscode
 .codex
+
+# Reverse-engineering scratch artifacts for the Codex desktop app (prompts are distilled into packages/core/src/plugin/codex/)
+codex-app.asar
+codex-asar/
+codex-backend-prompt*.txt
+codex-backend-prompt*.bin
+codex-owl-prompt-raw.txt
+extract_codex_prompt.mjs
 *~
 playground
 tmp
