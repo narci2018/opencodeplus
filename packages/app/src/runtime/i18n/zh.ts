@@ -545,6 +545,8 @@ export const dict = {
 
   "settings.models.title": "模型",
   "settings.models.description": "可在此处配置模型设置。",
+  "settings.agents.subagents.title": "SubAgents（子智能体）",
+  "settings.agents.subagents.empty": "暂无子智能体",
 
   "settings.agents.custom.add": "添加自定义智能体",
   "settings.agents.custom.title": "添加自定义智能体",

@@ -1195,6 +1195,8 @@ export const dict = {
   "settings.models.title": "Models",
   "settings.agents.title": "Agents",
   "settings.agents.description": "Manage your custom agents — define role, system prompt, model and tools for each agent.",
+  "settings.agents.subagents.title": "SubAgents",
+  "settings.agents.subagents.empty": "No subagents available",
   "settings.models.description": "Choose which models appear in model picker",
   "settings.models.enableAll": "Enable all models",
   "settings.models.disableAll": "Disable all models",

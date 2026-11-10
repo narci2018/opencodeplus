@@ -533,6 +533,8 @@ export const dict = {
   "settings.providers.tag.other": "其他",
   "settings.models.title": "模型",
   "settings.models.description": "模型設定將在此處可設定。",
+  "settings.agents.subagents.title": "SubAgents（子智慧體）",
+  "settings.agents.subagents.empty": "暫無子智慧體",
 
   "settings.agents.custom.add": "新增自訂智慧體",
   "settings.agents.custom.title": "新增自訂智慧體",

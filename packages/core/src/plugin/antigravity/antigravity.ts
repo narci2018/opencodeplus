@@ -32,11 +32,20 @@ import PROMPT_TEAMWORK_INTERVIEWER from "./teamwork-interviewer.md" with { type:
 import PROMPT_TEAMWORK_SPECIALIST from "./teamwork-specialist.md" with { type: "text" }
 import PROMPT_TEST_WRITER from "./test-writer.md" with { type: "text" }
 import PROMPT_TOOL_CALLING_AGENT from "./tool-calling-agent.md" with { type: "text" }
+import PROMPT_AGY_MAIN from "./agy-main.md" with { type: "text" }
 
 export const Plugin = define({
   id: "opencode.antigravity",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.agent.transform((editor) => {
+      editor.update(Agent.ID.make("agy"), (item) => {
+        item.name = Agent.Name.make("Antigravity")
+        item.description =
+          "反重力主智能体：Antigravity 并行 swarm 编排的指挥中枢，判定任务类型、并行派出子智能体、监督黑板进度并综合交付。"
+        item.system = PROMPT_AGY_MAIN
+        item.mode = "all"
+        item.native = true
+      })
       editor.update(Agent.ID.make("agy-blackboard-manager"), (item) => {
         item.name = Agent.Name.make("Blackboard Manager")
         item.description = "维护 swarm 共享黑板文件。"

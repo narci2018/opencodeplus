@@ -53,6 +53,25 @@ const AGY_AGENT_IDS = [
 ] as const
 
 describe("AntigravityPlugin", () => {
+  it.effect("registers the Antigravity main conductor as a selectable primary agent", () =>
+    Effect.gen(function* () {
+      const agent = yield* Agent.Service
+      yield* AntigravityPlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+        }),
+      )
+
+      const agy = yield* agent.get(Agent.ID.make("agy"))
+      expect(agy).toBeDefined()
+      expect(String(agy?.name)).toBe("Antigravity")
+      expect(agy?.mode).toBe("all")
+      expect(agy?.native).toBe(true)
+      expect(agy?.system).toContain("Antigravity")
+      expect(agy?.system).toContain("subagent")
+    }),
+  )
+
   it.effect("registers all Antigravity swarm agents as callable subagents", () =>
     Effect.gen(function* () {
       const agent = yield* Agent.Service
