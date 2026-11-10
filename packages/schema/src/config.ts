@@ -218,6 +218,12 @@ export const InstructionPatch = Schema.Struct({
 }).annotate({ identifier: "Config.InstructionPatch" })
 export type InstructionPatch = Schema.Schema.Type<typeof InstructionPatch>
 
+export const ExperimentalPatch = Schema.Struct({
+  /** Merge new subagent availability entries into the `experimental.subagent_access` map. */
+  subagent_access: Schema.Record(Schema.String, Schema.Literals(["default", "allow", "deny"])).pipe(optional),
+}).annotate({ identifier: "Config.ExperimentalPatch" })
+export type ExperimentalPatch = Schema.Schema.Type<typeof ExperimentalPatch>
+
 export const Patch = Schema.Struct({
   shell: Schema.NullOr(Schema.String).pipe(optional),
   /** Sets, updates, or removes one custom provider entry in the `providers` field. */
@@ -236,6 +242,8 @@ export const Patch = Schema.Struct({
   memory: MemoryPatch.pipe(optional),
   /** Adds or removes one instructions source in the `instructions` array. */
   instruction: InstructionPatch.pipe(optional),
+  /** Merges experimental settings, such as subagent availability, into the `experimental` field. */
+  experimental: ExperimentalPatch.pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

@@ -1789,6 +1789,7 @@ export function make(options: ClientOptions) {
                 rules: input?.["rules"],
                 memory: input?.["memory"],
                 instruction: input?.["instruction"],
+                experimental: input?.["experimental"],
               },
               successStatus: 204,
               declaredStatuses: [400, 401, 404],

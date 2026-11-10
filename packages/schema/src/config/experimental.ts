@@ -43,6 +43,15 @@ export class Info extends Schema.Class<Info>("ConfigExperimental.Info")({
   subagent_depth: NonNegativeInt.pipe(optional).annotate({
     description: "Maximum subagent nesting depth. Defaults to 1.",
   }),
+  subagent_access: Schema.Record(
+    Schema.String,
+    Schema.Literals(["default", "allow", "deny"]),
+  )
+    .pipe(optional)
+    .annotate({
+      description:
+        "Per-subagent availability, keyed by subagent id. `allow` makes any primary agent able to call it; `deny` makes no agent able to call it; `default` keeps the caller's own rules (ask or deny). Absent entries keep the current behavior.",
+    }),
   location_idle_timeout: Schema.Union([Schema.DurationFromString, Schema.Literal(false)])
     .pipe(optional)
     .annotate({

@@ -1985,6 +1985,7 @@ const EndpointExperimentalConfigUpdate = (raw: RawClient["server.config"]) => (i
         rules: input?.["rules"],
         memory: input?.["memory"],
         instruction: input?.["instruction"],
+        experimental: input?.["experimental"],
       },
     }).pipe(Effect.mapError(mapClientError)),
   )

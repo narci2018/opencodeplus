@@ -2861,6 +2861,7 @@ export type ExperimentalConfigUpdateInput = {
   readonly rules?: Config.RulesPatch | undefined
   readonly memory?: Config.MemoryPatch | undefined
   readonly instruction?: Config.InstructionPatch | undefined
+  readonly experimental?: Config.ExperimentalPatch | undefined
 }
 export type ExperimentalConfigUpdateOutput = void
 export type ExperimentalConfigUpdateOperation<E = never> = (

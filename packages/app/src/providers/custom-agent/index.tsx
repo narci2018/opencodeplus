@@ -26,7 +26,9 @@ export const CustomAgents: Component = () => {
   const load = async () => {
     try {
       const list = await sdk.api.config.get().catch(() => [])
-      setEntries(readAgentEntries(list))
+      // The SubAgents page owns subagent entries; this section lists only primary/all custom agents
+      // so a subagent is never shown twice.
+      setEntries(readAgentEntries(list).filter((entry) => entry.mode !== "subagent"))
     } finally {
       // no-op: the list re-renders from `entries`.
     }

@@ -99,12 +99,11 @@ export const SettingsAgents = () => {
   const [agents, agentsActions] = createResource(
     () => sdk.connection.status() === "connected",
     async (connected) => {
-      if (!connected) return { builtin: DEFAULT_BUILTIN_AGENTS, subagents: [] }
+      if (!connected) return { builtin: DEFAULT_BUILTIN_AGENTS }
       const res = await sdk.api.agent.list().catch(() => undefined)
-      if (!res?.data) return { builtin: DEFAULT_BUILTIN_AGENTS, subagents: [] }
+      if (!res?.data) return { builtin: DEFAULT_BUILTIN_AGENTS }
       const list = normalizeAgentList(res.data)
       const visible = list.filter((item) => item.native && !item.hidden && item.mode !== "subagent")
-      const visibleSubagents = list.filter((item) => item.native && !item.hidden && item.mode === "subagent")
       return {
         builtin:
           visible.length === 0
@@ -116,13 +115,6 @@ export const SettingsAgents = () => {
                 mode: item.mode,
                 prompt: item.prompt || DEFAULT_PROMPTS[item.name],
               })),
-        subagents: visibleSubagents.map((item) => ({
-          id: item.name,
-          name: item.displayName || item.name,
-          description: item.description ?? "",
-          mode: item.mode,
-          prompt: item.prompt || DEFAULT_PROMPTS[item.name],
-        })),
       }
     },
   )
@@ -141,7 +133,6 @@ export const SettingsAgents = () => {
 
   const isCustomized = (id: string) => customOverrides().has(id)
   const liveBuiltins = createMemo(() => agents()?.builtin ?? DEFAULT_BUILTIN_AGENTS)
-  const liveSubagents = createMemo(() => agents()?.subagents ?? [])
 
   const openPromptEditor = (agent: BuiltinAgentItem) => {
     const currentPrompt =
@@ -219,45 +210,12 @@ export const SettingsAgents = () => {
         </div>
       </div>
 
-      <div class="settings-models-group" data-component="subagents-section">
-        <div class="settings-models-group-header">
-          <span class="settings-models-group-title">
-            {language.t("settings.agents.subagents.title") ?? "SubAgents（子智能体）"}
-          </span>
-        </div>
-        <div class="settings-models-group-items">
-          <For each={liveSubagents()}>
-            {(agent) => (
-              <div class="settings-models-row">
-                <div class="settings-models-row-copy">
-                  <div class="flex items-center gap-2">
-                    <span class="settings-models-row-title font-medium">{agent.name}</span>
-                    <span class="text-10-regular px-1.5 py-0.5 rounded bg-v2-surface-subtle text-v2-text-muted border border-v2-border-subtle">
-                      子智能体
-                    </span>
-                    <span class="text-10-regular px-1.5 py-0.5 rounded bg-v2-surface-subtle text-v2-text-muted border border-v2-border-subtle">
-                      {agent.id}
-                    </span>
-                  </div>
-                  <span class="settings-models-row-description">{agent.description}</span>
-                </div>
-              </div>
-            )}
-          </For>
-          <Show when={liveSubagents().length === 0}>
-            <span class="text-12-regular text-v2-text-text-muted">
-              {language.t("settings.agents.subagents.empty") ?? "暂无子智能体"}
-            </span>
-          </Show>
-        </div>
-      </div>
-
       <CustomAgents />
     </div>
   )
 }
 
-function AgentPromptEditDialog(props: {
+export function AgentPromptEditDialog(props: {
   agent: { id: string; name: string; description: string }
   isCustomized: boolean
   initialPrompt: string

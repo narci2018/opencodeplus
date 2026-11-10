@@ -9,6 +9,7 @@ export type SettingsRootTab =
   | "providers"
   | "models"
   | "agents"
+  | "subagents"
   | "templates"
   | "marketplace"
   | "automation"
@@ -32,6 +33,7 @@ export type SettingsServerTab =
   | "providers"
   | "models"
   | "agents"
+  | "subagents"
   | "templates"
   | "marketplace"
   | "automation"
@@ -73,6 +75,7 @@ const rootTabs: Record<SettingsRootTab, true> = {
   providers: true,
   models: true,
   agents: true,
+  subagents: true,
   templates: true,
   marketplace: true,
   automation: true,

@@ -29,6 +29,7 @@ import { SettingsProjects } from "./workspaces/projects"
 import { SettingsExtensions } from "./providers/extensions"
 import { SettingsAbout } from "./about/about"
 import { SettingsAgents } from "./agents/agents"
+import { SettingsSubAgents } from "./subagents/subagents"
 import { SettingsTemplates } from "./templates/templates"
 import { SettingsMarketplace } from "./marketplace/marketplace"
 import { SettingsAutomation } from "./automation/automation"
@@ -57,6 +58,7 @@ const serverTabs = [
   { value: "providers", icon: pageIcons.providers, label: "settings.providers.title" },
   { value: "models", icon: pageIcons.models, label: "settings.models.title" },
   { value: "agents", icon: pageIcons.agents, label: "settings.agents.title" },
+  { value: "subagents", icon: pageIcons.subagents, label: "settings.subagents.title" },
   { value: "templates", icon: pageIcons.templates, label: "settings.templates.title" },
   { value: "marketplace", icon: pageIcons.marketplace, label: "settings.marketplace.title" },
   { value: "automation", icon: pageIcons.automation, label: "settings.automation.title" },
@@ -72,6 +74,7 @@ const serverPages = {
   providers: { title: "settings.providers.title", description: "settings.providers.description" },
   models: { title: "settings.models.title", description: "settings.models.description" },
   agents: { title: "settings.agents.title", description: "settings.agents.description" },
+  subagents: { title: "settings.subagents.title", description: "settings.subagents.description" },
   templates: { title: "settings.templates.title", description: "settings.templates.description" },
   marketplace: { title: "settings.marketplace.title", description: "settings.marketplace.description" },
   automation: { title: "settings.automation.title", description: "settings.automation.description" },
@@ -400,6 +403,9 @@ function RootSettings() {
             </Tabs.Content>
             <Tabs.Content value="agents" class="settings-panel">
               <SettingsAgents />
+            </Tabs.Content>
+            <Tabs.Content value="subagents" class="settings-panel">
+              <SettingsSubAgents />
             </Tabs.Content>
             <Tabs.Content value="templates" class="settings-panel">
               <SettingsTemplates headerAction={<SettingsServerSwitcher />} />

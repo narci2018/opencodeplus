@@ -410,6 +410,87 @@ describe("SubagentTool", () => {
     ),
   )
 
+  it.live("respects experimental subagent_access deny and allow overrides", () =>
+    tmpdirScoped().pipe(
+      Effect.flatMap((dir) =>
+        Effect.gen(function* () {
+          yield* Effect.promise(() =>
+            Bun.write(
+              path.join(dir.path, "opencode.json"),
+              JSON.stringify({ experimental: { subagent_access: { reviewer: "deny" } } }),
+            ),
+          )
+          const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
+          const sessions = yield* Session.Service
+          const parent = yield* sessions.create({ location, model: parentModel })
+          yield* withSubagent(parent.location)
+          const locations = yield* LocationServiceMap.Service
+          const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+          const call = (id: string) =>
+            executeTool(registry, {
+              sessionID: parent.id,
+              ...toolIdentity,
+              call: {
+                type: "tool-call" as const,
+                id,
+                name: SubagentTool.name,
+                input: { agent: "reviewer", description: "review", prompt: "review this" },
+              },
+            })
+
+          // deny blocks every caller regardless of the caller's own permission rules.
+          expect(yield* call("call-subagent-denied")).toEqual({
+            status: "error",
+            error: {
+              type: "tool.execution",
+              message: expect.stringContaining("Subagent denied"),
+            },
+          })
+          expect((yield* sessions.list({ parentID: parent.id })).data).toHaveLength(0)
+        }),
+      ),
+    ),
+  )
+
+  it.live("experimental subagent_access allow bypasses the caller's own deny rules", () =>
+    tmpdirScoped().pipe(
+      Effect.flatMap((dir) =>
+        Effect.gen(function* () {
+          yield* Effect.promise(() =>
+            Bun.write(
+              path.join(dir.path, "opencode.json"),
+              JSON.stringify({ experimental: { subagent_access: { reviewer: "allow" } } }),
+            ),
+          )
+          const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
+          const sessions = yield* Session.Service
+          const parent = yield* sessions.create({ location, model: parentModel })
+          yield* withSubagent(parent.location)
+          const locations = yield* LocationServiceMap.Service
+          const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+
+          const settled = yield* executeTool(registry, {
+            sessionID: parent.id,
+            ...toolIdentity,
+            call: {
+              type: "tool-call",
+              id: "call-subagent-allowed",
+              name: SubagentTool.name,
+              input: { agent: "reviewer", description: "review", prompt: "review this" },
+            },
+          })
+
+          expect(settled).toMatchObject({
+            status: "completed",
+            metadata: { status: "completed" },
+            content: [{ type: "text", text: expect.stringContaining(childText) }],
+          })
+          expect((yield* sessions.get(outputSessionID(settled.metadata))).parentID).toBe(parent.id)
+        }),
+      ),
+    ),
+  )
+
   it.live("runs a foreground child session and returns the final assistant text", () =>
     tmpdirScoped().pipe(
       Effect.flatMap((dir) =>

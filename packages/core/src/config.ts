@@ -587,6 +587,26 @@ export const layer = (options?: Options) =>
                   modify(text, ["instructions"], next.length > 0 ? next : undefined, { formattingOptions }),
                 )
               }
+              if (patch.experimental !== undefined) {
+                // Merge over the file's own `experimental` object so a toggle patch never drops hand-edited siblings.
+                const parsed = parse(text) as { experimental?: Record<string, unknown> } | undefined
+                const merged = { ...(parsed?.experimental ?? {}) }
+                if (patch.experimental.subagent_access !== undefined) {
+                  const current = (merged.subagent_access ?? {}) as Record<string, unknown>
+                  const next = { ...current }
+                  for (const [id, access] of Object.entries(patch.experimental.subagent_access)) {
+                    if (access === "default") delete next[id]
+                    else next[id] = access
+                  }
+                  merged.subagent_access = next
+                }
+                text = applyEdits(
+                  text,
+                  modify(text, ["experimental"], Object.keys(merged).length > 0 ? merged : undefined, {
+                    formattingOptions,
+                  }),
+                )
+              }
               return text
             },
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),

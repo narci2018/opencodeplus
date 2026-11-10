@@ -141,14 +141,21 @@ export const Plugin = {
               if (agent === undefined) return yield* new ToolFailure({ message: `Unknown agent: ${input.agent}` })
               if (agent.mode === "primary")
                 return yield* new ToolFailure({ message: `Agent ${input.agent} cannot run as a subagent` })
-              yield* permission
-                .assert({
-                  action: name,
-                  resources: [agent.id],
-                  save: [agent.id],
-                  ...Permission.invocation(context),
-                })
-                .pipe(Effect.mapError((error) => new ToolFailure({ message: `Subagent denied: ${agent.id}`, error })))
+              // A per-subagent availability override settles the call before the caller's own rules:
+              // `deny` blocks every caller, `allow` lets any caller use it without asking, and
+              // `default`/absent defers to the caller's configured subagent permissions.
+              const access = Config.latest(yield* config.entries(), "experimental")?.subagent_access?.[agent.id]
+              if (access === "deny")
+                return yield* new ToolFailure({ message: `Subagent denied: ${agent.id} is disabled` })
+              if (access !== "allow")
+                yield* permission
+                  .assert({
+                    action: name,
+                    resources: [agent.id],
+                    save: [agent.id],
+                    ...Permission.invocation(context),
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: `Subagent denied: ${agent.id}`, error })))
 
               const existing =
                 input.sessionID === undefined
@@ -285,13 +292,17 @@ export const Plugin = {
         if (!tool) return
         const selected = yield* agents.resolve(event.agent)
         if (!selected) return
+        const access = Config.latest(yield* config.entries(), "experimental")?.subagent_access ?? {}
         const available = (yield* agents.list())
-          .filter(
-            (agent) =>
-              agent.mode !== "primary" &&
-              !agent.hidden &&
-              Permission.evaluate(name, agent.id, selected.permissions).effect !== "deny",
-          )
+          .filter((agent) => {
+            if (agent.mode === "primary" || agent.hidden) return false
+            const state = access[agent.id]
+            // `allow` surfaces the subagent regardless of the caller's own rules; `deny` hides it;
+            // `default`/absent keep the caller's configured subagent permissions.
+            if (state === "allow") return true
+            if (state === "deny") return false
+            return Permission.evaluate(name, agent.id, selected.permissions).effect !== "deny"
+          })
           .toSorted((a, b) => a.id.localeCompare(b.id))
         if (available.length === 0) return
         tool.description = [
