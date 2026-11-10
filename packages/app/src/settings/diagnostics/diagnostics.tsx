@@ -19,7 +19,25 @@ export type CustomHeader = {
   description?: string
 }
 
+export type Fingerprint = {
+  userAgent: string
+  clientName: string
+  version: string
+  channel: string
+  ip: string
+  screenResolution: string
+  timezone: string
+  language: string
+  platform: string
+  hardwareConcurrency: number
+  deviceMemory: number
+  colorDepth: number
+  pixelRatio: number
+  id: string
+}
+
 const STORAGE_KEY = "opencode.custom_headers"
+const FINGERPRINT_KEY = "opencode.fingerprint"
 
 function loadStoredHeaders(): CustomHeader[] {
   try {
@@ -46,11 +64,43 @@ function saveStoredHeaders(headers: CustomHeader[]) {
   } catch {}
 }
 
+function loadStoredFingerprint(): Fingerprint | null {
+  try {
+    const raw = localStorage.getItem(FINGERPRINT_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === "object" && typeof parsed.ip === "string") return parsed as Fingerprint
+    }
+  } catch {}
+  return null
+}
+
+function saveStoredFingerprint(fp: Fingerprint | null) {
+  try {
+    if (fp) localStorage.setItem(FINGERPRINT_KEY, JSON.stringify(fp))
+    else localStorage.removeItem(FINGERPRINT_KEY)
+  } catch {}
+}
+
 const HEADER_PRESETS = [
   { key: "X-Debug-Trace", value: "1", desc: "网关请求调试追踪" },
   { key: "X-Gateway-Route", value: "direct", desc: "内部路由指定" },
   { key: "X-Client-Tag", value: "opencode-plus", desc: "自定义客户端标签" },
   { key: "X-Custom-Env", value: "production", desc: "指定网关调用环境" },
+]
+
+// 国家/地区一致性配置：时区、语言、IP 前缀绑定同一地区
+const COUNTRY_REGIONS = [
+  { name: "美国", timezone: "America/New_York", language: "en-US", ipPrefix: "104" },
+  { name: "中国", timezone: "Asia/Shanghai", language: "zh-CN", ipPrefix: "183" },
+  { name: "日本", timezone: "Asia/Tokyo", language: "ja-JP", ipPrefix: "126" },
+  { name: "德国", timezone: "Europe/Berlin", language: "de-DE", ipPrefix: "88" },
+  { name: "英国", timezone: "Europe/London", language: "en-GB", ipPrefix: "81" },
+  { name: "法国", timezone: "Europe/Paris", language: "fr-FR", ipPrefix: "90" },
+  { name: "韩国", timezone: "Asia/Seoul", language: "ko-KR", ipPrefix: "211" },
+  { name: "俄罗斯", timezone: "Europe/Moscow", language: "ru-RU", ipPrefix: "77" },
+  { name: "巴西", timezone: "America/Sao_Paulo", language: "pt-BR", ipPrefix: "191" },
+  { name: "澳大利亚", timezone: "Australia/Sydney", language: "en-AU", ipPrefix: "139" },
 ]
 
 export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (props) => {
@@ -67,23 +117,8 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
   const [newValue, setNewValue] = createSignal("")
   const [newDesc, setNewDesc] = createSignal("")
 
-  // Client fingerprint state
-  const [fingerprint, setFingerprint] = createSignal<{
-    userAgent: string
-    clientName: string
-    version: string
-    channel: string
-    ip: string
-    screenResolution: string
-    timezone: string
-    language: string
-    platform: string
-    hardwareConcurrency: number
-    deviceMemory: number
-    colorDepth: number
-    pixelRatio: number
-    id: string
-  } | null>(null)
+  // Client fingerprint state (loaded from localStorage so it survives tab switches)
+  const [fingerprint, setFingerprint] = createSignal<Fingerprint | null>(loadStoredFingerprint())
 
   // Original values (stored as BAK when fingerprint is active)
   const originalVersion = () => platform.version ?? "0.0.1-dev-01"
@@ -97,6 +132,12 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
   const clientName = () => fingerprint()?.clientName ?? originalClientName()
   const userAgent = createMemo(() => fingerprint()?.userAgent ?? originalUserAgent())
   const activeIp = () => fingerprint()?.ip ?? egress()?.ip
+
+  // Manual inputs for non-randomized fields
+  const [manualUA, setManualUA] = createSignal("")
+  const [manualClientName, setManualClientName] = createSignal("")
+  const [manualVersion, setManualVersion] = createSignal("")
+  const [manualChannel, setManualChannel] = createSignal("")
 
   const checkEgress = async () => {
     if (!platform.checkEgress) {
@@ -186,66 +227,41 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
   const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
   const randPick = <T,>(arr: T[]): T => arr[randInt(0, arr.length - 1)]
 
-  const randomIpByCountry = (): string => {
-    const countryRanges: [number, number][] = [
-      [1, 50],       // US
-      [51, 100],     // CN
-      [101, 130],    // JP
-      [131, 160],    // DE
-      [161, 180],    // GB
-      [181, 200],    // FR
-      [201, 220],    // KR
-      [221, 235],    // RU
-      [236, 245],    // BR
-      [246, 255],    // AU
-    ]
-    const [min] = randPick(countryRanges)
-    return `${min}.${randInt(0, 255)}.${randInt(0, 255)}.${randInt(1, 254)}`
+  const persistFingerprint = (fp: Fingerprint | null) => {
+    saveStoredFingerprint(fp)
+    // Persist fingerprint to core via API
+    void sdk.api.experimental.network.fingerprint({ fingerprint: fp }).catch(() => {
+      // Silently fail - fingerprint still works locally for display
+    })
   }
 
   const generateFingerprint = () => {
-    const browsers = [
-      { name: "Chrome", ver: () => `${randInt(120, 131)}.${randInt(0, 9)}.${randInt(1000, 9999)}.${randInt(100, 999)}` },
-      { name: "Firefox", ver: () => `${randInt(125, 133)}.${randInt(0, 9)}` },
-      { name: "Edge", ver: () => `${randInt(120, 131)}.${randInt(0, 9)}.${randInt(1000, 9999)}.${randInt(100, 999)}` },
-      { name: "Safari", ver: () => `${randInt(17, 18)}.${randInt(0, 6)}.${randInt(0, 9)}` },
-    ]
-    const osList = [
-      { name: "Windows NT 10.0", arch: "Win64; x64" },
-      { name: "Windows NT 10.0", arch: "WOW64" },
-      { name: "Macintosh; Intel Mac OS X 10_15_7", arch: "" },
-      { name: "X11; Linux x86_64", arch: "" },
-      { name: "X11; Ubuntu; Linux x86_64", arch: "" },
-    ]
-    const os = randPick(osList)
-    const browser = randPick(browsers)
-    const bv = browser.ver()
-    const archPart = os.arch ? ` (${os.arch})` : ""
-    const ua = `Mozilla/5.0 (${os.name}${archPart}) AppleWebKit/537.36 (KHTML, like Gecko) ${browser.name}/${bv} Safari/537.36`
+    // Country-consistent: timezone / language / IP from the same region
+    const region = randPick(COUNTRY_REGIONS)
+    const ip = `${region.ipPrefix}.${randInt(0, 255)}.${randInt(0, 255)}.${randInt(1, 254)}`
 
-    const channels = ["dev", "beta", "stable", "nightly", "canary", "rc"]
-    const clientNames = ["desktop", "web", "mobile", "cli", "tui", "extension"]
+    // Non-randomized fields come from manual inputs (fallback to current active values)
+    const ua = manualUA().trim() || userAgent()
+    const client = manualClientName().trim() || clientName()
+    const ver = manualVersion().trim() || version()
+    const chan = manualChannel().trim() || channel()
+
     const resolutions = ["1920x1080", "2560x1440", "3840x2160", "1366x768", "1440x900", "1536x864", "1280x720", "2560x1600"]
-    const timezones = [
-      "Asia/Shanghai", "America/New_York", "Europe/London", "Asia/Tokyo",
-      "America/Los_Angeles", "Europe/Berlin", "Australia/Sydney", "Asia/Singapore",
-    ]
-    const langs = ["zh-CN", "en-US", "ja-JP", "ko-KR", "de-DE", "fr-FR", "zh-TW", "en-GB"]
     const platforms = ["Win32", "MacIntel", "Linux x86_64", "WebGL API"]
     const memories = [4, 8, 16, 32]
     const concurrencies = [2, 4, 6, 8, 12, 16]
     const depths = [24, 30, 48]
     const ratios = [1, 1.25, 1.5, 2, 2.5, 3]
 
-    const fp = {
+    const fp: Fingerprint = {
       userAgent: ua,
-      clientName: randPick(clientNames),
-      version: `${randInt(0, 9)}.${randInt(0, 9)}.${randInt(0, 99)}-dev-${randInt(1, 99)}`,
-      channel: randPick(channels),
-      ip: randomIpByCountry(),
+      clientName: client,
+      version: ver,
+      channel: chan,
+      ip,
       screenResolution: randPick(resolutions),
-      timezone: randPick(timezones),
-      language: randPick(langs),
+      timezone: region.timezone,
+      language: region.language,
       platform: randPick(platforms),
       hardwareConcurrency: randPick(concurrencies),
       deviceMemory: randPick(memories),
@@ -254,24 +270,22 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
       id: uuid(),
     }
     setFingerprint(fp)
-    // Persist fingerprint to core via API
-    void sdk.api.experimental.network.fingerprint({ fingerprint: fp }).catch(() => {
-      // Silently fail - fingerprint still works locally for display
-    })
+    persistFingerprint(fp)
     showToast({
       variant: "success",
       icon: "reset",
-      title: "已生成随机客户端指纹",
-      description: `UA: ${ua.slice(0, 60)}… · IP: ${fp.ip}`,
+      title: "已生成指纹",
+      description: `${region.name} · ${region.language} · IP: ${fp.ip}`,
     })
   }
 
   const restoreOriginalValues = () => {
     setFingerprint(null)
-    // Clear fingerprint from core via API
-    void sdk.api.experimental.network.fingerprint({ fingerprint: null }).catch(() => {
-      // Silently fail
-    })
+    persistFingerprint(null)
+    setManualUA("")
+    setManualClientName("")
+    setManualVersion("")
+    setManualChannel("")
     showToast({
       variant: "default",
       icon: "reset",
@@ -280,8 +294,12 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
     })
   }
 
-  // Initial egress check
+  // Load persisted fingerprint to core on mount (so it survives app restart too)
   onMount(() => {
+    const stored = loadStoredFingerprint()
+    if (stored) {
+      void sdk.api.experimental.network.fingerprint({ fingerprint: stored }).catch(() => {})
+    }
     if (platform.checkEgress) void checkEgress()
   })
 
@@ -310,7 +328,7 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="outline" size="small" onClick={generateFingerprint}>
               <Icon name="reset" size="small" />
-              <span>随机生成客户端指纹</span>
+              <span>生成指纹</span>
             </Button>
             <Show when={fingerprint()}>
               <Button variant="outline" size="small" onClick={restoreOriginalValues}>
@@ -397,7 +415,49 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
         </div>
       </div>
 
-      {/* 2. 默认请求标头明细 */}
+      {/* 2. 手动设置 (User-Agent / 客户端类型与版本不随机，可手动设置) */}
+      <div class="diagnostics-section">
+        <div class="diagnostics-section-header">
+          <div>
+            <div class="diagnostics-section-title">
+              <Icon name="sliders" size="small" />
+              <span>手动设置客户端标识（不随机）</span>
+            </div>
+            <div class="diagnostics-section-desc">完整 User-Agent 与客户端类型、版本、渠道由你手动填写；留空时生成指纹沿用当前值</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "10px" }}>
+          <div style={{ "grid-column": "1 / -1" }}>
+            <TextField
+              label="完整 User-Agent"
+              placeholder={originalUserAgent()}
+              value={manualUA()}
+              onChange={setManualUA}
+            />
+          </div>
+          <TextField
+            label="客户端类型 (clientName)"
+            placeholder={originalClientName()}
+            value={manualClientName()}
+            onChange={setManualClientName}
+          />
+          <TextField
+            label="客户端版本 (version)"
+            placeholder={originalVersion()}
+            value={manualVersion()}
+            onChange={setManualVersion}
+          />
+          <TextField
+            label="渠道 (channel)"
+            placeholder={originalChannel()}
+            value={manualChannel()}
+            onChange={setManualChannel}
+          />
+        </div>
+      </div>
+
+      {/* 3. 默认请求标头明细 */}
       <div class="diagnostics-section">
         <div class="diagnostics-section-header">
           <div>
@@ -473,7 +533,7 @@ export const SettingsDiagnostics: Component<{ headerAction?: JSX.Element }> = (p
         </table>
       </div>
 
-      {/* 3. 自定义请求头管理 (Custom Request Headers) */}
+      {/* 4. 自定义请求头管理 (Custom Request Headers) */}
       <div class="diagnostics-section">
         <div class="diagnostics-section-header">
           <div>
