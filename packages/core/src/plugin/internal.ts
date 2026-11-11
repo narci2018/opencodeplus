@@ -120,6 +120,7 @@ import { AntigravityPlugin } from "./antigravity/antigravity.js"
 import { ClaudePlugin } from "./claude/claude.js"
 import { CodexPlugin } from "./codex/codex.js"
 import { DshPlugin } from "./dsh/dsh.js"
+import { ZcodePlugin } from "./zcode/zcode.js"
 import { MemoryPlugin } from "./memory.js"
 
 const services = [
@@ -252,6 +253,7 @@ const pre = [
   ClaudePlugin.Plugin,
   CodexPlugin.Plugin,
   DshPlugin.Plugin,
+  ZcodePlugin.Plugin,
   MemoryPlugin.Plugin,
 
 

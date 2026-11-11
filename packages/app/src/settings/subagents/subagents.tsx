@@ -23,9 +23,9 @@ type SubagentItem = {
   native?: boolean
 }
 
-type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "dsh" | "other"
+type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "dsh" | "zcode" | "other"
 
-const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "codex", "dsh", "other"]
+const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "codex", "dsh", "zcode", "other"]
 
 /** Classifies a subagent by origin so the page can group and tab them. */
 function groupOf(id: string): SubagentGroupKey {
@@ -40,6 +40,8 @@ function groupOf(id: string): SubagentGroupKey {
   if (id.startsWith("codex-") || id === "codex") return "codex"
 
   if (id.startsWith("dsh-") || id === "dsh") return "dsh"
+
+  if (id.startsWith("zcode-") || id === "zcode") return "zcode"
 
   return "other"
 }
@@ -112,6 +114,7 @@ export const SettingsSubAgents = () => {
       claude: [],
       codex: [],
       dsh: [],
+      zcode: [],
       other: [],
     }
 
@@ -135,6 +138,7 @@ export const SettingsSubAgents = () => {
       claude: [],
       codex: [],
       dsh: [],
+      zcode: [],
       other: [],
     }
 
@@ -207,6 +211,8 @@ export const SettingsSubAgents = () => {
 
     if (key === "dsh") return language.t("settings.subagents.companion.dsh")
 
+    if (key === "zcode") return language.t("settings.subagents.companion.zcode")
+
     return language.t("settings.subagents.companion.other")
   }
 
@@ -222,6 +228,8 @@ export const SettingsSubAgents = () => {
     if (key === "codex") return "sparkles"
 
     if (key === "dsh") return "server"
+
+    if (key === "zcode") return "console"
 
     return "terminal"
   }
@@ -442,22 +450,37 @@ export const SettingsSubAgents = () => {
                                   when={key === "dsh"}
                                   fallback={
                                     <Show
-                                      when={key === "other"}
+                                      when={key === "zcode"}
                                       fallback={
-                                        <div class="subagent-guide-card">
-                                          <span class="text-13-regular text-v2-text-text-muted">
-                                            {language.t("settings.subagents.group.empty")}
-                                          </span>
-                                        </div>
+                                        <Show
+                                          when={key === "other"}
+                                          fallback={
+                                            <div class="subagent-guide-card">
+                                              <span class="text-13-regular text-v2-text-text-muted">
+                                                {language.t("settings.subagents.group.empty")}
+                                              </span>
+                                            </div>
+                                          }
+                                        >
+                                          <div class="subagent-guide-card">
+                                            <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                                            <span class="text-13-medium text-v2-text-base">
+                                              {language.t("settings.subagents.empty.other.title")}
+                                            </span>
+                                            <span class="text-12-regular text-v2-text-text-muted">
+                                              {language.t("settings.subagents.empty.other.description")}
+                                            </span>
+                                          </div>
+                                        </Show>
                                       }
                                     >
                                       <div class="subagent-guide-card">
-                                        <Icon name="terminal" size="large" class="text-v2-icon-icon-muted" />
+                                        <Icon name="console" size="large" class="text-v2-icon-icon-muted" />
                                         <span class="text-13-medium text-v2-text-base">
-                                          {language.t("settings.subagents.empty.other.title")}
+                                          {language.t("settings.subagents.empty.zcode.title")}
                                         </span>
                                         <span class="text-12-regular text-v2-text-text-muted">
-                                          {language.t("settings.subagents.empty.other.description")}
+                                          {language.t("settings.subagents.empty.zcode.description")}
                                         </span>
                                       </div>
                                     </Show>

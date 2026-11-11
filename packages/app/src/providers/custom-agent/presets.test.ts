@@ -55,6 +55,8 @@ describe("readAgentEntries", () => {
             "codex-coder": { system: "Customized system prompt for coder" },
             dsh: { system: "Customized system prompt for dsh" },
             "dsh-coder": { system: "Customized system prompt for dsh-coder" },
+            zcode: { system: "Customized system prompt for zcode" },
+            "zcode-coder": { system: "Customized system prompt for zcode-coder" },
           },
         },
       },

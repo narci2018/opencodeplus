@@ -992,6 +992,13 @@ describe("SubagentTool", () => {
       expect(SubagentTool.suiteOf("dsh-planner")).toBe("dsh")
       expect(SubagentTool.suiteOf("dsh-verifier")).toBe("dsh")
 
+      expect(SubagentTool.suiteOf("zcode")).toBe("zcode")
+      expect(SubagentTool.suiteOf("zcode-coder")).toBe("zcode")
+      expect(SubagentTool.suiteOf("zcode-explore")).toBe("zcode")
+      expect(SubagentTool.suiteOf("zcode-planner")).toBe("zcode")
+      expect(SubagentTool.suiteOf("zcode-cua")).toBe("zcode")
+      expect(SubagentTool.suiteOf("zcode-site")).toBe("zcode")
+
       expect(SubagentTool.suiteOf("custom-agent")).toBe("other")
       expect(SubagentTool.suiteOf("analyzer")).toBe("other")
     })
@@ -1048,6 +1055,20 @@ describe("SubagentTool", () => {
       expect(SubagentTool.isCompanion("codex", "dsh-verifier")).toBe(false)
       expect(SubagentTool.isCompanion("dsh", "agy-planning-architect")).toBe(false)
       expect(SubagentTool.isCompanion("dsh", "codex-coder")).toBe(false)
+
+      // ZCode suite
+      expect(SubagentTool.isCompanion("zcode", "zcode-coder")).toBe(true)
+      expect(SubagentTool.isCompanion("zcode", "zcode-explore")).toBe(true)
+      expect(SubagentTool.isCompanion("zcode", "zcode-planner")).toBe(true)
+      expect(SubagentTool.isCompanion("zcode", "zcode-cua")).toBe(true)
+      expect(SubagentTool.isCompanion("zcode", "zcode-site")).toBe(true)
+      expect(SubagentTool.isCompanion("zcode-coder", "zcode-explore")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "zcode-coder")).toBe(false)
+      expect(SubagentTool.isCompanion("agy", "zcode-explore")).toBe(false)
+      expect(SubagentTool.isCompanion("claude", "zcode-planner")).toBe(false)
+      expect(SubagentTool.isCompanion("codex", "zcode-cua")).toBe(false)
+      expect(SubagentTool.isCompanion("dsh", "zcode-site")).toBe(false)
+      expect(SubagentTool.isCompanion("zcode", "dsh-coder")).toBe(false)
 
       // Undefined caller
       expect(SubagentTool.isCompanion(undefined, "agy-planning-architect")).toBe(false)

@@ -61,7 +61,7 @@ export function agentID(name: string): string {
   return slug || "custom-agent"
 }
 
-export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao", "agy", "claude", "codex", "dsh"])
+export const BUILTIN_AGENT_IDS = new Set(["build", "plan", "trae", "trae-bao", "agy", "claude", "codex", "dsh", "zcode"])
 
 export function isBuiltinAgent(id: string): boolean {
   const normalized = id.toLowerCase().trim()
@@ -70,7 +70,8 @@ export function isBuiltinAgent(id: string): boolean {
     normalized.startsWith("agy-") ||
     normalized.startsWith("claude-") ||
     normalized.startsWith("codex-") ||
-    normalized.startsWith("dsh-")
+    normalized.startsWith("dsh-") ||
+    normalized.startsWith("zcode-")
   )
 }
 
