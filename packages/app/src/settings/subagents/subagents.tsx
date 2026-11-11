@@ -27,6 +27,11 @@ type SubagentGroupKey = "builtin" | "antigravity" | "trae" | "claude" | "codex" 
 
 const GROUP_ORDER: SubagentGroupKey[] = ["builtin", "antigravity", "trae", "claude", "codex", "dsh", "zcode", "other"]
 
+function isGroupKey(val: string): val is SubagentGroupKey {
+  // SAFETY: GROUP_ORDER is the exhaustive runtime array of SubagentGroupKey entries.
+  return (GROUP_ORDER as readonly string[]).includes(val)
+}
+
 /** Classifies a subagent by origin so the page can group and tab them. */
 function groupOf(id: string): SubagentGroupKey {
   if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
@@ -287,15 +292,7 @@ export const SettingsSubAgents = () => {
         variant="pill"
         value={activeTab()}
         onChange={(val) => {
-          if (
-            val === "builtin" ||
-            val === "antigravity" ||
-            val === "trae" ||
-            val === "claude" ||
-            val === "codex" ||
-            val === "dsh" ||
-            val === "other"
-          ) {
+          if (isGroupKey(val)) {
             setActiveTab(val)
           }
         }}

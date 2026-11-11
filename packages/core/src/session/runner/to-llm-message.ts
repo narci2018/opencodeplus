@@ -223,9 +223,16 @@ const modelSwitched = (message: SessionMessage.ModelSelected, model: Model.Ref):
 
 function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMetadataKey: string): Message[] {
   switch (message.type) {
-    case "agent-switched":
     case "idle":
       return []
+    case "agent-switched":
+      return [
+        Message.make({
+          id: message.id,
+          role: "user",
+          content: `[System Notice: The active agent was switched from "${message.previous ?? "previous"}" to "${message.agent}". From this turn forward, you represent the "${message.agent}" agent.]`,
+        }),
+      ]
     case "model-switched":
       return modelSwitched(message, model)
     case "location-switched":

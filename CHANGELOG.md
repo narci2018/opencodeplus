@@ -9,6 +9,10 @@ Release notes for OpenCode V2, newest first.
 #### Bug fixes
 
 - Resolved `computer-use` MCP server showing "Failed" with `NotFound: ChildProcess.spawn (B:/~BUN/root/open-computer-use-*.exe mcp)` on Windows by extracting embedded Bun virtual binaries to physical disk paths (`%TEMP%/opencode-computer-use/bin/.../open-computer-use.exe`) with executable permissions and fallback resolution.
+- Fixed agent persona persistence bleeding when switching primary agents in ongoing sessions:
+  - Preserved session continuity while eliminating identity confusion: instead of silently dropping `agent-switched` events from context, emitted an explicit transition notice (`[System Notice: The active agent was switched from "${previous}" to "${agent}". From this turn forward, you represent the "${agent}" agent.]`) so the LLM clearly recognizes the role boundary.
+  - Injected an authoritative `# Active Agent Identity / 当前激活主智能体` declaration into `model-request.ts` transcript generation instructing the model to declare its current agent identity and ignore outdated declarations from previous assistant turns in history.
+  - Added bilingual identity headers to ZCode, DSH, and Codex conductor system prompts to eliminate persona persistence across switches.
 
 #### Improvements
 
@@ -47,6 +51,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
+- Fixed SubAgents settings tab list overflowing and clipping: enabled responsive flex wrapping (`flex-wrap: wrap !important`, `height: auto !important`, `overflow: visible !important`, `gap: 8px 6px !important`) and eliminated fixed line constraints, ensuring all 8 subagent suite tabs (内置, 反重力, TRAE, Claude, Codex, DSH, ZCode, 其他) wrap seamlessly and remain fully visible and clickable even in narrow windows.
 - Fixed deformed and collapsed action buttons in the MCP server dialog (`McpServerDialog` and `SourceAddDialog`): added defensive fallback translations for `common.confirm`, assigned consistent minimum widths, and ensured proper flex alignment.
 - Fixed "新建自动化流水线" (New Automation Pipeline) dialog content clipping: added window maximize (`maximizable`) and corner resize (`resizable`) capabilities, expanded default dimensions to 720×660px, made dialog body scrollable, and updated the prompt textarea styling.
 - Fixed "创建" (Create) button permanently disabled in Custom Agent dialog by preventing blank "何时调用" from blocking submission, auto-defaulting descriptions, and supporting Unicode/Chinese names in slug generation.

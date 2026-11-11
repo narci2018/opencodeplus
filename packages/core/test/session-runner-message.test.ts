@@ -155,16 +155,23 @@ describe("toLLMMessages", () => {
       model,
     )
 
-    expect(messages.map((message) => message.role)).toEqual(["user", "system", "user", "user", "user", "user"])
+    expect(messages.map((message) => message.role)).toEqual(["user", "user", "system", "user", "user", "user", "user"])
     expect(messages[0]).toEqual(
+      Message.make({
+        id: id("agent"),
+        role: "user",
+        content: '[System Notice: The active agent was switched from "previous" to "build". From this turn forward, you represent the "build" agent.]',
+      }),
+    )
+    expect(messages[1]).toEqual(
       Message.make({
         id: id("location"),
         role: "user",
         content: "The working directory has been changed to /destination.",
       }),
     )
-    expect(messages[1]).toEqual(Message.system("Updated context\n\nOther context"))
-    expect(messages[2]).toEqual(
+    expect(messages[2]).toEqual(Message.system("Updated context\n\nOther context"))
+    expect(messages[3]).toEqual(
       Message.make({
         id: id("user"),
         role: "user",
@@ -174,7 +181,7 @@ describe("toLLMMessages", () => {
         ],
       }),
     )
-    expect(messages.slice(3).map((message) => message.content)).toEqual([
+    expect(messages.slice(4).map((message) => message.content)).toEqual([
       [{ type: "text", text: "Synthetic context" }],
       [
         {

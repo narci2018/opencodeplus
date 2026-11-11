@@ -149,14 +149,25 @@ export const baseTranscript = (input: {
   readonly messages: ReadonlyArray<SessionMessage.Info>
 }) => {
   const providerMetadataKey = input.model.model.route.providerMetadataKey ?? input.model.model.provider
+  const agentIdentity = [
+    `# Active Agent Identity / 当前激活主智能体`,
+    `You are currently operating as the "${input.agent.name}" agent (ID: "${input.agent.id}").`,
+    input.agent.description ? `Role Description: ${input.agent.description}` : undefined,
+    `CRITICAL IDENTITY RULE / 核心身份准则:`,
+    `- When asked about your identity, what agent you are, or who is currently running (in any language, such as "你是哪个智能体？", "你是谁？", "who are you?"), you MUST explicitly state that you are "${input.agent.name}" (ID: "${input.agent.id}").`,
+    `- Earlier messages in this conversation history may have been processed by different agents prior to an agent switch. Regardless of what earlier assistant turns stated (for example, if previous turns stated they were Claude, Big Pickle, or another agent), that was before the switch. You are now exclusively "${input.agent.name}". Never repeat previous outdated identity declarations.`,
+  ]
+    .filter(Boolean)
+    .join("\n")
+
+  const agentSystem = input.agent.system
+    ? input.agent.system
+    : SessionSystemPrompt.make(input.tools.definitions.map((tool) => tool.name))
+
   return {
     providerMetadataKey,
     system: [
-      SystemPart.make(
-        input.agent.system
-          ? input.agent.system
-          : SessionSystemPrompt.make(input.tools.definitions.map((tool) => tool.name)),
-      ),
+      SystemPart.make(`${agentIdentity}\n\n${agentSystem}`),
       {
         ...SystemPart.make(Instructions.join(input.initial)),
         metadata: { experimental: { instructions: input.initial } },
