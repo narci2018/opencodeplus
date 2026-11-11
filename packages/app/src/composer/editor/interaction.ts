@@ -42,6 +42,7 @@ export type ComposerEditorView = {
   }
   agent?: ComposerSelectControl
   variant?: ComposerSelectControl
+  concurrency?: ComposerSelectControl
   submit: {
     available?: Accessor<boolean>
     stopping: Accessor<boolean>

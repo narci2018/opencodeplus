@@ -432,6 +432,15 @@ export function ComposerEditor(props: ComposerEditorProps) {
                   />
                 )}
               </Show>
+              <Show when={view.concurrency} keyed>
+                {(control) => (
+                  <ComposerEditorConfiguredSelect
+                    fitMenuToOptions
+                    title={i18n.t("ui.promptInput.concurrencyMode")}
+                    control={control}
+                  />
+                )}
+              </Show>
               <Show when={props.modelControlsVisible ?? true}>
                 {props.modelControl}
                 <Show when={view.variant} keyed>

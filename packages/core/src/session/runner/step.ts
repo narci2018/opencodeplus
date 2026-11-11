@@ -26,6 +26,7 @@ import { SessionUsage } from "../usage.js"
 import { SessionRunnerModel } from "./model.js"
 import { createLLMEventPublisher } from "./publish-llm-event.js"
 import { SessionRunnerRetry } from "./retry.js"
+import { ToolConcurrency } from "./tool-concurrency.js"
 
 export type Outcome = Data.TaggedEnum<{
   Completed: { readonly needsContinuation: boolean }
@@ -55,6 +56,11 @@ interface Input {
   readonly recoverContinuation: boolean
   /** The runner owns compaction policy; the attempt invokes it only before durable output. */
   readonly recoverOverflow: Effect.Effect<boolean>
+  /**
+   * ZCode-style bounded tool concurrency. When set, at most `maxConcurrency` tool calls run
+   * concurrently in a step; when undefined, tools fork unbounded as before.
+   */
+  readonly toolConcurrency?: ToolConcurrency.Policy
 }
 
 const TOOLS_INTERRUPTED = { type: "aborted", message: "Tool execution interrupted" } as const
@@ -92,6 +98,9 @@ export const make = Effect.gen(function* () {
       readonly fiber: Fiber.Fiber<void, Permission.DeclinedError | QuestionTool.CancelledError>
     }> = []
     const interruptTools = Effect.suspend(() => Fiber.interruptAll(toolRuns.map((run) => run.fiber)))
+    // ZCode-style bounded concurrency: cap in-flight tool calls per step (default path
+    // is unbounded). A no-op semaphore keeps the existing behavior when no policy is set.
+    const toolSemaphore = ToolConcurrency.semaphore(input.toolConcurrency)
     const executeTool = (call: ToolCall) => {
       if (input.prepared.request.toolChoice?.type === "none")
         return new Tool.Error({ message: "Tools are disabled after the maximum agent steps" })
@@ -120,14 +129,17 @@ export const make = Effect.gen(function* () {
           toolRuns.push({
             call: event,
             fiber: yield* Effect.uninterruptibleMask((restore) =>
-              restore(executeTool(event)).pipe(
-                Effect.flatMap(toolOutput.truncate),
-                Effect.flatMap((outcome) => publisher.toolExecution(event.id, event.name, outcome)),
-                Effect.catchTag("Tool.Error", (error) =>
-                  publisher.failTool(event.id, toSessionError(error), error.metadata).pipe(Effect.asVoid),
+              ToolConcurrency.withLimit(
+                restore(executeTool(event)).pipe(
+                  Effect.flatMap(toolOutput.truncate),
+                  Effect.flatMap((outcome) => publisher.toolExecution(event.id, event.name, outcome)),
+                  Effect.catchTag("Tool.Error", (error) =>
+                    publisher.failTool(event.id, toSessionError(error), error.metadata).pipe(Effect.asVoid),
+                  ),
                 ),
-              ),
-            ).pipe(Effect.forkScoped),
+                toolSemaphore,
+              ).pipe(Effect.forkScoped),
+            ),
           })
         }),
       ),

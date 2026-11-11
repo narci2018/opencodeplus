@@ -43,6 +43,17 @@ export class Info extends Schema.Class<Info>("ConfigExperimental.Info")({
   subagent_depth: NonNegativeInt.pipe(optional).annotate({
     description: "Maximum subagent nesting depth. Defaults to 1.",
   }),
+  tool_concurrency: Schema.Struct({
+    max_concurrency: NonNegativeInt.pipe(optional).annotate({
+      description:
+        "Maximum number of tool calls that run concurrently within one agent step. Enables ZCode-style bounded parallelism; unset or 0 means the default unbounded behavior. Defaults to 10 when enabled.",
+    }),
+  })
+    .pipe(optional)
+    .annotate({
+      description:
+        "ZCode-style bounded tool concurrency. When set, tools in a step run with an upper concurrency bound instead of forking unbounded.",
+    }),
   subagent_access: Schema.Record(
     Schema.String,
     Schema.Literals(["default", "allow", "deny"]),

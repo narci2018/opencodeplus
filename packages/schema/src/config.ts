@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { ephemeral, inventory } from "./event.js"
 import { Permission } from "./permission.js"
 import { AbsolutePath, optional } from "./schema.js"
+import { NonNegativeInt } from "./schema.js"
 import { ConfigAgent } from "./config/agent.js"
 import { ConfigMedia } from "./config/media.js"
 import { ConfigCompaction } from "./config/compaction.js"
@@ -221,6 +222,12 @@ export type InstructionPatch = Schema.Schema.Type<typeof InstructionPatch>
 export const ExperimentalPatch = Schema.Struct({
   /** Merge new subagent availability entries into the `experimental.subagent_access` map. */
   subagent_access: Schema.Record(Schema.String, Schema.Literals(["default", "allow", "deny"])).pipe(optional),
+  /** Sets the ZCode-style bounded tool concurrency policy. `null` clears it, restoring unbounded tools. */
+  tool_concurrency: Schema.NullOr(
+    Schema.Struct({
+      max_concurrency: NonNegativeInt.pipe(optional),
+    }),
+  ).pipe(optional),
 }).annotate({ identifier: "Config.ExperimentalPatch" })
 export type ExperimentalPatch = Schema.Schema.Type<typeof ExperimentalPatch>
 

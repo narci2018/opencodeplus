@@ -25,6 +25,12 @@ export type ComposerControls = {
     /** While loading, the expected model's names from a catalog already loaded for another Location. */
     preview?: { provider?: string; model: string; label?: ComposerModelLabel; variant: string; variants: string[] }
   }
+  concurrency: {
+    /** Whether ZCode-style bounded tool concurrency is currently enabled. */
+    current: Accessor<boolean>
+    /** Applies or clears the bounded concurrency policy. */
+    set: (enabled: boolean) => void
+  }
 }
 
 export type ComposerSelection = {

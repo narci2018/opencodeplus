@@ -579,6 +579,15 @@ function normalizeExperimental(
         )
         if (value !== undefined) result.subagent_access = value
       }
+      if (own(experimental, "tool_concurrency")) {
+        const value = decodeEncoded(
+          ConfigExperimental.Info.fields.tool_concurrency,
+          experimental.tool_concurrency,
+          ["experimental", "tool_concurrency"],
+          diagnostics,
+        )
+        if (value !== undefined) result.tool_concurrency = value
+      }
       if (own(experimental, "location_idle_timeout")) {
         const value = decodeEncoded(
           ConfigExperimental.Info.fields.location_idle_timeout,

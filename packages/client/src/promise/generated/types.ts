@@ -2524,6 +2524,7 @@ export type ConfigEntry =
           schedules?: boolean
           artifacts?: boolean
           subagent_depth?: number
+          tool_concurrency?: { max_concurrency?: number }
           subagent_access?: { [x: string]: "default" | "allow" | "deny" }
           location_idle_timeout?: string | false
           policies?: Array<{
@@ -4925,7 +4926,10 @@ export type ExperimentalConfigUpdateInput = {
   readonly memory?: { readonly enabled?: boolean; readonly distill?: boolean } | undefined
   readonly instruction?: { readonly source: string; readonly remove?: true } | undefined
   readonly experimental?:
-    | { readonly subagent_access?: { readonly [x: string]: "default" | "allow" | "deny" } }
+    | {
+        readonly subagent_access?: { readonly [x: string]: "default" | "allow" | "deny" }
+        readonly tool_concurrency?: { readonly max_concurrency?: number } | null
+      }
     | undefined
 }
 

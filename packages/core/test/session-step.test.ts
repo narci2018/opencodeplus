@@ -21,7 +21,7 @@ import { ToolOutput } from "@opencode/core/tool-output"
 import { Money } from "@opencode/schema/money"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { asc, eq } from "drizzle-orm"
-import { Effect, Exit, Layer } from "effect"
+import { Deferred, Effect, Exit, Fiber, Layer, Ref } from "effect"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(
@@ -225,5 +225,106 @@ it.effect("records the cost the endpoint reports instead of the catalog price", 
       .get()
     expect(message?.data).toMatchObject({ finish: "stop", cost: 0 })
     expect(yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get()).toMatchObject({ cost: 0 })
+  }),
+)
+
+it.live("bounds tool concurrency to maxConcurrency within a step", () =>
+  Effect.gen(function* () {
+    const db = (yield* Database.Service).db
+    const llm = yield* TestLLM.Test
+    const sessionID = Session.ID.create()
+    const assistantMessageID = SessionMessage.ID.create()
+    const steps = yield* SessionStep.make.pipe(
+      Effect.provide(
+        Layer.mock(Snapshot.Service)({
+          capture: () => Effect.succeed(undefined),
+          files: () => Effect.succeed([]),
+        }),
+      ),
+    )
+    yield* db
+      .insert(ProjectTable)
+      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+      .run()
+    yield* db
+      .insert(SessionTable)
+      .values({ id: sessionID, project_id: Project.ID.global, slug: "step", directory: "/project", version: "test" })
+      .run()
+    const model = SessionRunnerModel.resolved(
+      LanguageModel.make({ id: "test-model", provider: "test", route: OpenAIChat.route }),
+      {
+        capabilities: { tools: true, input: ["text"], output: ["text"] },
+        limit: { context: 100_000, output: 1_000 },
+        cost: [
+          {
+            input: Money.USDPerMillionTokens.make(1),
+            output: Money.USDPerMillionTokens.make(2),
+            cache: { read: Money.USDPerMillionTokens.zero, write: Money.USDPerMillionTokens.zero },
+          },
+        ],
+      },
+    )
+    // Two tool calls arrive in one stream. Each waits on its own gate before completing, so a
+    // maxConcurrency of 1 forces the second tool to start only after the first gate releases.
+    const firstGate = yield* Deferred.make<boolean>()
+    const secondGate = yield* Deferred.make<boolean>()
+    const active = yield* Ref.make(0)
+    const maxActive = yield* Ref.make(0)
+    const track = (gate: Deferred.Deferred<boolean>) =>
+      Effect.gen(function* () {
+        const current = yield* Ref.updateAndGet(active, (n) => n + 1)
+        yield* Ref.update(maxActive, (n) => Math.max(n, current))
+        yield* Deferred.await(gate)
+        yield* Ref.update(active, (n) => n - 1)
+        return { content: [{ type: "text" as const, text: "Completed tool" }] }
+      })
+    yield* llm.push(
+      TestLLM.complete(
+        { reason: { normalized: "stop" } },
+        LLMEvent.toolCall({ id: "call-a", name: "test", input: {} }),
+        LLMEvent.toolCall({ id: "call-b", name: "test", input: {} }),
+      ),
+    )
+    const run = yield* steps
+      .attempt({
+        isLocationClosed: () => false,
+        sessionID,
+        assistantMessageID,
+        agent: Agent.defaultID,
+        model,
+        prepared: {
+          retry: () => Effect.void,
+          request: ai.request({ model: model.model, prompt: "Run two tools" }),
+          options: {},
+          executeTool: (input) =>
+            input.call.id === "call-a"
+              ? track(firstGate)
+              : input.call.id === "call-b"
+                ? track(secondGate)
+                : Effect.die(`unexpected tool ${input.call.id}`),
+        },
+        retry: () => Effect.succeed({ retry: false }),
+        recoverContinuation: true,
+        recoverOverflow: Effect.succeed(false),
+        toolConcurrency: { maxConcurrency: 1 },
+      })
+      .pipe(Effect.forkScoped)
+    // Wait until the first tool actually holds the single permit, then assert the second
+    // has not started yet: with maxConcurrency 1 the step must be running at most one tool.
+    const poll = Effect.gen(function* () {
+      for (let i = 0; i < 200; i++) {
+        if ((yield* Ref.get(active)) === 1) return true
+        yield* Effect.sleep(5)
+      }
+      return false
+    })
+    const settled = yield* poll.pipe(Effect.timeout("1 seconds"))
+    expect(settled).toBe(true)
+    expect(yield* Ref.get(maxActive)).toBe(1)
+    yield* Deferred.succeed(firstGate, true)
+    yield* Deferred.succeed(secondGate, true)
+    const result = yield* Fiber.join(run).pipe(Effect.exit)
+    expect(Exit.isSuccess(result)).toBe(true)
+    expect(yield* Ref.get(maxActive)).toBe(1)
   }),
 )

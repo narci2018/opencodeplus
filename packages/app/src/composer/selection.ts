@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, on } from "solid-js"
+import { batch, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { ComposerControls } from "./adapter"
 import { useLocal, type ModelKey, type ModelSelection } from "@/providers/models/selection"
@@ -12,6 +12,7 @@ import { useComposerState } from "./persistence"
 import { useConfiguredModel } from "@/providers/models/configured"
 import { useGlobal } from "@/runtime/server/runtime"
 import { composerModelLabelKey, composerModelLabels, composerProviderName } from "./model-label"
+import { useServerSDK } from "@/runtime/server/client"
 
 export function createComposerControls(input: { model?: ModelSelection } = {}) {
   const local = useLocal()
@@ -19,6 +20,47 @@ export function createComposerControls(input: { model?: ModelSelection } = {}) {
   const data = useData()
   const providers = useProviders(() => sdk().directory)
   const models = useGlobal().models
+  const serverSDK = useServerSDK()
+
+  // ZCode-style bounded tool concurrency is an opt-in per-session policy. The composer toggle
+  // reads the highest-precedence config value and writes it through `experimental.config.update`,
+  // so the setting persists and the next step picks it up without a restart.
+  const [concurrencyEnabled, setConcurrencyEnabled] = createSignal(false)
+  createEffect(() => {
+    if (serverSDK.connection.status() !== "connected") return
+    let stale = false
+    onCleanup(() => {
+      stale = true
+    })
+    void serverSDK.api.config
+      .get()
+      .catch(() => [])
+      .then((entries) => {
+        if (stale) return
+        for (const entry of entries) {
+          if (entry.type !== "document") continue
+          // SAFETY: Document entries carry an untyped config info payload; experimental tool_concurrency is guarded below.
+          const tc = (entry.info as { experimental?: { tool_concurrency?: { max_concurrency?: number } } })
+            ?.experimental?.tool_concurrency
+          if (tc && (tc.max_concurrency ?? 0) > 0) {
+            setConcurrencyEnabled(true)
+            return
+          }
+        }
+        setConcurrencyEnabled(false)
+      })
+  })
+
+  const setConcurrency = async (enabled: boolean) => {
+    try {
+      await serverSDK.api.experimental.config.update({
+        experimental: { tool_concurrency: enabled ? { max_concurrency: 10 } : null },
+      })
+      setConcurrencyEnabled(enabled)
+    } catch {
+      // The server rejects an invalid patch; keep the current toggle so the UI stays truthful.
+    }
+  }
 
   const modelLabels = createMemo(() =>
     composerModelLabels(
@@ -116,6 +158,10 @@ export function createComposerControls(input: { model?: ModelSelection } = {}) {
         // The session's model applies only to its agent, so resolve agents before showing a model.
         loading: loading(),
         preview: preview(),
+      },
+      concurrency: {
+        current: concurrencyEnabled,
+        set: (enabled) => void setConcurrency(enabled),
       },
     }
   })

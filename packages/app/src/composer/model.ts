@@ -536,6 +536,14 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
         },
         keybind: () => command.keybindParts("model.variant.cycle"),
       },
+      concurrency: {
+        options: () => [
+          { id: "default", label: language.t("ui.promptInput.concurrency.default") },
+          { id: "zcode", label: language.t("ui.promptInput.concurrency.zcode") },
+        ],
+        current: () => (adapter.controls().concurrency.current() ? "zcode" : "default"),
+        onSelect: (value) => adapter.controls().concurrency.set(value === "zcode"),
+      },
       submit: {
         available,
         stopping,

@@ -600,6 +600,11 @@ export const layer = (options?: Options) =>
                   }
                   merged.subagent_access = next
                 }
+                // `null` clears the policy; an object sets it; `undefined` (absent) leaves it untouched.
+                if (patch.experimental.tool_concurrency !== undefined) {
+                  if (patch.experimental.tool_concurrency === null) delete merged.tool_concurrency
+                  else merged.tool_concurrency = patch.experimental.tool_concurrency
+                }
                 text = applyEdits(
                   text,
                   modify(text, ["experimental"], Object.keys(merged).length > 0 ? merged : undefined, {

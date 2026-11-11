@@ -52,6 +52,7 @@ function controls(): ComposerControls {
       select() {},
     },
     model: { selection, paid: true, loading: false },
+    concurrency: { current: () => false, set() {} },
   }
 }
 
