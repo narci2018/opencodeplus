@@ -986,6 +986,12 @@ describe("SubagentTool", () => {
       expect(SubagentTool.suiteOf("codex-docs")).toBe("codex")
       expect(SubagentTool.suiteOf("codex-verifier")).toBe("codex")
 
+      expect(SubagentTool.suiteOf("dsh")).toBe("dsh")
+      expect(SubagentTool.suiteOf("dsh-coder")).toBe("dsh")
+      expect(SubagentTool.suiteOf("dsh-researcher")).toBe("dsh")
+      expect(SubagentTool.suiteOf("dsh-planner")).toBe("dsh")
+      expect(SubagentTool.suiteOf("dsh-verifier")).toBe("dsh")
+
       expect(SubagentTool.suiteOf("custom-agent")).toBe("other")
       expect(SubagentTool.suiteOf("analyzer")).toBe("other")
     })
@@ -1029,6 +1035,19 @@ describe("SubagentTool", () => {
       expect(SubagentTool.isCompanion("claude", "codex-docs")).toBe(false)
       expect(SubagentTool.isCompanion("trae", "codex-verifier")).toBe(false)
       expect(SubagentTool.isCompanion("codex", "agy-planning-architect")).toBe(false)
+
+      // DSH suite
+      expect(SubagentTool.isCompanion("dsh", "dsh-coder")).toBe(true)
+      expect(SubagentTool.isCompanion("dsh", "dsh-researcher")).toBe(true)
+      expect(SubagentTool.isCompanion("dsh", "dsh-planner")).toBe(true)
+      expect(SubagentTool.isCompanion("dsh", "dsh-verifier")).toBe(true)
+      expect(SubagentTool.isCompanion("dsh-coder", "dsh-verifier")).toBe(true)
+      expect(SubagentTool.isCompanion("build", "dsh-coder")).toBe(false)
+      expect(SubagentTool.isCompanion("agy", "dsh-researcher")).toBe(false)
+      expect(SubagentTool.isCompanion("claude", "dsh-planner")).toBe(false)
+      expect(SubagentTool.isCompanion("codex", "dsh-verifier")).toBe(false)
+      expect(SubagentTool.isCompanion("dsh", "agy-planning-architect")).toBe(false)
+      expect(SubagentTool.isCompanion("dsh", "codex-coder")).toBe(false)
 
       // Undefined caller
       expect(SubagentTool.isCompanion(undefined, "agy-planning-architect")).toBe(false)

@@ -53,6 +53,8 @@ describe("readAgentEntries", () => {
             "claude-cowork": { system: "Customized system prompt for cowork" },
             codex: { system: "Customized system prompt for codex" },
             "codex-coder": { system: "Customized system prompt for coder" },
+            dsh: { system: "Customized system prompt for dsh" },
+            "dsh-coder": { system: "Customized system prompt for dsh-coder" },
           },
         },
       },

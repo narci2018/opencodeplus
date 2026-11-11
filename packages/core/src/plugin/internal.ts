@@ -119,6 +119,7 @@ import { TraePlugin } from "./trae/trae.js"
 import { AntigravityPlugin } from "./antigravity/antigravity.js"
 import { ClaudePlugin } from "./claude/claude.js"
 import { CodexPlugin } from "./codex/codex.js"
+import { DshPlugin } from "./dsh/dsh.js"
 import { MemoryPlugin } from "./memory.js"
 
 const services = [
@@ -250,6 +251,7 @@ const pre = [
   AntigravityPlugin.Plugin,
   ClaudePlugin.Plugin,
   CodexPlugin.Plugin,
+  DshPlugin.Plugin,
   MemoryPlugin.Plugin,
 
 

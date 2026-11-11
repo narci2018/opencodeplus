@@ -16,7 +16,7 @@ import { SubagentJob } from "../../session/subagent-job.js"
 
 export const name = "subagent"
 
-export type SubagentSuite = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "other"
+export type SubagentSuite = "builtin" | "antigravity" | "trae" | "claude" | "codex" | "dsh" | "other"
 
 export function suiteOf(id: string): SubagentSuite {
   if (id === "general" || id === "explore" || id === "build" || id === "plan") return "builtin"
@@ -24,6 +24,7 @@ export function suiteOf(id: string): SubagentSuite {
   if (id.startsWith("trae")) return "trae"
   if (id.startsWith("claude-") || id === "claude") return "claude"
   if (id.startsWith("codex-") || id === "codex") return "codex"
+  if (id.startsWith("dsh-") || id === "dsh") return "dsh"
   return "other"
 }
 
@@ -40,6 +41,7 @@ export function isCompanion(
   if (subSuite === "trae") return callerSuite === "trae"
   if (subSuite === "claude") return callerSuite === "claude"
   if (subSuite === "codex") return callerSuite === "codex"
+  if (subSuite === "dsh") return callerSuite === "dsh"
   if (subSuite === "builtin") return callerSuite === "builtin"
   if (callerSuite === subSuite && subSuite !== "other") return true
 
