@@ -48,6 +48,12 @@ Release notes for OpenCode V2, newest first.
 
 - Fixed maximized dialog header buttons (smart generator, restore, close) being obstructed by the native Windows window caption control buttons (minimize, maximize, close) in Electron by enforcing a safe top clearance of `max(44px, env(titlebar-area-height, 44px)) + 8px`.
 
+### Release
+
+#### Improvements
+
+- Replaced the dev/beta/pr channel version scheme from the repository-global run counter (`0.0.0-<channel>-<run>`) with semantic pre-release numbering (`0.0.1-<channel>-<NN>`), where `NN` auto-increments from the highest existing `v0.0.1-<channel>-NN` tag (falling back to `01` when none exist). Legacy `v0.0.0-*` tags are ignored so the semantic sequence starts at `01`. `plan-release.sh` now computes this from remote tags, and the version parsers in `service-config.ts` (`versionBelongsToChannel`), `remote-cli.ts` (beta metadata), `bootstrap.ts` (desktop SSH cache discovery), and `beta-notes.ts` (`betaBuild`) accept both schemes so a `0.0.1-*` pre-release is recognized as belonging to its channel.
+
 ### App
 
 #### Bug fixes

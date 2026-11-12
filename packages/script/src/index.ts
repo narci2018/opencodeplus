@@ -23,7 +23,9 @@ const env = {
 }
 const CHANNEL = await (async () => {
   if (env.OPENCODE_CHANNEL) return env.OPENCODE_CHANNEL
-  if (env.OPENCODE_VERSION && !env.OPENCODE_VERSION.startsWith("0.0.0-")) return "latest"
+  // A plain x.y.z (no pre-release suffix) is a latest-channel release; 0.0.0-<channel>-<run> and
+  // 0.0.1-<channel>-<NN> are pre-releases that carry their channel in the suffix.
+  if (env.OPENCODE_VERSION && !/^\d+\.\d+\.\d+$/.test(env.OPENCODE_VERSION.replace(/^v/, ""))) return "latest"
   const branch = await $`git branch --show-current`.text().then((x) => x.trim())
   if (!branch) return "detached"
   const channel = branch.replace(/[^a-zA-Z0-9._-]/g, "-")

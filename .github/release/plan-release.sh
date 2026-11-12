@@ -2,10 +2,10 @@
 # plan-release.sh: decides version, channel and npm dist-tag from the event, ref and dispatch inputs
 # (INPUT_BUMP, INPUT_VERSION) only, and writes them to $GITHUB_OUTPUT. Nothing here reads repository files.
 #
-#   push or dispatch on dev           -> dev      0.0.0-dev-<run>     npm tag dev, desktop
+#   push or dispatch on dev           -> dev      0.0.1-dev-<NN>      npm tag dev, desktop (NN auto-increments from v0.0.1-dev-NN tags)
 #   dispatch on dev with bump/version -> latest   x.y.z               npm tag latest, releasers only, notes required
-#   push or dispatch on beta          -> beta     0.0.0-beta-<run>    desktop only
-#   pull_request                      -> pr       0.0.0-pr-<run>      everything, dry run
+#   push or dispatch on beta          -> beta     0.0.1-beta-<NN>     desktop only (NN auto-increments from v0.0.1-beta-NN tags)
+#   pull_request                      -> pr       0.0.1-pr-<NN>       everything, dry run (NN auto-increments from v0.0.1-pr-NN tags)
 #
 # Releasers are actors with the admin or maintain role on the repository (the releasers team has maintain).
 . "$(dirname "$0")/lib.sh"
@@ -47,7 +47,16 @@ elif [ "$channel" = latest ]; then
   esac
   if [ "$major" -lt 2 ]; then version=2.0.0; fi
 else
-  version="0.0.0-$channel-$GITHUB_RUN_NUMBER"
+  # Semantic pre-release numbering: 0.0.1-<channel>-NN, where NN auto-increments from the highest existing
+  # v0.0.1-<channel>-NN tag, falling back to 01. Legacy v0.0.0-<channel>-NN tags used the old run-counter
+  # scheme and are deliberately not counted, so the semantic sequence starts at 01 regardless.
+  version="0.0.1-$channel-01"
+  next=$(git ls-remote --tags origin 2>/dev/null |
+    sed -n 's#.*refs/tags/\(v0\.0\.1-'"$channel"'-\([0-9][0-9]*\)\).*#\2#p' |
+    sort -n | tail -1)
+  if [ -n "$next" ]; then
+    version="0.0.1-$channel-$(printf '%02d' $((10#$next + 1)))"
+  fi
   if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then version="$version.$GITHUB_RUN_ATTEMPT"; fi
 fi
 

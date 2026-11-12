@@ -193,6 +193,7 @@
     ".pi/**",
     ".roo/**",
     ".windsurf/**",
-    "script/oxlint/anti-slop/**"
+    "script/oxlint/anti-slop/**",
+    "opencode-trae-bao/src/im-bridge/bridges/*.cjs"
   ]
 }

@@ -32,6 +32,12 @@ ${
   for binary in "$HOME"/${quote(options.cache.directory)}/${quote(options.cache.prefix)}*/opencode; do
     if [ -x "$binary" ]; then cli="$binary"; fi
   done
+  # Also match the semantic pre-release scheme (0.0.1-<channel>-NN) alongside the legacy run-counter one.
+  if [ -z "$cli" ]; then
+    for binary in "$HOME"/${quote(options.cache.directory)}/${quote(options.cache.prefix.replace(/^0\.0\.0-/, "0.0.1-"))}*/opencode; do
+      if [ -x "$binary" ]; then cli="$binary"; fi
+    done
+  fi
 fi
 `
     : ""
@@ -121,7 +127,7 @@ function verifyScript(command: string, version: string) {
   return `test "$(${command} --version | awk '{print $NF}' | sed 's/^v//')" = ${quote(version)}`
 }
 
-const Beta = Schema.Struct({ version: Schema.String.check(Schema.isPattern(/^0\.0\.0-beta-\d+(?:\.\d+)?$/)) })
+const Beta = Schema.Struct({ version: Schema.String.check(Schema.isPattern(/^0\.0\.[01]-beta-\d+(?:\.\d+)?$/)) })
 
 export const latestBeta = Effect.fn("RemoteCli.latestBeta")(function* () {
   const http = yield* HttpClient.HttpClient

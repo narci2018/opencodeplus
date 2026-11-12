@@ -102,6 +102,8 @@ test.each([
   ["0.0.0-beta-21180", "21180"],
   ["0.0.0-beta-21180.2", "21180.2"],
   ["0.0.0-next-900", "900"],
+  ["0.0.1-beta-03", "03"],
+  ["0.0.1-beta-04.1", "04.1"],
   ["1.2.3", "1.2.3"],
 ])("names build %s", (version, build) => {
   expect(betaBuild(version)).toBe(build)

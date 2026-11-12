@@ -71,7 +71,8 @@ export function versionBelongsToChannel(
 ) {
   if (version === undefined) return false
   if (version === installedVersion) return true
-  const prefix = `0.0.0-${channel}-`
+  // Pre-releases are either 0.0.0-<channel>-<run> (legacy run-counter) or 0.0.1-<channel>-<NN> (semantic).
+  const prefix = `0.0.${version.startsWith("0.0.1-") ? 1 : 0}-${channel}-`
   if (!version.startsWith(prefix)) return false
   return /^\d+(?:\.\d+)?$/.test(version.slice(prefix.length))
 }
