@@ -266,7 +266,7 @@ describe("CustomModelDialog driver", () => {
     expect(inputs[3].value).toContain("model-c")
   })
 
-  test("fetch models opens a picker dialog and populates the model ID on apply", async () => {
+  test("fetch models shows an inline picker that fills the model ID field", async () => {
     const host = mountDialog()
     const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
     setValue(inputs[0], "My LLM")
@@ -280,42 +280,29 @@ describe("CustomModelDialog driver", () => {
 
     expect(state.proxyCalls).toHaveLength(1)
     expect(state.proxyCalls[0].url).toContain("/models")
-    expect(state.shown).toHaveLength(1)
 
-    // Render the picker dialog inside a Kobalte root
-    const pickerHost = document.createElement("div")
-    document.body.appendChild(pickerHost)
-    const disposePicker = render(
-      () => createComponent(Kobalte, {
-        open: true,
-        get children() { return state.shown[0]!() },
-      }),
-      pickerHost,
-    )
-    cleanups.push(() => { disposePicker(); pickerHost.remove() })
-    await settle()
-
-    // The picker should show the model checkboxes
-    const checkboxes = pickerHost.querySelectorAll<HTMLInputElement>(".custom-model-picker-item input[type='checkbox']")
+    // The picker renders inline inside the dialog body, not as a stacked dialog
+    const panel = host.querySelector(".custom-model-fetch-panel")
+    expect(panel).toBeTruthy()
+    const checkboxes = host.querySelectorAll<HTMLInputElement>(".custom-model-fetch-item input[type='checkbox']")
     expect(checkboxes.length).toBe(3)
 
-    // Check the first two models
+    // Check the first two models — selection writes straight into the Model ID field
     checkboxes[0].click()
     checkboxes[1].click()
     await settle()
 
-    // Click apply
-    const apply = Array.from(pickerHost.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.trim() === "settings.models.custom.fetch.apply",
-    )
-    expect(apply).toBeTruthy()
-    apply!.click()
-    await settle()
-
-    // Model ID field should have the selected models
     expect(inputs[3].value).toContain("gpt-4o")
     expect(inputs[3].value).toContain("gpt-4o-mini")
     expect(inputs[3].value).not.toContain("o3-mini")
+
+    // Cancel closes the panel and keeps the selected models for saving
+    const cancel = findButton(host, "common.cancel")
+    expect(cancel).toBeTruthy()
+    cancel!.click()
+    await settle()
+    expect(host.querySelector(".custom-model-fetch-panel")).toBeNull()
+    expect(inputs[3].value).toContain("gpt-4o-mini")
   })
 
   test("shows an error message when the fetch fails", async () => {

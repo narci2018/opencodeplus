@@ -3,7 +3,6 @@ import { Icon } from "@opencode/ui/icon"
 import { Select } from "@opencode/ui/select"
 import { TextField } from "@opencode/ui/text-field"
 import { Loader } from "@opencode/ui/loader"
-import { useDialog } from "@opencode/ui/context/dialog"
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
 import { showToast } from "@/shell/notifications/toast"
 import { createMemo, createSignal, For, Show, type Component } from "solid-js"
@@ -35,7 +34,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   const language = useLanguage()
   const sdk = useServerSDK()
   const data = useData()
-  const dialog = useDialog()
 
   const [protocol, setProtocol] = createSignal<CustomModelProtocol>(
     props.editing?.canonical as CustomModelProtocol ?? "openai-compatible",
@@ -52,6 +50,7 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   const [error, setError] = createSignal<string | undefined>(undefined)
   const [fetchingModels, setFetchingModels] = createSignal(false)
   const [fetchError, setFetchError] = createSignal<string | undefined>(undefined)
+  const [pickerModels, setPickerModels] = createSignal<string[] | undefined>(undefined)
 
   const preset = createMemo(() => PROTOCOL_PRESETS[protocol()])
   const editing = createMemo(() => props.existing.find((entry) => entry.id === providerID(name())))
@@ -137,17 +136,7 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
         return
       }
       const sorted = ids.toSorted((a, b) => a.localeCompare(b))
-      void dialog.show(
-        () => (
-          <ModelPickerDialog
-            models={sorted}
-            selected={modelID()}
-            onApply={(ids) => setModelID(ids.join(", "))}
-            onClose={() => dialog.close()}
-          />
-        ),
-        () => undefined,
-      )
+      setPickerModels(sorted)
     } catch (cause) {
       setFetchError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -344,6 +333,43 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
           <Show when={fetchError()}>
             <span class="custom-model-dialog-hint custom-model-dialog-fetch-error">{fetchError()}</span>
           </Show>
+          <Show when={pickerModels()}>
+            <div class="custom-model-fetch-panel">
+              <div class="custom-model-fetch-panel-head">
+                <span class="custom-model-fetch-panel-count">
+                  {language.t("settings.models.custom.fetch.count", { count: String(pickerModels()!.length) })}
+                </span>
+                <div class="custom-model-fetch-panel-actions">
+                  <button type="button" class="custom-model-fetch-select-all"
+                    onClick={() => setModelID(pickerModels()!.join(", "))}
+                  >{language.t("settings.models.custom.fetch.selectAll")}</button>
+                  <button type="button" class="custom-model-fetch-select-all"
+                    onClick={() => setPickerModels(undefined)}
+                  >{language.t("common.cancel")}</button>
+                </div>
+              </div>
+              <div class="custom-model-fetch-list">
+                <For each={pickerModels()}>
+                  {(id) => {
+                    const selected = () => modelID().split(",").map((s) => s.trim()).includes(id)
+                    return (
+                      <label class="custom-model-fetch-item">
+                        <input type="checkbox" checked={selected()}
+                          onChange={(e) => {
+                            const current = new Set(modelID().split(",").map((s) => s.trim()).filter(Boolean))
+                            if (e.currentTarget.checked) current.add(id)
+                            else current.delete(id)
+                            setModelID([...current].join(", "))
+                          }}
+                        />
+                        <span class="custom-model-fetch-item-name">{id}</span>
+                      </label>
+                    )
+                  }}
+                </For>
+              </div>
+            </div>
+          </Show>
         </div>
 
         <Show when={error()}>
@@ -378,107 +404,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
           <span>{testResult()?.message}</span>
         </div>
       </Show>
-    </Dialog>
-  )
-}
-
-function ModelPickerDialog(props: {
-  models: string[]
-  selected: string
-  onApply: (ids: string[]) => void
-  onClose?: () => void
-}) {
-  const language = useLanguage()
-  const [query, setQuery] = createSignal("")
-  const initialSelected = new Set(props.selected.split(",").map((id) => id.trim()).filter(Boolean))
-  const [checked, setChecked] = createSignal<Set<string>>(
-    new Set(props.models.filter((model) => initialSelected.has(model))),
-  )
-
-  const filtered = createMemo(() => {
-    const q = query().trim().toLowerCase()
-    if (!q) return props.models
-    return props.models.filter((model) => model.toLowerCase().includes(q))
-  })
-
-  const toggle = (model: string, on: boolean) => {
-    setChecked((current) => {
-      const next = new Set(current)
-      if (on) next.add(model)
-      else next.delete(model)
-      return next
-    })
-  }
-
-  const allVisibleChecked = createMemo(() => {
-    const list = filtered()
-    return list.length > 0 && list.every((model) => checked().has(model))
-  })
-
-  const toggleAllVisible = () => {
-    const target = !allVisibleChecked()
-    setChecked((current) => {
-      const next = new Set(current)
-      for (const model of filtered()) {
-        if (target) next.add(model)
-        else next.delete(model)
-      }
-      return next
-    })
-  }
-
-  const apply = () => {
-    props.onApply?.([...checked()])
-    props.onClose?.()
-  }
-
-  return (
-    <Dialog size="large" variant="settings" resizable maximizable>
-      <DialogHeader>
-        <DialogTitleGroup
-          title={language.t("settings.models.custom.fetch.picker.title")}
-          description={language.t("settings.models.custom.fetch.count", { count: String(props.models.length) })}
-        />
-      </DialogHeader>
-      <DialogBody class="custom-model-picker-body">
-        <TextField
-          value={query()}
-          onChange={setQuery}
-          placeholder={language.t("settings.models.custom.fetch.search.placeholder")}
-        />
-        <div class="custom-model-picker-actions">
-          <Button size="small" variant="ghost-muted" onClick={toggleAllVisible}>
-            {allVisibleChecked()
-              ? language.t("settings.models.custom.fetch.clearVisible")
-              : language.t("settings.models.custom.fetch.selectAll")}
-          </Button>
-        </div>
-        <div class="custom-model-picker-list">
-          <For each={filtered()}>
-            {(model) => (
-              <label class="custom-model-picker-item">
-                <input
-                  type="checkbox"
-                  checked={checked().has(model)}
-                  onChange={(event) => toggle(model, event.currentTarget.checked)}
-                />
-                <span class="custom-model-picker-name">{model}</span>
-              </label>
-            )}
-          </For>
-          <Show when={filtered().length === 0}>
-            <div class="custom-model-picker-empty">{language.t("settings.models.custom.fetch.search.empty")}</div>
-          </Show>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="ghost" onClick={() => props.onClose?.()}>
-          {language.t("common.cancel")}
-        </Button>
-        <Button variant="contrast" onClick={apply}>
-          {language.t("settings.models.custom.fetch.apply")}
-        </Button>
-      </DialogFooter>
     </Dialog>
   )
 }
