@@ -20,6 +20,7 @@ import { ConfigProvider } from "./config/provider.js"
 import { ConfigReference } from "./config/reference.js"
 import { ConfigRules } from "./config/rules.js"
 import { ConfigMemory } from "./config/memory.js"
+import { ConfigTrae } from "./config/trae.js"
 import { ConfigWebSearch } from "./config/websearch.js"
 import { ConfigToolOutput } from "./config/tool-output.js"
 import { ConfigWatcher } from "./config/watcher.js"
@@ -105,6 +106,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   memory: ConfigMemory.Info.pipe(optional).annotate({
     description: "Memory injection and distillation settings",
+  }),
+  trae: ConfigTrae.Info.pipe(optional).annotate({
+    description: "TRAE agent integration settings",
   }),
   references: ConfigReference.Info.pipe(optional).annotate({
     description: "Named local directories or Git repositories available as external context",

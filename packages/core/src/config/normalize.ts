@@ -259,6 +259,7 @@ export function normalize(input: unknown): Result {
   const nativeObjects = {
     rules: Info.fields.rules,
     memory: Info.fields.memory,
+    trae: Info.fields.trae,
   }
   Object.entries(nativeObjects).forEach(([key, schema]) => {
     if (!own(input, key)) return

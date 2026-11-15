@@ -16,6 +16,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Added a config opt-out for the embedded TRAE computer-use server: `trae.computer_use: false` skips registering and spawning the `open-computer-use` MCP binary on every location boot, so boots stay fast on machines that never use desktop automation and first-run antivirus scans no longer delay session startup.
 - Connected custom headers configured in settings or environment variables (`process.env.OPENCODE_CUSTOM_HEADERS`) to `base.http.headers` in `SessionModelRequest.prepare`, attaching user-defined debugging and gateway headers to outbound model requests.
 - Added 15-second TTL in-memory caching to `session.stats` and optimized window calculation concurrency to 4 with `tools: "none"`, drastically accelerating repeated analytics queries down to under 1ms.
 - Integrated TRAE 宝 (`trae-bao`, Name: "TRAE 宝") as a built-in companion assistant alongside TRAE (`trae`, Name: "TRAE"). TRAE 宝 features cross-project and cross-session memory retrieval, multi-task decomposition, agile developer collaboration, and conclusion-oriented reporting.

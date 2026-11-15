@@ -5,6 +5,7 @@ import { createRequire } from "node:module"
 import os from "node:os"
 import path from "node:path"
 import { define } from "@opencode/plugin/effect/plugin"
+import { Config } from "../../config.js"
 import { Effect } from "effect"
 import { Agent } from "../../agent.js"
 import ComputerBinding from "./computer-binding.js"
@@ -43,6 +44,16 @@ export const Plugin = define({
         item.native = true
       })
     })
+
+    // The registration is opt-out: tests and users who never touch desktop automation avoid
+    // paying for the stdio handshake of the native binary on every location boot.
+    const config = yield* Config.Service
+    const entries = yield* config.entries()
+    const trae = entries
+      .filter((entry) => entry.type === "document")
+      .flatMap((entry) => (entry.info.trae ? [entry.info.trae] : []))
+      .at(-1)
+    if (trae?.computer_use === false) return
 
     const binding = ComputerBinding
     if (!binding?.path) return

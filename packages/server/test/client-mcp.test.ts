@@ -33,7 +33,10 @@ const serve = Effect.fnUntraced(function* () {
       app: { version: "test-version" },
       database: { path: ":memory:" },
       models: { fetch: false },
-      config: { directory, project: false, content: "{}" },
+      // The TRAE plugin's computer-use server spends an unpredictable stdio handshake per
+      // location boot (first-run antivirus scans alone exceed every budget here) and would race
+      // the exact tools assertion below, so this suite opts out of it.
+      config: { directory, project: false, content: JSON.stringify({ trae: { computer_use: false } }) },
       fs: { filewatcher: false },
     }).pipe(Layer.provideMerge(NodeHttpServer.layerHttpServices)),
   )
@@ -352,7 +355,10 @@ it.live(
           app: { version: "test-version" },
           database: { path: ":memory:" },
           models: { fetch: false },
-          config: { directory, project: false, content: "{}" },
+          // The TRAE plugin's computer-use server spends an unpredictable stdio handshake per
+      // location boot (first-run antivirus scans alone exceed every budget here) and would race
+      // the exact tools assertion below, so this suite opts out of it.
+      config: { directory, project: false, content: JSON.stringify({ trae: { computer_use: false } }) },
           fs: { filewatcher: false },
         },
         { onListen: () => Effect.succeed(Effect.void) },

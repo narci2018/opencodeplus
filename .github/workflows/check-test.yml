@@ -68,8 +68,10 @@ jobs:
       fail-fast: false
       matrix:
         settings:
+          # Pinned like the e2e legs: ubuntu-latest rolled to 26.04, where Bun 1.4.4 segfaults
+          # under the parallel test run (exit 139) before any verdict is reached.
           - name: linux
-            host: ubuntu-latest
+            host: ubuntu-24.04
           - name: windows
             host: windows-latest
     runs-on: ${{ matrix.settings.host }}
