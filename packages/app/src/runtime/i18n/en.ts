@@ -1284,6 +1284,10 @@ export const dict = {
   "settings.models.custom.section.manage": "Manage",
   "settings.models.custom.test.button": "Test connection",
   "settings.models.custom.test.success": "Connection successful",
+  "settings.models.custom.fetch.button": "Fetch models",
+  "settings.models.custom.fetch.count": "{{count}} models available",
+  "settings.models.custom.fetch.selectAll": "Select all",
+  "settings.models.custom.fetch.empty": "No models found at this endpoint.",
 
   "settings.agents.custom.add": "Add custom agent",
   "settings.agents.custom.title": "Add custom agent",

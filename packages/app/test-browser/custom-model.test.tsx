@@ -50,6 +50,8 @@ const state = {
   toasts: [] as Array<{ variant: string; title: string }>,
   closed: 0,
   saved: 0,
+  proxyCalls: [] as Array<{ url: string }>,
+  proxyResponse: { status: 200, statusText: "OK", body: JSON.stringify({ data: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }] }) },
 }
 
 const reset = () => {
@@ -62,6 +64,8 @@ const reset = () => {
   state.toasts.length = 0
   state.closed = 0
   state.saved = 0
+  state.proxyCalls.length = 0
+  state.proxyResponse = { status: 200, statusText: "OK", body: JSON.stringify({ data: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }] }) }
 }
 
 mock.module("@/runtime/i18n/language", () => ({
@@ -78,6 +82,12 @@ mock.module("@/runtime/server/client", () => ({
         config: {
           update: async (input: { provider?: ProviderPatch }) => {
             state.configCalls.push(input)
+          },
+        },
+        network: {
+          proxy: async (input: { url: string; method: string }) => {
+            state.proxyCalls.push({ url: input.url })
+            return state.proxyResponse
           },
         },
       },
@@ -295,5 +305,86 @@ describe("CustomModelDialog driver", () => {
 
     expect(state.configCalls).toHaveLength(1)
     expect(state.configCalls[0].provider).toEqual({ id: "my-llm", remove: true })
+  })
+
+  test("fetches models from the endpoint and populates the selection panel", async () => {
+    const host = mountDialog()
+
+    const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
+    setValue(inputs[1], "https://api.example.com/v1")
+    setValue(inputs[2], "sk-test")
+
+    const fetchButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "settings.models.custom.fetch.button",
+    )
+    expect(fetchButton).toBeTruthy()
+    fetchButton!.click()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(state.proxyCalls).toHaveLength(1)
+    expect(state.proxyCalls[0].url).toContain("/models")
+
+    const panel = host.querySelector(".custom-model-fetch-list")
+    expect(panel).toBeTruthy()
+    const items = panel!.querySelectorAll(".custom-model-fetch-item")
+    expect(items.length).toBe(2)
+    expect(panel!.textContent).toContain("gpt-4o")
+    expect(panel!.textContent).toContain("gpt-4o-mini")
+  })
+
+  test("checked models populate the model ID field as comma-separated values", async () => {
+    const host = mountDialog()
+
+    const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
+    setValue(inputs[1], "https://api.example.com/v1")
+    setValue(inputs[2], "sk-test")
+
+    const fetchButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "settings.models.custom.fetch.button",
+    )
+    fetchButton!.click()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    // Click the first model checkbox
+    const checkboxes = host.querySelectorAll<HTMLInputElement>(".custom-model-fetch-item input[type='checkbox']")
+    expect(checkboxes.length).toBe(2)
+    checkboxes[0].click()
+    checkboxes[1].click()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    // Model ID field should contain both models comma-separated
+    const modelIDField = inputs[3]
+    expect(modelIDField.value).toContain("gpt-4o")
+    expect(modelIDField.value).toContain("gpt-4o-mini")
+
+    // Save: the patch should have separate model entries
+    const save = saveButton(host)
+    save!.click()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(state.configCalls).toHaveLength(1)
+    expect(state.configCalls[0].provider?.models).toEqual({
+      "gpt-4o": { name: "gpt-4o" },
+      "gpt-4o-mini": { name: "gpt-4o-mini" },
+    })
+  })
+
+  test("shows an error message when the fetch fails", async () => {
+    state.proxyResponse = { status: 401, statusText: "Unauthorized", body: "invalid key" }
+    const host = mountDialog()
+
+    const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
+    setValue(inputs[1], "https://api.example.com/v1")
+    setValue(inputs[2], "bad-key")
+
+    const fetchButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "settings.models.custom.fetch.button",
+    )
+    fetchButton!.click()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    const errorHint = host.querySelector(".custom-model-dialog-fetch-error")
+    expect(errorHint).toBeTruthy()
+    expect(errorHint!.textContent).toContain("401")
   })
 })

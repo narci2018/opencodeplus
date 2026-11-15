@@ -5,7 +5,7 @@ import { TextField } from "@opencode/ui/text-field"
 import { Loader } from "@opencode/ui/loader"
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
 import { showToast } from "@/shell/notifications/toast"
-import { createMemo, createSignal, Show, type Component } from "solid-js"
+import { createMemo, createSignal, For, Show, type Component } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
@@ -48,6 +48,9 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   const [testing, setTesting] = createSignal(false)
   const [testResult, setTestResult] = createSignal<{ success: boolean; message: string } | undefined>(undefined)
   const [error, setError] = createSignal<string | undefined>(undefined)
+  const [fetchingModels, setFetchingModels] = createSignal(false)
+  const [fetchedModels, setFetchedModels] = createSignal<string[] | undefined>(undefined)
+  const [fetchError, setFetchError] = createSignal<string | undefined>(undefined)
 
   const preset = createMemo(() => PROTOCOL_PRESETS[protocol()])
   const editing = createMemo(() => props.existing.find((entry) => entry.id === providerID(name())))
@@ -69,6 +72,76 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
     if (p.editableBaseURL && !baseURL().trim()) return false
     return true
   })
+
+  const canFetchModels = createMemo(() => {
+    const p = preset()
+    if (p.apiKey === "required" && !apiKey().trim()) return false
+    if (p.editableBaseURL && !baseURL().trim()) return false
+    return true
+  })
+
+  /** Resolves the models-list URL and auth headers for the current protocol. */
+  const modelsEndpoint = () => {
+    const p = preset()
+    const endpointURL = baseURL().trim() || p.defaultBaseURL || p.baseURL
+    const key = apiKey().trim()
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    let url: string
+    if (protocol() === "google") {
+      url = `${endpointURL}/models?key=${encodeURIComponent(key)}`
+    } else {
+      url = `${endpointURL}/models`
+      if (protocol() === "anthropic-compatible") {
+        if (key) headers["x-api-key"] = key
+        headers["anthropic-version"] = "2023-06-01"
+      } else if (key) {
+        headers.Authorization = `Bearer ${key}`
+      }
+    }
+    return { url, headers }
+  }
+
+  /** Extracts model ids from a protocol-specific models-list response body. */
+  const parseModelIDs = (protocol: CustomModelProtocol, body: string): string[] => {
+    const json = JSON.parse(body) as Record<string, unknown>
+    if (protocol === "google") {
+      const models = Array.isArray(json.models) ? json.models : []
+      return models
+        .map((m) => (typeof m === "object" && m !== null && typeof (m as Record<string, unknown>).name === "string"
+          ? ((m as Record<string, string>).name as string).replace(/^models\//, "")
+          : ""))
+        .filter(Boolean)
+    }
+    const data = Array.isArray(json.data) ? json.data : []
+    return data
+      .map((m) => (typeof m === "object" && m !== null && typeof (m as Record<string, string>).id === "string" ? (m as Record<string, string>).id : ""))
+      .filter(Boolean)
+  }
+
+  const fetchModels = async () => {
+    if (fetchingModels() || !canFetchModels()) return
+    setFetchingModels(true)
+    setFetchError(undefined)
+    try {
+      const { url, headers } = modelsEndpoint()
+      const result = await sdk.api.experimental.network.proxy({ url, method: "GET", headers })
+      if (result.status < 200 || result.status >= 300) {
+        const body = result.body.slice(0, 200)
+        setFetchError(`${result.status} ${result.statusText}${body ? `: ${body}` : ""}`)
+        return
+      }
+      const ids = parseModelIDs(protocol(), result.body)
+      if (ids.length === 0) {
+        setFetchError(language.t("settings.models.custom.fetch.empty"))
+        return
+      }
+      setFetchedModels(ids.toSorted((a, b) => a.localeCompare(b)))
+    } catch (cause) {
+      setFetchError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setFetchingModels(false)
+    }
+  }
 
   const testConnection = async () => {
     if (testing()) return
@@ -232,8 +305,23 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
         </Show>
 
         <div class="custom-model-dialog-field">
+          <div class="custom-model-dialog-label-row">
+            <label class="custom-model-dialog-label" for="custom-model-modelID">
+              {language.t("settings.models.custom.modelID.label")}
+            </label>
+            <Button
+              size="small"
+              variant="ghost-muted"
+              onClick={() => void fetchModels()}
+              disabled={fetchingModels() || !canFetchModels()}
+            >
+              <Show when={fetchingModels()} fallback={language.t("settings.models.custom.fetch.button")}>
+                <Loader class="custom-model-dialog-spinner" />
+              </Show>
+            </Button>
+          </div>
           <TextField
-            label={language.t("settings.models.custom.modelID.label")}
+            id="custom-model-modelID"
             value={modelID()}
             onChange={(value) => {
               setModelID(value)
@@ -241,6 +329,50 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
             }}
             placeholder={preset().modelIDPlaceholder}
           />
+          <Show when={fetchError()}>
+            <span class="custom-model-dialog-hint custom-model-dialog-fetch-error">{fetchError()}</span>
+          </Show>
+          <Show when={fetchedModels() !== undefined}>
+            <div class="custom-model-fetch-panel">
+              <div class="custom-model-fetch-panel-head">
+                <span class="custom-model-fetch-panel-count">
+                  {language.t("settings.models.custom.fetch.count", { count: String(fetchedModels()!.length) })}
+                </span>
+                <button
+                  type="button"
+                  class="custom-model-fetch-select-all"
+                  onClick={() => setModelID(fetchedModels()!.join(", "))}
+                >
+                  {language.t("settings.models.custom.fetch.selectAll")}
+                </button>
+              </div>
+              <div class="custom-model-fetch-list">
+                <For each={fetchedModels()}>
+                  {(id) => {
+                    const selected = createMemo(() => {
+                      const selectedSet = new Set(modelID().split(",").map((id) => id.trim()))
+                      return selectedSet.has(id)
+                    })
+                    return (
+                      <label class="custom-model-fetch-item">
+                        <input
+                          type="checkbox"
+                          checked={selected()}
+                          onChange={(event) => {
+                            const current = new Set(modelID().split(",").map((id) => id.trim()).filter(Boolean))
+                            if (event.currentTarget.checked) current.add(id)
+                            else current.delete(id)
+                            setModelID([...current].join(", "))
+                          }}
+                        />
+                        <span class="custom-model-fetch-item-name">{id}</span>
+                      </label>
+                    )
+                  }}
+                </For>
+              </div>
+            </div>
+          </Show>
         </div>
 
         <Show when={error()}>

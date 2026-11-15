@@ -545,6 +545,10 @@ export const dict = {
 
   "settings.models.title": "模型",
   "settings.models.description": "可在此处配置模型设置。",
+  "settings.models.custom.fetch.button": "获取模型",
+  "settings.models.custom.fetch.count": "{{count}} 个可用模型",
+  "settings.models.custom.fetch.selectAll": "全选",
+  "settings.models.custom.fetch.empty": "该接口下未发现可用模型。",
   "settings.agents.title": "智能体",
   "settings.agents.description": "管理你的智能体——为每个智能体定义角色、提示词、模型与工具。",
   "settings.agents.subagents.title": "SubAgents（子智能体）",

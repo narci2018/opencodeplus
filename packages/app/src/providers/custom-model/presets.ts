@@ -106,19 +106,22 @@ export function providerPatch(input: {
   protocol: CustomModelProtocol
   baseURL: string
   apiKey?: string
+  /** Comma-separated model ids; each becomes a separate entry in the `models` record. */
   modelID: string
 }): Config.ProviderPatch {
   const preset = PROTOCOL_PRESETS[input.protocol]
   const baseURL = input.baseURL.trim() || preset.defaultBaseURL || preset.baseURL
   const settings: { baseURL: string; apiKey?: string } = { baseURL }
   if (preset.apiKey !== "none" && input.apiKey?.trim()) settings.apiKey = input.apiKey.trim()
+  const modelIDs = input.modelID.split(",").map((id) => id.trim()).filter(Boolean)
+  const models = Object.fromEntries(modelIDs.map((id) => [id, { name: id }]))
   return {
     id: input.id,
     package: preset.package,
     canonical: preset.canonical,
     name: input.name.trim(),
     settings,
-    models: { [input.modelID.trim()]: { name: input.modelID.trim() } },
+    models,
   }
 }
 
