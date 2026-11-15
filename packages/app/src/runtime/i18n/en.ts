@@ -1287,6 +1287,11 @@ export const dict = {
   "settings.models.custom.fetch.button": "Fetch models",
   "settings.models.custom.fetch.count": "{{count}} models available",
   "settings.models.custom.fetch.selectAll": "Select all",
+  "settings.models.custom.fetch.clearVisible": "Deselect all",
+  "settings.models.custom.fetch.apply": "Apply",
+  "settings.models.custom.fetch.picker.title": "Select models",
+  "settings.models.custom.fetch.search.placeholder": "Search models…",
+  "settings.models.custom.fetch.search.empty": "No models match your search.",
   "settings.models.custom.fetch.empty": "No models found at this endpoint.",
 
   "settings.agents.custom.add": "Add custom agent",
