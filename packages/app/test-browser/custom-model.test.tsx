@@ -266,7 +266,7 @@ describe("CustomModelDialog driver", () => {
     expect(inputs[3].value).toContain("model-c")
   })
 
-  test("fetch models shows an inline picker that fills the model ID field", async () => {
+  test("fetch models opens a popup and apply returns to the parent dialog with the selection", async () => {
     const host = mountDialog()
     const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
     setValue(inputs[0], "My LLM")
@@ -281,28 +281,61 @@ describe("CustomModelDialog driver", () => {
     expect(state.proxyCalls).toHaveLength(1)
     expect(state.proxyCalls[0].url).toContain("/models")
 
-    // The picker renders inline inside the dialog body, not as a stacked dialog
-    const panel = host.querySelector(".custom-model-fetch-panel")
-    expect(panel).toBeTruthy()
+    // The popup renders internally over the still-mounted parent dialog
+    const modal = host.querySelector(".custom-model-fetch-modal")
+    expect(modal).toBeTruthy()
+    expect(saveButton(host)).toBeTruthy()
+
     const checkboxes = host.querySelectorAll<HTMLInputElement>(".custom-model-fetch-item input[type='checkbox']")
     expect(checkboxes.length).toBe(3)
 
-    // Check the first two models — selection writes straight into the Model ID field
+    // Staging a selection does not touch the Model ID field until apply
     checkboxes[0].click()
     checkboxes[1].click()
     await settle()
+    expect(inputs[3].value).toBe("")
 
+    // Apply closes only the popup and writes the selection into the field
+    const apply = Array.from(modal!.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "settings.models.custom.fetch.apply",
+    )
+    expect(apply).toBeTruthy()
+    apply!.click()
+    await settle()
+    expect(host.querySelector(".custom-model-fetch-modal")).toBeNull()
     expect(inputs[3].value).toContain("gpt-4o")
     expect(inputs[3].value).toContain("gpt-4o-mini")
     expect(inputs[3].value).not.toContain("o3-mini")
 
-    // Cancel closes the panel and keeps the selected models for saving
-    const cancel = findButton(host, "common.cancel")
+    // The parent dialog stays open so the user can save
+    expect(saveButton(host)).toBeTruthy()
+  })
+
+  test("fetch models cancel closes the popup without changing the field", async () => {
+    const host = mountDialog()
+    const inputs = Array.from(host.querySelectorAll<HTMLInputElement>('input[data-slot="input-input"]'))
+    setValue(inputs[0], "My LLM")
+    setValue(inputs[1], "https://api.example.com/v1")
+    setValue(inputs[2], "sk-test")
+
+    findButton(host, "settings.models.custom.fetch.button")!.click()
+    await settle()
+
+    const modal = host.querySelector(".custom-model-fetch-modal")
+    expect(modal).toBeTruthy()
+    const checkboxes = host.querySelectorAll<HTMLInputElement>(".custom-model-fetch-item input[type='checkbox']")
+    checkboxes[0].click()
+    await settle()
+
+    const cancel = Array.from(modal!.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "common.cancel",
+    )
     expect(cancel).toBeTruthy()
     cancel!.click()
     await settle()
-    expect(host.querySelector(".custom-model-fetch-panel")).toBeNull()
-    expect(inputs[3].value).toContain("gpt-4o-mini")
+    expect(host.querySelector(".custom-model-fetch-modal")).toBeNull()
+    expect(inputs[3].value).toBe("")
+    expect(saveButton(host)).toBeTruthy()
   })
 
   test("shows an error message when the fetch fails", async () => {

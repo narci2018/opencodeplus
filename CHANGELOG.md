@@ -160,7 +160,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
-- Fixed the "Fetch models" picker closing the entire custom-model dialog stack: the picker is now an inline panel below the Model ID field. Checking models writes them straight into the field (with select-all and cancel), so selections survive until Save; the previous stacked popup dismissed the parent dialog, losing the chosen models.
+- Fixed the "Fetch models" picker closing the entire custom-model dialog stack. The picker is now an internal popup overlay rendered inside the dialog itself, so confirming returns to the parent dialog with the selected models written into the Model ID field (hand-typed IDs the endpoint did not list are kept), and cancel, backdrop click, or the close button dismiss only the popup. Selections are staged in the popup and include a search box plus select-all/deselect-all.
 - Fixed API key field in custom-model dialog intercepting clicks and preventing copy/paste. The TextField `copyable` prop no longer triggers a clipboard write on every input click.
 - Fixed custom-model dialog padding not applying due to CSS specificity. DialogBody now accepts a `style` prop for inline overrides, and the custom-model dialog sets explicit padding.
 - Fixed custom-model dialog resize handle not reliably finding the dialog container. The handler now uses `closest('[data-slot="dialog-container"]')` instead of fragile parent traversal.

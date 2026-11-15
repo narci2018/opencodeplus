@@ -51,6 +51,8 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
   const [fetchingModels, setFetchingModels] = createSignal(false)
   const [fetchError, setFetchError] = createSignal<string | undefined>(undefined)
   const [pickerModels, setPickerModels] = createSignal<string[] | undefined>(undefined)
+  const [checked, setChecked] = createSignal<Set<string>>(new Set())
+  const [query, setQuery] = createSignal("")
 
   const preset = createMemo(() => PROTOCOL_PRESETS[protocol()])
   const editing = createMemo(() => props.existing.find((entry) => entry.id === providerID(name())))
@@ -137,11 +139,56 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
       }
       const sorted = ids.toSorted((a, b) => a.localeCompare(b))
       setPickerModels(sorted)
+      // Pre-check models already present in the field so the popup edits rather than resets.
+      const fetched = new Set(sorted)
+      setChecked(new Set(modelID().split(",").map((s) => s.trim()).filter((id) => fetched.has(id))))
+      setQuery("")
     } catch (cause) {
       setFetchError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setFetchingModels(false)
     }
+  }
+
+  const pickerFiltered = createMemo(() => {
+    const list = pickerModels() ?? []
+    const q = query().trim().toLowerCase()
+    if (!q) return list
+    return list.filter((id) => id.toLowerCase().includes(q))
+  })
+
+  const allVisibleChecked = createMemo(() => {
+    const list = pickerFiltered()
+    return list.length > 0 && list.every((id) => checked().has(id))
+  })
+
+  const toggleModel = (id: string, on: boolean) => {
+    setChecked((current) => {
+      const next = new Set(current)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  const toggleAllVisible = () => {
+    const target = !allVisibleChecked()
+    setChecked((current) => {
+      const next = new Set(current)
+      for (const id of pickerFiltered()) {
+        if (target) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
+  }
+
+  /** Applies the staged selection; model IDs typed by hand that the endpoint did not list are kept. */
+  const applyPicker = () => {
+    const fetched = new Set(pickerModels() ?? [])
+    const manual = modelID().split(",").map((s) => s.trim()).filter((id) => id && !fetched.has(id))
+    setModelID([...manual, ...checked()].join(", "))
+    setPickerModels(undefined)
   }
 
   const testConnection = async () => {
@@ -333,43 +380,6 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
           <Show when={fetchError()}>
             <span class="custom-model-dialog-hint custom-model-dialog-fetch-error">{fetchError()}</span>
           </Show>
-          <Show when={pickerModels()}>
-            <div class="custom-model-fetch-panel">
-              <div class="custom-model-fetch-panel-head">
-                <span class="custom-model-fetch-panel-count">
-                  {language.t("settings.models.custom.fetch.count", { count: String(pickerModels()!.length) })}
-                </span>
-                <div class="custom-model-fetch-panel-actions">
-                  <button type="button" class="custom-model-fetch-select-all"
-                    onClick={() => setModelID(pickerModels()!.join(", "))}
-                  >{language.t("settings.models.custom.fetch.selectAll")}</button>
-                  <button type="button" class="custom-model-fetch-select-all"
-                    onClick={() => setPickerModels(undefined)}
-                  >{language.t("common.cancel")}</button>
-                </div>
-              </div>
-              <div class="custom-model-fetch-list">
-                <For each={pickerModels()}>
-                  {(id) => {
-                    const selected = () => modelID().split(",").map((s) => s.trim()).includes(id)
-                    return (
-                      <label class="custom-model-fetch-item">
-                        <input type="checkbox" checked={selected()}
-                          onChange={(e) => {
-                            const current = new Set(modelID().split(",").map((s) => s.trim()).filter(Boolean))
-                            if (e.currentTarget.checked) current.add(id)
-                            else current.delete(id)
-                            setModelID([...current].join(", "))
-                          }}
-                        />
-                        <span class="custom-model-fetch-item-name">{id}</span>
-                      </label>
-                    )
-                  }}
-                </For>
-              </div>
-            </div>
-          </Show>
         </div>
 
         <Show when={error()}>
@@ -402,6 +412,75 @@ export const CustomModelDialog: Component<CustomModelDialogProps> = (props) => {
         >
           <Icon name={testResult()?.success ? "circle-check" : "circle-exclamation"} size="small" />
           <span>{testResult()?.message}</span>
+        </div>
+      </Show>
+      {/* Internal model picker popup overlay — closing it can never dismiss the parent dialog. */}
+      <Show when={pickerModels()}>
+        <div
+          class="custom-model-fetch-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPickerModels(undefined)
+          }}
+        >
+          <div class="custom-model-fetch-modal">
+            <div class="custom-model-fetch-modal-head">
+              <span class="custom-model-fetch-modal-title">
+                {language.t("settings.models.custom.fetch.picker.title")}
+                <span class="custom-model-fetch-modal-count">
+                  {language.t("settings.models.custom.fetch.count", { count: String(pickerModels()!.length) })}
+                </span>
+              </span>
+              <button
+                type="button"
+                class="custom-model-fetch-modal-close"
+                onClick={() => setPickerModels(undefined)}
+                title={language.t("common.cancel")}
+              >
+                <Icon name="xmark" size="small" />
+              </button>
+            </div>
+            <div class="custom-model-fetch-modal-body">
+              <TextField
+                value={query()}
+                onChange={setQuery}
+                placeholder={language.t("settings.models.custom.fetch.search.placeholder")}
+              />
+              <div class="custom-model-fetch-modal-toolbar">
+                <button type="button" class="custom-model-fetch-select-all" onClick={toggleAllVisible}>
+                  {allVisibleChecked()
+                    ? language.t("settings.models.custom.fetch.clearVisible")
+                    : language.t("settings.models.custom.fetch.selectAll")}
+                </button>
+              </div>
+              <div class="custom-model-fetch-list">
+                <For each={pickerFiltered()}>
+                  {(id) => (
+                    <label class="custom-model-fetch-item">
+                      <input
+                        type="checkbox"
+                        checked={checked().has(id)}
+                        onChange={(e) => toggleModel(id, e.currentTarget.checked)}
+                      />
+                      <span class="custom-model-fetch-item-name">{id}</span>
+                    </label>
+                  )}
+                </For>
+                <Show when={pickerFiltered().length === 0}>
+                  <div class="custom-model-fetch-empty">
+                    {language.t("settings.models.custom.fetch.search.empty")}
+                  </div>
+                </Show>
+              </div>
+            </div>
+            <div class="custom-model-fetch-modal-foot">
+              <Button variant="ghost" onClick={() => setPickerModels(undefined)}>
+                {language.t("common.cancel")}
+              </Button>
+              <Button variant="contrast" onClick={applyPicker}>
+                {language.t("settings.models.custom.fetch.apply")}
+              </Button>
+            </div>
+          </div>
         </div>
       </Show>
     </Dialog>
