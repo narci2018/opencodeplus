@@ -108,7 +108,10 @@ const connectClient = (url: URL, headers?: Record<string, string>) =>
 const until = (check: () => boolean | Promise<boolean>) =>
   Effect.promise(async () => check()).pipe(
     Effect.flatMap((done) => (done ? Effect.void : Effect.fail("pending"))),
-    Effect.retry({ times: 500, schedule: Schedule.spaced("10 millis") }),
+    // ~15s: the computer-use plugin's stdio binary can take several seconds to answer its first
+    // handshake while an antivirus scans the freshly spawned executable, and location boot waits
+    // for plugin activation before MCP tools surface.
+    Effect.retry({ times: 1500, schedule: Schedule.spaced("10 millis") }),
     Effect.orDie,
   )
 

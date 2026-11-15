@@ -130,7 +130,7 @@ describe("McpServerDialog driver", () => {
     setValue(fields[1], "npx -y @playwright/mcp@latest")
 
     const save = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.trim() === "common.confirm",
+      (button) => button.textContent?.trim() === "ui.common.confirm",
     )
     expect(save).toBeTruthy()
     save!.click()
@@ -143,21 +143,17 @@ describe("McpServerDialog driver", () => {
   })
 
   test("saves a remote server with parsed headers", async () => {
-    const host = mountDialog()
-
-    const fields = inputs(host)
-    setValue(fields[0], "remote-mcp")
-    // Switch the type to remote: the type select is fields[1] handled through Kobalte; drive the
-    // signal by selecting the option through the select's hidden input is fragile, so edit a
-    // remote dialog directly instead.
+    // The type select drives the local/remote split through Kobalte, so create a remote server
+    // directly through the edit-mode dialog instead of manipulating the select.
     const remote = mountDialog({ name: "remote-mcp", config: { type: "remote", url: "https://old.example.com" } })
     const remoteFields = inputs(remote)
     setValue(remoteFields[0], "remote-mcp")
     setValue(remoteFields[1], "https://mcp.example.com")
     setValue(remoteFields[2], "Authorization: Bearer sk-test")
 
+    // Edit mode labels the primary button with the save key; creating uses the confirm key.
     const save = Array.from(remote.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.trim() === "common.confirm",
+      (button) => button.textContent?.trim() === "common.save",
     )
     save!.click()
     await settle()

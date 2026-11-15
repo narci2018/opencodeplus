@@ -133,7 +133,7 @@ mock.module("@/shell/notifications/toast", () => ({
 }))
 
 mock.module("@opencode/ui/context/dialog", () => ({
-  useDialog: () => ({ show: () => {}, close: () => {} }),
+  useDialog: () => ({ show: () => {}, push: () => {}, close: () => {} }),
   useDialogLayer: () => ({ container: () => document.body, setBackdropDismiss: () => {}, setExitDuration: () => {} }),
 }))
 
@@ -194,16 +194,32 @@ const setValue = (field: HTMLInputElement | HTMLTextAreaElement, value: string) 
   return field
 }
 
-const byId = (host: HTMLElement, id: string) => host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${id}`)
+// The rewritten dialog uses plain styled fields instead of the shared TextField component.
+const nameInput = (host: HTMLElement) =>
+  host.querySelector<HTMLInputElement>("input.custom-agent-input")
+
+const textareas = (host: HTMLElement) =>
+  host.querySelectorAll<HTMLTextAreaElement>("textarea.custom-agent-prompt-textarea")
 
 const saveButton = (host: HTMLElement) =>
   Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
-    (button) => button.textContent?.trim() === "settings.agents.custom.save",
+    (button) => button.textContent?.trim() === "创建" || button.textContent?.trim() === "保存",
   )
 
-const generateButton = (host: HTMLElement) =>
-  Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
-    (button) => button.textContent?.trim() === "settings.agents.custom.generate",
+// The generate flow lives in the internal ✨ 智能生成 overlay.
+const openGenerator = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+    button.textContent?.includes("智能生成"),
+  )
+
+const generatorSubmit = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+    button.textContent?.includes("开始智能生成"),
+  )
+
+const generatorApply = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+    button.textContent?.includes("应用并填入智能体"),
   )
 
 const checkboxByText = (host: HTMLElement, text: string) =>
@@ -211,18 +227,27 @@ const checkboxByText = (host: HTMLElement, text: string) =>
     input.closest('[data-component="checkbox"]')?.textContent?.includes(text),
   )
 
+// Builtin tool groups render an emoji label inside the checkbox and the translated description
+// next to it, so look up the row by its description text and take that row's checkbox.
+const groupCheckbox = (host: HTMLElement, group: string) => {
+  const row = Array.from(host.querySelectorAll<HTMLElement>(".custom-agent-tool-item")).find((item) =>
+    item.querySelector(".custom-agent-tool-item-desc")?.textContent?.includes(
+      `settings.agents.custom.tools.builtin.${group}.description`,
+    ),
+  )
+  return row?.querySelector<HTMLInputElement>('input[data-slot="checkbox-checkbox-input"]')
+}
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
 
 describe("CustomAgentDialog driver", () => {
   test("saves a callable agent with deny rules for unchecked tool groups", async () => {
     const host = mountDialog()
 
-    setValue(byId(host, "custom-agent-brief")!, "")
-    const name = byId(host, "custom-agent-name-input") ?? Array.from(host.querySelectorAll('input[data-slot="input-input"]'))[0]
-    setValue(name!, "Code Reviewer")
-    setValue(byId(host, "custom-agent-when")!, "When the user asks for a code review.")
+    setValue(nameInput(host)!, "Code Reviewer")
+    setValue(textareas(host)[1]!, "When the user asks for a code review.")
 
-    const shell = checkboxByText(host, "settings.agents.custom.tools.builtin.shell")
+    const shell = groupCheckbox(host, "shell")
     expect(shell).toBeTruthy()
     expect(shell!.checked).toBe(true)
     shell!.click()
@@ -249,16 +274,21 @@ describe("CustomAgentDialog driver", () => {
     expect(state.toasts[0].variant).toBe("success")
   })
 
-  test("keeps save disabled while the when-to-call description is missing", async () => {
+  test("auto-fills the when-to-call description when omitted and stays saveable", async () => {
     const host = mountDialog()
 
-    const name = Array.from(host.querySelectorAll('input[data-slot="input-input"]'))[0]
-    setValue(name!, "Code Reviewer")
-
-    expect(saveButton(host)!.disabled).toBe(true)
-
-    setValue(byId(host, "custom-agent-when")!, "When the user asks for a code review.")
+    setValue(nameInput(host)!, "Code Reviewer")
     expect(saveButton(host)!.disabled).toBe(false)
+
+    saveButton(host)!.click()
+    await settle()
+
+    expect(state.configCalls).toHaveLength(1)
+    expect(state.configCalls[0].agent).toMatchObject({
+      id: "code-reviewer",
+      description: "Code Reviewer：在需要相关专长或任务时由其他智能体与用户调用。",
+      mode: "all",
+    })
   })
 
   test("restores tool selection from stored permissions when editing", async () => {
@@ -275,12 +305,12 @@ describe("CustomAgentDialog driver", () => {
     const host = mountDialog([], editing)
     await settle()
 
-    expect(checkboxByText(host, "settings.agents.custom.tools.builtin.shell")!.checked).toBe(false)
-    expect(checkboxByText(host, "settings.agents.custom.tools.builtin.read")!.checked).toBe(true)
+    expect(groupCheckbox(host, "shell")!.checked).toBe(false)
+    expect(groupCheckbox(host, "read")!.checked).toBe(true)
     expect(checkboxByText(host, "github")!.checked).toBe(false)
 
     // Re-enable shell and save: the shell deny disappears, the MCP deny stays.
-    checkboxByText(host, "settings.agents.custom.tools.builtin.shell")!.click()
+    groupCheckbox(host, "shell")!.click()
     await settle()
 
     saveButton(host)!.click()
@@ -304,14 +334,21 @@ describe("CustomAgentDialog driver", () => {
     })
     const host = mountDialog()
 
-    setValue(byId(host, "custom-agent-brief")!, "一个写文档的智能体")
-    const generate = generateButton(host)
-    expect(generate).toBeTruthy()
-    generate!.click()
+    openGenerator(host)!.click()
+    await settle()
+
+    const brief = host.querySelector<HTMLTextAreaElement>("textarea.agent-generator-textarea")
+    expect(brief).toBeTruthy()
+    setValue(brief!, "一个写文档的智能体")
+
+    generatorSubmit(host)!.click()
     await settle()
 
     expect(state.generateCalls).toHaveLength(1)
     expect(state.generateCalls[0]).toContain("一个写文档的智能体")
+
+    generatorApply(host)!.click()
+    await settle()
 
     saveButton(host)!.click()
     await settle()
@@ -333,18 +370,30 @@ describe("CustomAgentDialog driver", () => {
     })
   })
 
-  test("shows an error toast when the generate reply is not parseable", async () => {
+  test("falls back to local synthesis when the generate reply is not parseable", async () => {
     state.generateReply = "I could not produce JSON."
     const host = mountDialog()
 
-    setValue(byId(host, "custom-agent-brief")!, "一个写文档的智能体")
-    generateButton(host)!.click()
+    openGenerator(host)!.click()
     await settle()
 
-    expect(state.configCalls).toHaveLength(0)
-    expect(state.toasts).toHaveLength(1)
-    expect(state.toasts[0].variant).toBe("error")
-    expect(state.toasts[0].title).toBe("settings.agents.custom.generate.failed.title")
+    setValue(host.querySelector<HTMLTextAreaElement>("textarea.agent-generator-textarea")!, "一个写文档的智能体")
+    generatorSubmit(host)!.click()
+    await settle()
+
+    expect(state.generateCalls).toHaveLength(1)
+    // The synthesizer produced a preview instead of an error.
+    expect(host.querySelector(".agent-generator-preview-box")).toBeTruthy()
+    expect(state.toasts[0].variant).toBe("success")
+
+    generatorApply(host)!.click()
+    await settle()
+
+    saveButton(host)!.click()
+    await settle()
+
+    expect(state.configCalls).toHaveLength(1)
+    expect(state.configCalls[0].agent).toMatchObject({ id: "一个写文档的智能体", mode: "all" })
   })
 
   test("maximizes and restores the dialog", () => {
@@ -358,13 +407,15 @@ describe("CustomAgentDialog driver", () => {
     maximize!.click()
     expect(container!.hasAttribute("data-maximized")).toBe(true)
     expect(container!.style.width).toBe("calc(100vw - 24px)")
-    expect(container!.style.height).toBe("calc(100vh - 24px)")
+    // The maximized height reserves the titlebar area via env(), which happy-dom's CSSOM rejects
+    // and silently drops, so the inline height is not observable here; real browsers keep it.
 
     maximize!.click()
     expect(container!.hasAttribute("data-maximized")).toBe(false)
     // The dialog had no inline size before maximizing, so restoring clears back to the CSS default.
     expect(container!.style.width).toBe("")
     expect(container!.style.height).toBe("")
+    expect(container!.style.marginTop).toBe("")
   })
 
   test("resizes the dialog from the corner handle", () => {

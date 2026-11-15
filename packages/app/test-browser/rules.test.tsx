@@ -122,7 +122,8 @@ describe("SettingsRules driver", () => {
     const text = host.textContent ?? ""
     expect(text).toContain("settings.rules.imports.agents.title")
     expect(text).toContain("settings.rules.imports.claude.title")
-    expect(text).toContain("settings.rules.file.globalAgents")
+    // The global AGENTS.md card shows its path and an 已创建 badge; instruction sources list below.
+    expect(text).toContain(files.globalAgents.path)
     expect(text).toContain("~/rules/a.md")
   })
 
@@ -142,9 +143,9 @@ describe("SettingsRules driver", () => {
     const host = mount()
     await settle()
 
-    // The global AGENTS.md exists: its edit button opens the textarea dialog.
-    const edit = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-      button.textContent?.trim() === "common.edit",
+    // The global AGENTS.md card's 编辑 button (the first one in DOM order) opens the editor dialog.
+    const edit = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "编辑",
     )
     expect(edit).toBeTruthy()
     edit!.click()

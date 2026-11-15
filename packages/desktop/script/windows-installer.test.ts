@@ -90,9 +90,12 @@ windows(
       return result.stdout
     }
 
+    // pwsh ships with CI runners but not every dev machine; any Windows PowerShell reads SDDL the same way.
+    const shell = Bun.which("pwsh") ?? "powershell.exe"
+
     const acl = (file: string) =>
       succeed([
-        "pwsh",
+        shell,
         "-NoProfile",
         "-NonInteractive",
         "-Command",

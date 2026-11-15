@@ -38,6 +38,7 @@ test("exposes every standard HTTP API group", () => {
     "migration",
     "usage",
     "network",
+    "rules",
   ])
   expect(Object.keys(client.debug)).toEqual(["heapDump", "location"])
   expect(Object.keys(client.debug.location)).toEqual(["list", "evict"])
@@ -67,6 +68,7 @@ test("exposes every standard HTTP API group", () => {
     "migration",
     "usage",
     "network",
+    "rules",
     "config",
   ])
   expect(Object.keys(client.experimental.session)).toEqual([
@@ -157,7 +159,9 @@ test("nests a method under client.experimental exactly when its route is experim
     "mcp.remove",
     "migration.v1.status",
     "network.egress",
+    "network.fingerprint",
     "network.proxy",
+    "rules.files",
     "session.export",
     "session.import",
     "session.instructions.entry.list",

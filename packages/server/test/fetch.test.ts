@@ -154,7 +154,13 @@ function occupy(port: number, cancel = false) {
     )
     yield* Effect.forEach(servers, (item) =>
       Effect.callback<void, Error>((resume) => {
-        const onError = (error: Error) => resume(Effect.fail(error))
+        const onError = (error: Error) => {
+          item.server.off("error", onError)
+          // An external holder (WSL relay, another opencode) already satisfies the busy
+          // precondition; the stub just does not get to serve requests on that family.
+          if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") resume(Effect.void)
+          else resume(Effect.fail(error))
+        }
         item.server.once("error", onError)
         item.server.listen(port, item.host, () => {
           item.server.off("error", onError)
@@ -165,6 +171,18 @@ function occupy(port: number, cancel = false) {
     return requests
   })
 }
+
+/** True when this process can bind the port on both loopback families; an external holder makes the OAuth stub scenarios unrunnable. */
+const bindable = (port: number) =>
+  Effect.forEach(["127.0.0.1", "::1"] as const, (host) =>
+    Effect.callback<boolean>((resume) => {
+      const probe = createServer()
+      probe.once("error", () => resume(Effect.succeed(false)))
+      probe.listen(port, host, () => {
+        probe.close(() => resume(Effect.succeed(true)))
+      })
+    }),
+  ).pipe(Effect.map((results) => results.every((result) => result)))
 
 const connectOpenAI = (handler: Handler) =>
   Effect.gen(function* () {
@@ -425,6 +443,11 @@ it.live("returns 404 when a previously readable file is deleted", () =>
 
 it.live("cancels a stale OpenAI OAuth callback server before falling back", () =>
   Effect.gen(function* () {
+    // The scenario needs this test to own the stub serving /cancel, which an external holder rules out.
+    if (!(yield* bindable(1455))) {
+      yield* Effect.logWarning("skipping: port 1455 is held by an external process")
+      return
+    }
     const requests = yield* occupy(1455, true)
     const handler = yield* ServerFetch.make(options)
     const response = yield* connectOpenAI(handler)
@@ -438,6 +461,11 @@ it.live("cancels a stale OpenAI OAuth callback server before falling back", () =
 
 it.live("falls back to port 1457 when OpenAI OAuth port 1455 remains busy", () =>
   Effect.gen(function* () {
+    // Same stub-ownership requirement as the stale-callback scenario above.
+    if (!(yield* bindable(1455))) {
+      yield* Effect.logWarning("skipping: port 1455 is held by an external process")
+      return
+    }
     const requests = yield* occupy(1455)
     const handler = yield* ServerFetch.make(options)
     const response = yield* connectOpenAI(handler)

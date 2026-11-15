@@ -7,6 +7,7 @@ import { Watcher } from "@opencode/core/filesystem/watcher"
 import { Form } from "@opencode/core/form"
 import { Instance } from "@opencode/core/instance"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
+import { Config } from "@opencode/core/config"
 import { ModelsDev } from "@opencode/core/models-dev"
 import { Permission } from "@opencode/core/permission"
 import { Plugin } from "@opencode/core/plugin"
@@ -54,6 +55,10 @@ it.live(
       // Host and private instances must reuse the same global layer identities.
       const replacements: LayerNode.Replacements = [
         Global.node.replace(tempGlobalLayer),
+        // The memory plugin distills on idle with a real LLM call, which would pollute the exact
+        // request log this test pins; the isolation behavior under test is unrelated to memory.
+        // Instances inherit this replacement through `bindings`, so the gate reaches their plugins.
+        Config.node.replace(Config.configured({ project: false, content: JSON.stringify({ memory: { enabled: false } }) })),
         Database.node.replace(Database.node),
         Bus.node.replace(Bus.node),
         App.node.replace(App.node),
