@@ -42,7 +42,7 @@ it.live(
         database: { path: path.join(directory.path, "sessions.db") },
         app: { name: "instance-test", version: "1.2.3" },
         events: { persist: true },
-        config: { directory: directory.path, project: false, content: "{}" },
+        config: { directory: directory.path, project: false, content: JSON.stringify({ memory: { distill: false } }) },
         models: { fetch: false },
         fs: { filewatcher: false },
         instances: {
@@ -161,7 +161,7 @@ it.live(
       })
       const opencode = yield* OpenCode.create(
         {
-          config: { directory: directory.path, project: false, content: "{}" },
+          config: { directory: directory.path, project: false, content: JSON.stringify({ memory: { distill: false } }) },
           models: { fetch: false },
           fs: { filewatcher: false },
           workspaceProviders: { memory: driver },
@@ -248,7 +248,7 @@ it.live(
       const attempts: string[] = []
       const released: string[] = []
       const layer = OpenCode.layer({
-        config: { directory: directory.path, project: false, content: "{}" },
+        config: { directory: directory.path, project: false, content: JSON.stringify({ memory: { distill: false } }) },
         models: { fetch: false },
         fs: { filewatcher: false },
         instances: {
