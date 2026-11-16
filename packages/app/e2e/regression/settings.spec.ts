@@ -1893,14 +1893,17 @@ for (const viewport of [
     await expect(main).toHaveJSProperty("scrollTop", 0)
 
     if (viewport.name === "desktop") {
-      // Wheel over the settings gutter or the page list scrolls the page beside it.
+      // Wheel over the settings gutter scrolls the page beside it.
       await settings.hover({ position: { x: 16, y: 200 } })
       await page.mouse.wheel(0, 200)
       await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
       const top = await scroller.evaluate((element) => element.scrollTop)
+      // The page list is its own faded scroller, so wheeling over a tab scrolls the list, not the page.
+      const nav = settings.locator(".settings-nav-groups")
       await settings.getByRole("tab", { name: "Preferences", exact: true }).hover()
       await page.mouse.wheel(0, 200)
-      await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(top)
+      await expect.poll(() => nav.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+      await expect(scroller.evaluate((element) => element.scrollTop)).resolves.toBe(top)
       await expect(settings.getByRole("button", { name: "Back to app" })).toBeInViewport()
     }
 

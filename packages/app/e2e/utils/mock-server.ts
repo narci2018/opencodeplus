@@ -872,6 +872,41 @@ function mockHandlers(
         websearchProviders: () => Effect.succeed({ location: location(config), data: [] }),
         // No scenario signs in to an OpenCode Console workspace, so none has usage limits.
         usageLimits: () => Effect.succeed({ location: location(config), data: null }),
+        // The rules and ports settings pages fetch eagerly when opened; no scenario drives their
+        // mutations, so answer with empty defaults that keep the pages renderable.
+        rulesFiles: () =>
+          Effect.succeed({
+            rules: { agents_md: true, claude_md: false },
+            instructions: [],
+            globalAgents: { path: "/config/AGENTS.md", content: null },
+            memory: {
+              enabled: true,
+              distill: true,
+              global: { path: "/config/memory/MEMORY.md", content: null },
+              projects: [],
+            },
+          }),
+        portsStatus: () =>
+          Effect.succeed({
+            ports: [
+              { id: "callback_openai", default_port: 1455, configured_port: null, available: true, configurable: true },
+              {
+                id: "callback_openai_fallback",
+                default_port: 1457,
+                configured_port: null,
+                available: true,
+                configurable: true,
+              },
+              {
+                id: "callback_digitalocean",
+                default_port: 1456,
+                configured_port: null,
+                available: true,
+                configurable: true,
+              },
+              { id: "callback_gitlab", default_port: 8080, configured_port: null, available: true, configurable: false },
+            ],
+          }),
         worktreeList: () =>
           Effect.sync(() => {
             if (config.worktrees) return resolve(config.worktrees)

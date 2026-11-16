@@ -202,6 +202,8 @@ const Group = HttpApiGroup.make("mock")
   )
   .add(HttpApiEndpoint.get("websearchProviders", "/api/websearch/provider", { success: Json }))
   .add(HttpApiEndpoint.get("usageLimits", "/api/experimental/usage/limits", { success: Json }))
+  .add(HttpApiEndpoint.get("rulesFiles", "/api/experimental/rules/files", { success: Json }))
+  .add(HttpApiEndpoint.get("portsStatus", "/api/experimental/ports", { success: Json }))
   .add(
     HttpApiEndpoint.get("worktreeList", "/api/worktree", {
       query: Schema.Struct({ projectID: Schema.String }),

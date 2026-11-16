@@ -315,6 +315,9 @@ for (const direction of ["ltr", "rtl"]) {
       const add = component.locator('[data-action="composer-attach"]')
       const agent = controls.getByRole("button", { name: "Choose agent" })
       const variant = controls.getByRole("button", { name: "Choose model variant" })
+      // The permission-mode selector docks after the variant picker, so it is the control that
+      // must sit flush against the far edge when the toolbar is scrolled to the end.
+      const permission = controls.getByRole("button", { name: "授权审批模式" })
       await expect(controls).toHaveCSS("overflow-x", "auto")
       await expect(controls).toHaveCSS("overscroll-behavior-x", "contain")
       await expect(controls).toHaveCSS("direction", direction)
@@ -388,9 +391,9 @@ for (const direction of ["ltr", "rtl"]) {
         })
         await expect(controls).toHaveAttribute("data-overflow-start", "true")
         await expect(controls).toHaveAttribute("data-overflow-end", "false")
-        const last = await variant.boundingBox()
+        const last = await permission.boundingBox()
 
-        if (!last) throw new Error("Missing variant control")
+        if (!last) throw new Error("Missing permission control")
         expect(
           Math.abs(direction === "ltr" ? viewport.x + viewport.width - last.x - last.width : last.x - viewport.x),
         ).toBeLessThan(1)
