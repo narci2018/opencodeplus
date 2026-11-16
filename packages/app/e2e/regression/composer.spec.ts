@@ -1321,9 +1321,12 @@ test("shows thinking on hover or a non-default selection while preserving keyboa
   await expect(control).toHaveText("default")
   await expect(control).toHaveCSS("opacity", "0")
 
-  // The single-agent fixture has only Add and Model before the thinking trigger.
+  // The toolbar docks the tool-concurrency selector between Add and the model, so the walk is
+  // Add, Tool concurrency, Model, then the thinking trigger.
   await page.keyboard.press("Tab")
   await expect(composer.getByRole("button", { name: "Add images and files" })).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(composer.getByRole("button", { name: "Tool concurrency" })).toBeFocused()
   await page.keyboard.press("Tab")
   await expect(composer.getByRole("button", { name: "Thinking Model" })).toBeFocused()
   await page.keyboard.press("Tab")

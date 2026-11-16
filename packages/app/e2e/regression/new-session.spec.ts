@@ -1178,6 +1178,9 @@ for (const row of [
     await send.hover()
     await expectBackground(send, "icon-button-contrast")
     await composer.locator('[data-action="composer-model"]').press("Tab")
+    // The permission-mode selector docks between the model and the send button.
+    await expect(composer.getByRole("button", { name: "授权审批模式" })).toBeFocused()
+    await page.keyboard.press("Tab")
     await expect(send).toBeFocused()
     await expectBackground(send, "icon-button-contrast")
     const message = page.locator('[data-slot="user-message-text"]')
