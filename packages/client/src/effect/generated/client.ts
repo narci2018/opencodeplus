@@ -318,6 +318,8 @@ import type {
   ExperimentalNetworkFingerprintOutput,
   ExperimentalRulesFilesInput,
   ExperimentalRulesFilesOutput,
+  ExperimentalPortsStatusInput,
+  ExperimentalPortsStatusOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1959,6 +1961,15 @@ const EndpointExperimentalRulesFiles = (raw: RawClient["server.rules"]) => (inpu
 
 const adaptGroupExperimentalRules = (raw: RawClient["server.rules"]) => ({ files: EndpointExperimentalRulesFiles(raw) })
 
+const EndpointExperimentalPortsStatus = (raw: RawClient["server.ports"]) => (input?: ExperimentalPortsStatusInput) =>
+  preserveEffect<ExperimentalPortsStatusOutput>()(
+    raw["ports.status"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
+  )
+
+const adaptGroupExperimentalPorts = (raw: RawClient["server.ports"]) => ({
+  status: EndpointExperimentalPortsStatus(raw),
+})
+
 const EndpointConfigGet = (raw: RawClient["server.config"]) => (input?: ConfigGetInput) =>
   preserveEffect<ConfigGetOutput>()(
     raw["config.get"]({ query: { location: input?.["location"] } }).pipe(Effect.mapError(mapClientError)),
@@ -1984,6 +1995,7 @@ const EndpointExperimentalConfigUpdate = (raw: RawClient["server.config"]) => (i
         skill: input?.["skill"],
         rules: input?.["rules"],
         memory: input?.["memory"],
+        ports: input?.["ports"],
         instruction: input?.["instruction"],
         experimental: input?.["experimental"],
       },
@@ -2013,6 +2025,7 @@ const adaptClient = (raw: RawClient) => {
       usage: adaptGroupExperimentalUsage(raw["server.usage"]),
       network: adaptGroupExperimentalNetwork(raw["server.network"]),
       rules: adaptGroupExperimentalRules(raw["server.rules"]),
+      ports: adaptGroupExperimentalPorts(raw["server.ports"]),
       config: adaptGroupExperimentalConfig(raw["server.config"]),
     },
     message: adaptGroupMessage(raw["server.message"]),
@@ -2140,6 +2153,11 @@ const adaptClient = (raw: RawClient) => {
     rules: {
       /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
       files: client.experimental.rules.files,
+    },
+    /** @deprecated Use `client.experimental.ports`. Removed in the next minor. */
+    ports: {
+      /** @deprecated Use `client.experimental.ports.status`. Removed in the next minor. */
+      status: client.experimental.ports.status,
     },
     config: {
       ...client.config,

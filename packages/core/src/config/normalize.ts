@@ -260,6 +260,7 @@ export function normalize(input: unknown): Result {
     rules: Info.fields.rules,
     memory: Info.fields.memory,
     trae: Info.fields.trae,
+    ports: Info.fields.ports,
   }
   Object.entries(nativeObjects).forEach(([key, schema]) => {
     if (!own(input, key)) return

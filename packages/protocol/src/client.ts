@@ -68,6 +68,7 @@ export const groupNames = {
   "server.vcs": "vcs",
   "server.config": "config",
   "server.rules": "rules",
+  "server.ports": "ports",
 } as const
 
 // Experimental routes carry no compatibility promise, so the generated clients nest them under

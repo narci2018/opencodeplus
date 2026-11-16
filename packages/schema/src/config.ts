@@ -20,6 +20,7 @@ import { ConfigProvider } from "./config/provider.js"
 import { ConfigReference } from "./config/reference.js"
 import { ConfigRules } from "./config/rules.js"
 import { ConfigMemory } from "./config/memory.js"
+import { ConfigPorts } from "./config/ports.js"
 import { ConfigTrae } from "./config/trae.js"
 import { ConfigWebSearch } from "./config/websearch.js"
 import { ConfigToolOutput } from "./config/tool-output.js"
@@ -106,6 +107,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   memory: ConfigMemory.Info.pipe(optional).annotate({
     description: "Memory injection and distillation settings",
+  }),
+  ports: ConfigPorts.Info.pipe(optional).annotate({
+    description: "Fixed local ports for provider OAuth login callbacks",
   }),
   trae: ConfigTrae.Info.pipe(optional).annotate({
     description: "TRAE agent integration settings",
@@ -215,6 +219,16 @@ export const MemoryPatch = Schema.Struct({
 }).annotate({ identifier: "Config.MemoryPatch" })
 export type MemoryPatch = Schema.Schema.Type<typeof MemoryPatch>
 
+export const PortsPatch = Schema.Struct({
+  /** Local port for the OpenAI browser-login OAuth callback; `null` clears the override. */
+  callback_openai: Schema.NullOr(Schema.Int.check(Schema.isBetween({ minimum: 1024, maximum: 65535 }))).pipe(optional),
+  /** Fallback port when the OpenAI callback port is occupied; `null` clears the override. */
+  callback_openai_fallback: Schema.NullOr(Schema.Int.check(Schema.isBetween({ minimum: 1024, maximum: 65535 }))).pipe(optional),
+  /** Local port for the DigitalOcean OAuth callback; `null` clears the override. */
+  callback_digitalocean: Schema.NullOr(Schema.Int.check(Schema.isBetween({ minimum: 1024, maximum: 65535 }))).pipe(optional),
+}).annotate({ identifier: "Config.PortsPatch" })
+export type PortsPatch = Schema.Schema.Type<typeof PortsPatch>
+
 export const InstructionPatch = Schema.Struct({
   /** A file path or http(s) URL supplying ambient instructions. */
   source: Schema.String,
@@ -251,6 +265,8 @@ export const Patch = Schema.Struct({
   rules: RulesPatch.pipe(optional),
   /** Sets the memory injection and distillation toggles in the `memory` field. */
   memory: MemoryPatch.pipe(optional),
+  /** Sets the fixed OAuth callback ports in the `ports` field. */
+  ports: PortsPatch.pipe(optional),
   /** Adds or removes one instructions source in the `instructions` array. */
   instruction: InstructionPatch.pipe(optional),
   /** Merges experimental settings, such as subagent availability, into the `experimental` field. */

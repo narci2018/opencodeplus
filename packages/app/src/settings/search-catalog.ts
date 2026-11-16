@@ -254,6 +254,7 @@ export const serverSettings: Entry<SettingsServerTab | "servers">[] = [
   { tab: "subagents", label: "settings.subagents.title", keywords: "subagent subagents availability access allow deny prompt antigravity agy trae" },
   { tab: "usage", label: "settings.usage.title", keywords: "tokens cost statistics usage sessions consumption" },
   { tab: "rules", label: "settings.rules.title", keywords: "rules memory agents.md claude.md instructions context" },
+  { tab: "ports", label: "settings.ports.title", keywords: "port ports oauth callback sign-in login 1455 openai digitalocean" },
   { tab: "extensions", label: "settings.tab.extensions" },
   {
     tab: "extensions",

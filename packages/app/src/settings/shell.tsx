@@ -35,6 +35,7 @@ import { SettingsMarketplace } from "./marketplace/marketplace"
 import { SettingsAutomation } from "./automation/automation"
 import { SettingsUsage, prefetchUsage } from "./usage/usage"
 import { SettingsRules, prefetchRules } from "./rules/rules"
+import { SettingsPorts, prefetchPorts } from "./ports/ports"
 import { SettingsServerDataScope } from "./server-scope"
 import { SettingsNavigation, type SettingsNavGroup } from "./navigation"
 import { SettingsProjectGeneral } from "./workspaces/project"
@@ -64,6 +65,7 @@ const serverTabs = [
   { value: "automation", icon: pageIcons.automation, label: "settings.automation.title" },
   { value: "usage", icon: pageIcons.usage, label: "settings.usage.title" },
   { value: "rules", icon: pageIcons.rules, label: "settings.rules.title" },
+  { value: "ports", icon: pageIcons.ports, label: "settings.ports.title" },
   { value: "extensions", icon: pageIcons.extensions, label: "settings.tab.extensions" },
   { value: "projects", icon: pageIcons.projects, label: "settings.tab.projects" },
   { value: "workspaces", icon: pageIcons.workspaces, label: "settings.tab.workspaces" },
@@ -80,6 +82,7 @@ const serverPages = {
   automation: { title: "settings.automation.title", description: "settings.automation.description" },
   usage: { title: "settings.usage.title", description: "settings.usage.description" },
   rules: { title: "settings.rules.title", description: "settings.rules.description" },
+  ports: { title: "settings.ports.title", description: "settings.ports.description" },
   extensions: { title: "settings.tab.extensions", description: "settings.extensions.description" },
   projects: { title: "settings.projects.title", description: "settings.projects.description" },
   workspaces: { title: "settings.tab.workspaces", description: "settings.workspaces.description" },
@@ -256,6 +259,12 @@ function RootSettings() {
       void prefetchRules(current.sdk)
     }
   }
+  const prefetchPortsTab = () => {
+    const current = serverContext()
+    if (current && current.sdk.connection.status() === "connected") {
+      prefetchPorts(current.sdk)
+    }
+  }
   const activeDirectory = useSettingsDirectory(reachable)
   createEffect(() => {
     const view = surface.view()
@@ -287,7 +296,9 @@ function RootSettings() {
               ? prefetchUsageTab
               : item.value === "rules"
                 ? prefetchRulesTab
-                : undefined,
+                : item.value === "ports"
+                  ? prefetchPortsTab
+                  : undefined,
       })),
     },
     {
@@ -421,6 +432,9 @@ function RootSettings() {
             </Tabs.Content>
             <Tabs.Content value="rules" class="settings-panel">
               <SettingsRules headerAction={<SettingsServerSwitcher />} />
+            </Tabs.Content>
+            <Tabs.Content value="ports" class="settings-panel">
+              <SettingsPorts headerAction={<SettingsServerSwitcher />} />
             </Tabs.Content>
             <Tabs.Content value="extensions" class="settings-panel">
               <SettingsExtensions

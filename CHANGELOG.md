@@ -16,6 +16,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Improvements
 
+- Added configurable OAuth sign-in callback ports under `ports` in `opencode.json` (`callback_openai`, `callback_openai_fallback`, `callback_digitalocean`, defaulting to 1455/1457/1456), read live at each sign-in attempt so changes apply without a restart, plus a `GET /api/experimental/ports` read model that reports each port's configured value and whether it is currently bindable. GitLab's 8080 stays fixed because the provider matches the registered redirect URI exactly.
 - Added a config opt-out for the embedded TRAE computer-use server: `trae.computer_use: false` skips registering and spawning the `open-computer-use` MCP binary on every location boot, so boots stay fast on machines that never use desktop automation and first-run antivirus scans no longer delay session startup.
 - Connected custom headers configured in settings or environment variables (`process.env.OPENCODE_CUSTOM_HEADERS`) to `base.http.headers` in `SessionModelRequest.prepare`, attaching user-defined debugging and gateway headers to outbound model requests.
 - Added 15-second TTL in-memory caching to `session.stats` and optimized window calculation concurrency to 4 with `tools: "none"`, drastically accelerating repeated analytics queries down to under 1ms.
@@ -87,6 +88,7 @@ Release notes for OpenCode V2, newest first.
 - Added Permission Authorization Mode selector in the session chat composer toolbar (`🛡️ 手动审批`, `⚙️ 自动审批`, `⚡ 完全访问`).
 - Added a "工具并发模式" (Tool concurrency) dropdown to the right of the agent selector in the chat composer. It offers two opt-in modes: "默认" (Default, unbounded tool concurrency as before) and "ZCode 模式" (ZCode mode, bounded to `max_concurrency: 10` via `experimental.tool_concurrency`), writing the chosen mode through `experimental.config.update` so it takes effect on the next step.
 - Aligned Custom Agent creation and editing UI with TRAE CN's native design.
+- Added a "服务端口" (Service Ports) settings tab that lists the OAuth sign-in callback ports (OpenAI 1455, OpenAI fallback 1457, DigitalOcean 1456, GitLab 8080), shows a green "可用" / red "被占用" badge from a live bindability probe, and lets you type a custom port for the occupied ones (1024–65535) or clear it to restore the default. Saving writes through `experimental.config.update`; changes take effect on the next sign-in attempt without a restart.
 
 ### Desktop
 

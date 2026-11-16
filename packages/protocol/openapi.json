@@ -15738,6 +15738,172 @@
         }
       }
     },
+    "/api/experimental/network/fingerprint": {
+      "post": {
+        "tags": ["network"],
+        "operationId": "experimental.network.fingerprint",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Experimental: Set or clear the client fingerprint that overrides default request headers. Pass null to restore original values.",
+        "summary": "Update client fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fingerprint": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "userAgent": {
+                            "type": "string"
+                          },
+                          "clientName": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "channel": {
+                            "type": "string"
+                          },
+                          "ip": {
+                            "type": "string"
+                          },
+                          "screenResolution": {
+                            "type": "string"
+                          },
+                          "timezone": {
+                            "type": "string"
+                          },
+                          "language": {
+                            "type": "string"
+                          },
+                          "platform": {
+                            "type": "string"
+                          },
+                          "hardwareConcurrency": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "enum": ["Infinity", "-Infinity", "NaN"]
+                              }
+                            ]
+                          },
+                          "deviceMemory": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "enum": ["Infinity", "-Infinity", "NaN"]
+                              }
+                            ]
+                          },
+                          "colorDepth": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "enum": ["Infinity", "-Infinity", "NaN"]
+                              }
+                            ]
+                          },
+                          "pixelRatio": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "enum": ["Infinity", "-Infinity", "NaN"]
+                              }
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "userAgent",
+                          "clientName",
+                          "version",
+                          "channel",
+                          "ip",
+                          "screenResolution",
+                          "timezone",
+                          "language",
+                          "platform",
+                          "hardwareConcurrency",
+                          "deviceMemory",
+                          "colorDepth",
+                          "pixelRatio",
+                          "id"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["fingerprint"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/experimental/rules/files": {
       "get": {
         "tags": ["rules"],
@@ -15812,6 +15978,82 @@
         },
         "description": "Read model for the rules and memory settings page: import toggles, configured instruction sources, and the rule and memory file paths with their contents for the requested location.",
         "summary": "Rules and memory files"
+      }
+    },
+    "/api/experimental/ports": {
+      "get": {
+        "tags": ["ports"],
+        "operationId": "experimental.ports.status",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ports.Info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ports.Info"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Read model for the service port settings page: the fixed OAuth callback ports with their configured overrides and whether each effective port is currently bindable on loopback.",
+        "summary": "Service port status"
       }
     },
     "/api/config": {
@@ -16510,6 +16752,37 @@
           }
         ]
       },
+      "Config.ExperimentalPatch": {
+        "type": "object",
+        "properties": {
+          "subagent_access": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["default", "allow", "deny"]
+            }
+          },
+          "tool_concurrency": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "max_concurrency": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "Config.Formatter.EntryEncoded": {
         "type": "object",
         "properties": {
@@ -16853,6 +17126,36 @@
             },
             "additionalProperties": false
           },
+          "ports": {
+            "type": "object",
+            "properties": {
+              "callback_openai": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              "callback_openai_fallback": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              "callback_digitalocean": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              }
+            },
+            "additionalProperties": false
+          },
+          "trae": {
+            "type": "object",
+            "properties": {
+              "computer_use": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
           "references": {
             "type": "object",
             "additionalProperties": {
@@ -16977,6 +17280,24 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "tool_concurrency": {
+                "type": "object",
+                "properties": {
+                  "max_concurrency": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              },
+              "subagent_access": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": ["default", "allow", "deny"]
+                }
               },
               "location_idle_timeout": {
                 "anyOf": [
@@ -17415,8 +17736,14 @@
           "memory": {
             "$ref": "#/components/schemas/Config.MemoryPatch"
           },
+          "ports": {
+            "$ref": "#/components/schemas/Config.PortsPatch"
+          },
           "instruction": {
             "$ref": "#/components/schemas/Config.InstructionPatch"
+          },
+          "experimental": {
+            "$ref": "#/components/schemas/Config.ExperimentalPatch"
           }
         },
         "additionalProperties": false
@@ -17446,6 +17773,48 @@
           }
         },
         "required": ["package"],
+        "additionalProperties": false
+      },
+      "Config.PortsPatch": {
+        "type": "object",
+        "properties": {
+          "callback_openai": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "callback_openai_fallback": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "callback_digitalocean": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 65535
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "Config.Provider.Settings": {
@@ -21790,6 +22159,53 @@
           }
         },
         "required": ["_tag", "pluginID", "message"],
+        "additionalProperties": false
+      },
+      "Ports.Info": {
+        "type": "object",
+        "properties": {
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ports.Status"
+            }
+          }
+        },
+        "required": ["ports"],
+        "additionalProperties": false
+      },
+      "Ports.Status": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["callback_openai", "callback_openai_fallback", "callback_digitalocean", "callback_gitlab"]
+          },
+          "default_port": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "configured_port": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "configurable": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "default_port", "configured_port", "available", "configurable"],
         "additionalProperties": false
       },
       "Project": {
@@ -31249,6 +31665,10 @@
     {
       "name": "rules",
       "description": "Rules and memory read model."
+    },
+    {
+      "name": "ports",
+      "description": "Service port status read model."
     },
     {
       "name": "config",

@@ -30,6 +30,7 @@ import { WebSearchGroup } from "./groups/websearch.js"
 import { UsageGroup } from "./groups/usage.js"
 import { NetworkGroup } from "./groups/network.js"
 import { RulesGroup } from "./groups/rules.js"
+import { PortsGroup } from "./groups/ports.js"
 import { makeMcpGroup } from "./groups/mcp.js"
 import { CredentialGroup } from "./groups/credential.js"
 import { ProjectGroup } from "./groups/project.js"
@@ -54,6 +55,7 @@ type LocationGroups<LocationId extends HttpApiMiddleware.AnyId> =
   | HttpApiGroup.AddMiddleware<typeof ReferenceGroup, LocationId>
   | HttpApiGroup.AddMiddleware<typeof VcsGroup, LocationId>
   | HttpApiGroup.AddMiddleware<typeof RulesGroup, LocationId>
+  | HttpApiGroup.AddMiddleware<typeof PortsGroup, LocationId>
   | HttpApiGroup.AddMiddleware<typeof ConfigGroup, LocationId>
 
 type PtyGroups<LocationId extends HttpApiMiddleware.AnyId, LocationService> = ReturnType<
@@ -202,6 +204,7 @@ const makeApiFromGroup = <
     .add(UsageGroup.middleware(locationMiddleware))
     .add(NetworkGroup)
     .add(RulesGroup.middleware(locationMiddleware))
+    .add(PortsGroup.middleware(locationMiddleware))
     .add(ConfigGroup.middleware(locationMiddleware))
     .annotateMerge(
       OpenApi.annotations({

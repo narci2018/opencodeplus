@@ -15,6 +15,7 @@ export type SettingsRootTab =
   | "automation"
   | "usage"
   | "rules"
+  | "ports"
   | "extensions"
   | "servers"
   | "experimental"
@@ -39,6 +40,7 @@ export type SettingsServerTab =
   | "automation"
   | "usage"
   | "rules"
+  | "ports"
   | "extensions"
 
 export type SettingsProjectTab = "general" | "workspaces" | "extensions"
@@ -81,6 +83,7 @@ const rootTabs: Record<SettingsRootTab, true> = {
   automation: true,
   usage: true,
   rules: true,
+  ports: true,
   extensions: true,
   servers: true,
   experimental: true,

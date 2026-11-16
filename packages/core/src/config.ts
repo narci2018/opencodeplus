@@ -573,6 +573,17 @@ export const layer = (options?: Options) =>
                 if (patch.memory.distill !== undefined) merged.distill = patch.memory.distill
                 text = applyEdits(text, modify(text, ["memory"], Object.keys(merged).length > 0 ? merged : undefined, { formattingOptions }))
               }
+              if (patch.ports !== undefined) {
+                const parsed = parse(text) as { ports?: Record<string, unknown> } | undefined
+                const merged = { ...(parsed?.ports ?? {}) }
+                for (const key of ["callback_openai", "callback_openai_fallback", "callback_digitalocean"] as const) {
+                  // `null` clears the override back to the default; integers set a custom port.
+                  if (patch.ports[key] === undefined) continue
+                  if (patch.ports[key] === null) delete merged[key]
+                  else merged[key] = patch.ports[key]
+                }
+                text = applyEdits(text, modify(text, ["ports"], Object.keys(merged).length > 0 ? merged : undefined, { formattingOptions }))
+              }
               if (patch.instruction !== undefined) {
                 const parsed = parse(text) as { instructions?: unknown[] } | undefined
                 const current = Array.isArray(parsed?.instructions) ? parsed.instructions : []

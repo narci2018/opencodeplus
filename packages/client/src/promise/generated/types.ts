@@ -380,6 +380,14 @@ export type RulesFilesInfo = {
   }
 }
 
+export type PortsStatus = {
+  id: "callback_openai" | "callback_openai_fallback" | "callback_digitalocean" | "callback_gitlab"
+  default_port: number
+  configured_port: number | null
+  available: boolean
+  configurable: boolean
+}
+
 export type McpProtocol = "legacy" | "auto" | "2026-07-28"
 
 export type ConfigCompactionPercent = string
@@ -955,6 +963,8 @@ export type VcsInfo = { provider?: string; branch: VcsBranch }
 export type WebSearchProvider = { id: WebSearchID; name: string }
 
 export type UsageLimitsGo = { rolling: UsageLimitsMeter; weekly: UsageLimitsMeter; monthly: UsageLimitsMeter }
+
+export type PortsInfo = { ports: Array<PortsStatus> }
 
 export type ConfigModelCapabilities = {
   tools?: boolean
@@ -2457,6 +2467,8 @@ export type ConfigEntry =
         instructions?: Array<string>
         rules?: { agents_md?: boolean; claude_md?: boolean }
         memory?: { enabled?: boolean; distill?: boolean }
+        ports?: { callback_openai?: number; callback_openai_fallback?: number; callback_digitalocean?: number }
+        trae?: { computer_use?: boolean }
         references?: {
           [x: string]:
             | string
@@ -4848,6 +4860,12 @@ export type ExperimentalRulesFilesInput = {
 
 export type ExperimentalRulesFilesOutput = RulesFilesInfo
 
+export type ExperimentalPortsStatusInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+}
+
+export type ExperimentalPortsStatusOutput = PortsInfo
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 
 export type ConfigGetOutput = Array<ConfigEntry>
@@ -4924,6 +4942,13 @@ export type ExperimentalConfigUpdateInput = {
   readonly skill?: { readonly source: string; readonly remove?: true } | undefined
   readonly rules?: { readonly agents_md?: boolean; readonly claude_md?: boolean } | undefined
   readonly memory?: { readonly enabled?: boolean; readonly distill?: boolean } | undefined
+  readonly ports?:
+    | {
+        readonly callback_openai?: number | null
+        readonly callback_openai_fallback?: number | null
+        readonly callback_digitalocean?: number | null
+      }
+    | undefined
   readonly instruction?: { readonly source: string; readonly remove?: true } | undefined
   readonly experimental?:
     | {
@@ -5099,6 +5124,12 @@ export type RulesFilesInput = ExperimentalRulesFilesInput
 
 /** @deprecated Use `ExperimentalRulesFilesOutput`. Removed in the next minor. */
 export type RulesFilesOutput = ExperimentalRulesFilesOutput
+
+/** @deprecated Use `ExperimentalPortsStatusInput`. Removed in the next minor. */
+export type PortsStatusInput = ExperimentalPortsStatusInput
+
+/** @deprecated Use `ExperimentalPortsStatusOutput`. Removed in the next minor. */
+export type PortsStatusOutput = ExperimentalPortsStatusOutput
 
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput

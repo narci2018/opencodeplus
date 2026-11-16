@@ -1,9 +1,11 @@
+import type { Entry } from "@opencode/schema/config"
 import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect/integration"
 import { define } from "@opencode/plugin/effect/plugin"
 import { Clock, Deferred, Effect, Option, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import type { Server } from "node:http"
 import { App } from "../../app.js"
+import { Config } from "../../config.js"
 import { Credential } from "../../credential.js"
 import { Integration } from "../../integration.js"
 import { IntegrationConnection } from "../../integration/connection.js"
@@ -25,6 +27,15 @@ const routersEndpoint = "https://api.digitalocean.com/v2/gen-ai/models/routers"
 const callbackPort = 1456
 const callbackPath = "/auth/callback"
 const tokenPath = "/auth/token"
+
+/** The callback port from the highest-precedence config document, falling back to the fixed default. */
+const callbackPortFrom = (entries: Entry[]) => {
+  const ports = entries
+    .filter((entry) => entry.type === "document")
+    .flatMap((entry) => (entry.info.ports ? [entry.info.ports] : []))
+    .at(-1)
+  return ports?.callback_digitalocean ?? callbackPort
+}
 const RoutersResponse = Schema.Struct({
   model_routers: Schema.Array(Schema.Struct({ name: Schema.NonEmptyString })),
 })
@@ -41,7 +52,7 @@ const decodeCallback = Schema.decodeUnknownOption(
   ),
 )
 
-const oauth = {
+const oauth = (config: Config.Interface) => ({
   integrationID,
   method: {
     id: methodID,
@@ -50,6 +61,8 @@ const oauth = {
   },
   authorize: () =>
     Effect.gen(function* () {
+      // Read per attempt, so a port changed in settings applies on the next login.
+      const configuredPort = callbackPortFrom(yield* config.entries())
       const state = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url")
       const token = yield* Deferred.make<{ access: string; expiresIn: number }, Error>()
       // Lazy so runtimes without a loopback listener (workerd) never evaluate node:http.
@@ -88,7 +101,7 @@ const oauth = {
         }
         response.writeHead(404).end("Not found")
       })
-      const port = yield* listen(server)
+      const port = yield* listen(server, configuredPort)
       yield* Effect.addFinalizer(() => Effect.sync(() => server.close()))
       const redirect = `http://localhost:${port}${callbackPath}`
       return {
@@ -113,11 +126,12 @@ const oauth = {
         }),
       }
     }),
-} satisfies IntegrationOAuthMethodRegistration
+}) satisfies IntegrationOAuthMethodRegistration
 
 export const DigitalOceanPlugin = define({
   id: "opencode.provider.digitalocean",
   effect: Effect.fn(function* (ctx) {
+    const config = yield* Config.Service
     const cache = yield* SharedCache.Service
     const http = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
     const discovered = yield* ProviderRefresh.start({
@@ -159,7 +173,7 @@ export const DigitalOceanPlugin = define({
     })
 
     yield* ctx.integration.transform((draft) => {
-      draft.method.update(oauth)
+      draft.method.update(oauth(config))
     })
     yield* ctx.provider.transform((evt) => {
       if (!evt.get(providerID)) return
@@ -177,19 +191,19 @@ export const DigitalOceanPlugin = define({
   }),
 } satisfies PluginInternal.InternalPlugin)
 
-function listen(server: Server) {
+function listen(server: Server, port: number) {
   return Effect.callback<number, Error>((resume) => {
     const onError = (error: Error) => resume(Effect.fail(error))
     server.once("error", onError)
-    server.listen(callbackPort, "localhost", () => {
+    server.listen(port, "localhost", () => {
       server.off("error", onError)
-      resume(Effect.succeed(callbackPort))
+      resume(Effect.succeed(port))
     })
   }).pipe(
     Effect.mapError((cause) =>
       "code" in cause && cause.code === "EADDRINUSE"
         ? new Error(
-            `DigitalOcean login needs local port ${callbackPort}, but it is already in use. Stop the process using that port and try again.`,
+            `DigitalOcean login needs local port ${port}, but it is already in use. Stop the process using that port and try again.`,
           )
         : cause,
     ),

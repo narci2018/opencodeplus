@@ -1,0 +1,68 @@
+.ports-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ports-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--v2-border-border);
+  border-radius: 10px;
+  background: var(--v2-background-bg-layer-01);
+}
+
+.ports-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ports-row-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ports-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-text-base);
+}
+
+.ports-row-description {
+  font-size: 11px;
+  color: var(--v2-text-text-muted);
+}
+
+.ports-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.ports-badge--available {
+  color: var(--v2-text-feedback-success, #22c55e);
+  background: var(--v2-state-bg-success, rgba(34, 197, 94, 0.12));
+}
+
+.ports-badge--occupied {
+  color: var(--v2-text-feedback-error, #ef4444);
+  background: var(--v2-state-bg-danger, rgba(239, 68, 68, 0.12));
+}
+
+.ports-row-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ports-row-actions input {
+  width: 110px;
+}

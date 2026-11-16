@@ -1,9 +1,11 @@
+import type { Entry } from "@opencode/schema/config"
 import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect/integration"
 import { define } from "@opencode/plugin/effect/plugin"
 import type { SessionRequest } from "@opencode/plugin/effect/session"
 import { Deferred, Effect, Option, Schema, Semaphore } from "effect"
 import type { Server } from "node:http"
 import { App } from "../../app.js"
+import { Config } from "../../config.js"
 import { Credential } from "../../credential.js"
 import { Integration } from "../../integration.js"
 import { OauthCallbackPage } from "../../oauth/page.js"
@@ -20,6 +22,18 @@ const callbackPort = 1455
 const callbackFallbackPort = 1457
 const callbackBindAttempts = 10
 const callbackBindRetryDelay = 200
+
+/** The callback ports from the highest-precedence config document, falling back to the fixed defaults. */
+const callbackPorts = (entries: Entry[]) => {
+  const ports = entries
+    .filter((entry) => entry.type === "document")
+    .flatMap((entry) => (entry.info.ports ? [entry.info.ports] : []))
+    .at(-1)
+  return {
+    primary: ports?.callback_openai ?? callbackPort,
+    fallback: ports?.callback_openai_fallback ?? callbackFallbackPort,
+  }
+}
 const pollingSafetyMargin = 3000
 const codexBaseURL = "https://chatgpt.com/backend-api/codex"
 const browserMethodID = Integration.MethodID.make("chatgpt-browser")
@@ -52,7 +66,7 @@ const Claims = Schema.fromJsonString(
 )
 const decodeClaims = Schema.decodeUnknownOption(Claims)
 
-const browser = (app: App.Info) =>
+const browser = (app: App.Info, config: Config.Interface) =>
   ({
     integrationID: Integration.ID.make("openai"),
     method: {
@@ -62,6 +76,8 @@ const browser = (app: App.Info) =>
     },
     authorize: () =>
       Effect.gen(function* () {
+        // Read per attempt, so a port changed in settings applies on the next login.
+        const { primary, fallback } = callbackPorts(yield* config.entries())
         const pkce = yield* Effect.promise(generatePKCE)
         const state = base64UrlEncode(crypto.getRandomValues(new Uint8Array(32)).buffer)
         const code = yield* Deferred.make<string, Error>()
@@ -95,7 +111,7 @@ const browser = (app: App.Info) =>
             .writeHead(200, { "Content-Type": "text/html" })
             .end(OauthCallbackPage.success({ provider: "ChatGPT" }))
         })
-        const port = yield* listen(server)
+        const port = yield* listen(server, primary, fallback)
         yield* Effect.addFinalizer(() => Effect.sync(() => server.close()))
         const redirect = `http://localhost:${port}/auth/callback`
         return {
@@ -111,22 +127,22 @@ const browser = (app: App.Info) =>
     refresh: (value) => refresh(browserMethodID, value, app),
   }) satisfies IntegrationOAuthMethodRegistration
 
-function listen(server: Server) {
-  return bind(server, callbackPort).pipe(
-    Effect.as(callbackPort),
+function listen(server: Server, primary: number, fallback: number) {
+  return bind(server, primary).pipe(
+    Effect.as(primary),
     Effect.catchIf(addressInUse, () =>
-      cancel(callbackPort).pipe(
+      cancel(primary).pipe(
         Effect.ignore,
         Effect.andThen(Effect.sleep(callbackBindRetryDelay)),
-        Effect.andThen(bindWithRetry(server, callbackPort, callbackBindAttempts - 1)),
-        Effect.as(callbackPort),
+        Effect.andThen(bindWithRetry(server, primary, callbackBindAttempts - 1)),
+        Effect.as(primary),
         Effect.catchIf(addressInUse, () =>
-          bindWithRetry(server, callbackFallbackPort, callbackBindAttempts).pipe(
-            Effect.as(callbackFallbackPort),
+          bindWithRetry(server, fallback, callbackBindAttempts).pipe(
+            Effect.as(fallback),
             Effect.catchIf(addressInUse, () =>
               Effect.fail(
                 new Error(
-                  `OpenAI browser login needs local port ${callbackPort} or ${callbackFallbackPort}, but both are already in use. Stop the processes using those ports or choose Codex device code (legacy), then try again.`,
+                  `OpenAI browser login needs local port ${primary} or ${fallback}, but both are already in use. Stop the processes using those ports or choose Codex device code (legacy), then try again.`,
                 ),
               ),
             ),
@@ -235,6 +251,7 @@ const headless = (app: App.Info) =>
 export const OpenAIPlugin = define({
   id: "opencode.provider.openai",
   effect: Effect.fn(function* (ctx) {
+    const config = yield* Config.Service
     const loading = Semaphore.makeUnsafe(1)
     let chatgpt: Credential.OAuth | undefined
 
@@ -253,7 +270,7 @@ export const OpenAIPlugin = define({
     })
 
     yield* ctx.integration.transform((editor) => {
-      editor.method.update(browser(ctx.app))
+      editor.method.update(browser(ctx.app, config))
       editor.method.update(headless(ctx.app))
     })
     yield* load()

@@ -320,6 +320,8 @@ import type {
   ExperimentalNetworkFingerprintOutput,
   ExperimentalRulesFilesInput,
   ExperimentalRulesFilesOutput,
+  ExperimentalPortsStatusInput,
+  ExperimentalPortsStatusOutput,
   ConfigGetInput,
   ConfigGetOutput,
   ConfigShellsOutput,
@@ -1773,6 +1775,20 @@ export function make(options: ClientOptions) {
             requestOptions,
           ),
       },
+      ports: {
+        status: (input?: ExperimentalPortsStatusInput, requestOptions?: RequestOptions) =>
+          request<ExperimentalPortsStatusOutput>(
+            {
+              method: "GET",
+              path: `/api/experimental/ports`,
+              query: { location: input?.["location"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 404],
+              empty: false,
+            },
+            requestOptions,
+          ),
+      },
       config: {
         update: (input?: ExperimentalConfigUpdateInput, requestOptions?: RequestOptions) =>
           request<ExperimentalConfigUpdateOutput>(
@@ -1788,6 +1804,7 @@ export function make(options: ClientOptions) {
                 skill: input?.["skill"],
                 rules: input?.["rules"],
                 memory: input?.["memory"],
+                ports: input?.["ports"],
                 instruction: input?.["instruction"],
                 experimental: input?.["experimental"],
               },
@@ -2846,6 +2863,11 @@ export function make(options: ClientOptions) {
     rules: {
       /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
       files: client.experimental.rules.files,
+    },
+    /** @deprecated Use `client.experimental.ports`. Removed in the next minor. */
+    ports: {
+      /** @deprecated Use `client.experimental.ports.status`. Removed in the next minor. */
+      status: client.experimental.ports.status,
     },
     config: {
       ...client.config,

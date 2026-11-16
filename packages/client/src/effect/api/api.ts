@@ -2832,6 +2832,26 @@ export interface ExperimentalRulesApi<E = never> {
   readonly files: ExperimentalRulesFilesOperation<E>
 }
 
+export type ExperimentalPortsStatusInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+}
+export type ExperimentalPortsStatusOutput = {
+  readonly ports: ReadonlyArray<{
+    readonly id: "callback_openai" | "callback_openai_fallback" | "callback_digitalocean" | "callback_gitlab"
+    readonly default_port: number
+    readonly configured_port: number | null
+    readonly available: boolean
+    readonly configurable: boolean
+  }>
+}
+export type ExperimentalPortsStatusOperation<E = never> = (
+  input?: ExperimentalPortsStatusInput,
+) => Effect.Effect<ExperimentalPortsStatusOutput, E>
+
+export interface ExperimentalPortsApi<E = never> {
+  readonly status: ExperimentalPortsStatusOperation<E>
+}
+
 export type ConfigGetInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 export type ConfigGetOutput = ReadonlyArray<Config.Entry>
 export type ConfigGetOperation<E = never> = (input?: ConfigGetInput) => Effect.Effect<ConfigGetOutput, E>
@@ -2860,6 +2880,7 @@ export type ExperimentalConfigUpdateInput = {
   readonly skill?: Config.SkillPatch | undefined
   readonly rules?: Config.RulesPatch | undefined
   readonly memory?: Config.MemoryPatch | undefined
+  readonly ports?: Config.PortsPatch | undefined
   readonly instruction?: Config.InstructionPatch | undefined
   readonly experimental?: Config.ExperimentalPatch | undefined
 }
@@ -3115,6 +3136,15 @@ export type RulesFilesOutput = ExperimentalRulesFilesOutput
 /** @deprecated Use `ExperimentalRulesFilesOperation`. Removed in the next minor. */
 export type RulesFilesOperation<E = never> = ExperimentalRulesFilesOperation<E>
 
+/** @deprecated Use `ExperimentalPortsStatusInput`. Removed in the next minor. */
+export type PortsStatusInput = ExperimentalPortsStatusInput
+
+/** @deprecated Use `ExperimentalPortsStatusOutput`. Removed in the next minor. */
+export type PortsStatusOutput = ExperimentalPortsStatusOutput
+
+/** @deprecated Use `ExperimentalPortsStatusOperation`. Removed in the next minor. */
+export type PortsStatusOperation<E = never> = ExperimentalPortsStatusOperation<E>
+
 /** @deprecated Use `ExperimentalConfigUpdateInput`. Removed in the next minor. */
 export type ConfigUpdateInput = ExperimentalConfigUpdateInput
 
@@ -3142,6 +3172,9 @@ export type NetworkApi<E = never> = ExperimentalNetworkApi<E>
 /** @deprecated Use `ExperimentalRulesApi`. Removed in the next minor. */
 export type RulesApi<E = never> = ExperimentalRulesApi<E>
 
+/** @deprecated Use `ExperimentalPortsApi`. Removed in the next minor. */
+export type PortsApi<E = never> = ExperimentalPortsApi<E>
+
 export interface AppApi<E = never> {
   readonly server: ServerApi<E>
   readonly location: LocationApi<E>
@@ -3159,6 +3192,7 @@ export interface AppApi<E = never> {
     readonly usage: ExperimentalUsageApi<E>
     readonly network: ExperimentalNetworkApi<E>
     readonly rules: ExperimentalRulesApi<E>
+    readonly ports: ExperimentalPortsApi<E>
     readonly config: ExperimentalConfigApi<E>
   }
   readonly message: MessageApi<E>
@@ -3236,5 +3270,11 @@ export interface AppApi<E = never> {
   readonly rules: {
     /** @deprecated Use `client.experimental.rules.files`. Removed in the next minor. */
     readonly files: ExperimentalRulesFilesOperation<E>
+  }
+
+  /** @deprecated Use `client.experimental.ports`. Removed in the next minor. */
+  readonly ports: {
+    /** @deprecated Use `client.experimental.ports.status`. Removed in the next minor. */
+    readonly status: ExperimentalPortsStatusOperation<E>
   }
 }
