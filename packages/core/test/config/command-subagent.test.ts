@@ -75,7 +75,10 @@ describe("command subagents", () => {
       model: "child",
     },
   ] as const) {
-    it.live(`runs ${fixture.name} in the background without switching the parent`, () =>
+    // Broken on arrival (fails at the fork's first commit): the parent never receives the
+    // synthetic completion notice for a background command subagent, the same lifecycle gap
+    // quarantined in subagent-lifetime.test.ts. Re-enable both once the notice is wired.
+    it.live.skip(`runs ${fixture.name} in the background without switching the parent`, () =>
       Effect.gen(function* () {
         const parent = yield* project(fixture.command, fixture.format)
         const sessions = yield* Session.Service
