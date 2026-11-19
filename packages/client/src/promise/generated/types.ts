@@ -2485,6 +2485,7 @@ export type ConfigEntry =
             name?: string
             env?: Array<string>
             package?: string
+            disabled?: boolean
             compatibility?: ProviderCompatibility
             settings?: ConfigProviderSettings
             headers?: { [x: string]: string }
@@ -4882,6 +4883,7 @@ export type ExperimentalConfigUpdateInput = {
         readonly name?: string
         readonly settings?: { readonly baseURL: string; readonly apiKey?: string }
         readonly models?: { readonly [x: string]: { readonly name?: string } }
+        readonly disabled?: boolean
         readonly remove?: true
       }
     | undefined

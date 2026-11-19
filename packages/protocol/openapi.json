@@ -17898,6 +17898,9 @@
           "package": {
             "type": "string"
           },
+          "disabled": {
+            "type": "boolean"
+          },
           "compatibility": {
             "$ref": "#/components/schemas/Provider.Compatibility"
           },
@@ -17961,6 +17964,9 @@
               },
               "additionalProperties": false
             }
+          },
+          "disabled": {
+            "type": "boolean"
           },
           "remove": {
             "type": "boolean",
