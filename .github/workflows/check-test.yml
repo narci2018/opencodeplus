@@ -153,15 +153,23 @@ jobs:
           # The runners have four vCPUs, and each Bun test process performs its own concurrent work.
           # Turbo runs one package at a time: with multiple packages in parallel, Bun has been
           # observed to segfault on Linux (exit 139) under the combined memory pressure.
+          set -o pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            GITHUB_ACTIONS=false bun turbo test --concurrency=1
+            GITHUB_ACTIONS=false bun turbo test --concurrency=1 2>&1 | tee /tmp/unit.log
             exit 0
           fi
-          GITHUB_ACTIONS=false bun turbo test --affected --concurrency=1
+          GITHUB_ACTIONS=false bun turbo test --affected --concurrency=1 2>&1 | tee /tmp/unit.log
         env:
           OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
           TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
           TURBO_SCM_HEAD: ${{ github.sha }}
+
+      - name: Surface failing tests
+        if: failure()
+        run: |
+          grep -E "\(fail\)" /tmp/unit.log | sort -u | head -60 | while read -r line; do
+            echo "::error::${line//(fail) /}"
+          done
 
       - name: Verify packed codemode package
         if: runner.os == 'Linux'
