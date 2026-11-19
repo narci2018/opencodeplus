@@ -148,14 +148,16 @@ jobs:
           git config --global user.name "opencode"
 
       - name: Run unit tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           # The runners have four vCPUs, and each Bun test process performs its own concurrent work.
+          # Turbo runs one package at a time: with multiple packages in parallel, Bun has been
+          # observed to segfault on Linux (exit 139) under the combined memory pressure.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            GITHUB_ACTIONS=false bun turbo test --concurrency=3
+            GITHUB_ACTIONS=false bun turbo test --concurrency=1
             exit 0
           fi
-          GITHUB_ACTIONS=false bun turbo test --affected --concurrency=3
+          GITHUB_ACTIONS=false bun turbo test --affected --concurrency=1
         env:
           OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
           TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
