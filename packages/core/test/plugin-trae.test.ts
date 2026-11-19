@@ -2,11 +2,13 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import type { Plugin } from "@opencode/plugin/effect"
 import { Agent } from "@opencode/core/agent"
+import { Config } from "@opencode/core/config"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { Location } from "@opencode/core/location"
 import { Permission } from "@opencode/core/permission"
 import { TraePlugin } from "@opencode/core/plugin/trae/trae"
+import { Document, Info } from "@opencode/schema/config"
 import { AbsolutePath } from "@opencode/core/schema"
 import { Global } from "@opencode/util/global"
 import { location } from "./fixture/location"
@@ -60,7 +62,7 @@ describe("TraePlugin", () => {
           agent: agentHost(agent),
           mcp: mcp.domain,
         }),
-      )
+      ).pipe(Effect.provide(Config.testLayer([])))
 
       const trae = yield* agent.get(Agent.ID.make("trae"))
       expect(trae).toBeDefined()
@@ -84,13 +86,34 @@ describe("TraePlugin", () => {
           agent: agentHost(agent),
           mcp: mcp.domain,
         }),
-      )
+      ).pipe(Effect.provide(Config.testLayer([])))
 
       const config = mcp.servers.get("computer-use") as { type: string; command: string[] } | undefined
       if (!config) throw new Error("expected the computer-use server override")
       expect(config.type).toBe("local")
       expect(config.command[1]).toBe("mcp")
       expect(config.command[0]).toContain("open-computer-use")
+    }),
+  )
+
+  it.effect("skips the computer-use server when config opts out", () =>
+    Effect.gen(function* () {
+      const agent = yield* Agent.Service
+      const mcp = mcpHost()
+      const config = new Document({
+        type: "document",
+        info: Info.make({ trae: { computer_use: false } }),
+      })
+      yield* TraePlugin.Plugin.effect(
+        host({
+          agent: agentHost(agent),
+          mcp: mcp.domain,
+        }),
+      ).pipe(Effect.provide(Config.testLayer([config])))
+
+      expect(mcp.servers.has("computer-use")).toBe(false)
+      // Agent personas are still registered; only desktop automation is skipped.
+      expect(yield* agent.get(Agent.ID.make("trae"))).toBeDefined()
     }),
   )
 })
