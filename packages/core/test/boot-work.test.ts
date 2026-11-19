@@ -10,6 +10,8 @@ import { ChildProcessSpawner } from "effect/process"
 import { LanguageModel } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
 import { TestLLM } from "@opencode/ai/testing"
+import { Config } from "@opencode/core/config"
+import { Document, Info } from "@opencode/schema/config"
 import { Agent } from "@opencode/core/agent"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
@@ -115,6 +117,7 @@ const it = testEffect(
   Layer.merge(
     llmLayer,
     AppNodeBuilder.build(LayerNode.group([Session.node, LocationServiceMap.node]), [
+      Config.node.replace(Config.testLayer([new Document({ type: "document", info: Info.make({ memory: { distill: false }, trae: { computer_use: false } }) })])),
       Global.node.replace(tempGlobalLayer),
       offlineModels,
       Watcher.node.replace(Watcher.configured({ enabled: false })),

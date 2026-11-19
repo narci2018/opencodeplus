@@ -16,6 +16,7 @@ import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { llmClient } from "@opencode/core/effect/app-node-platform"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { Bus } from "@opencode/core/bus"
+import { Global } from "@opencode/util/global"
 import { EventTable } from "@opencode/core/event/sql"
 import { Instructions } from "@opencode/core/instructions/index"
 import { SessionCompaction } from "@opencode/core/session/compaction"
@@ -123,6 +124,11 @@ const it = testEffect(
       Bus.node.replace(Bus.configured({ persist: true })),
       llmClient.replace(client),
       Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/project") })),
+      // Isolate the global config directory: fingerprint headers and memory injection must not
+      // read the developer's real ~/.config/opencode files during tests.
+      Global.node.replace(
+        Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/opencode" })),
+      ),
     ],
   ),
 )
@@ -487,17 +493,18 @@ it.effect("auto compaction estimates current content against the buffered prompt
 
     const interrupted = { ...assistant, id: SessionMessage.ID.create(), tokens: undefined }
     expect(SessionCompaction.estimateContext({ ...grown, messages: [...grown.messages, interrupted] })).toBe(90_001)
-    // Without provider usage, include 20 tokens for the system prompt, instructions, and tool definition.
-    expect(SessionCompaction.estimateContext({ ...grown, messages: [interrupted] })).toBe(21)
+    // Without provider usage, the estimate covers the identity declaration, the system prompt,
+    // instructions, and tool definition.
+    expect(SessionCompaction.estimateContext({ ...grown, messages: [interrupted] })).toBe(199)
     // Another provider's usage is not trusted either.
     const foreign = { ...assistant, model: { ...assistant.model, providerID: Provider.ID.make("other") } }
-    expect(SessionCompaction.estimateContext({ ...grown, messages: [foreign] })).toBe(21)
+    expect(SessionCompaction.estimateContext({ ...grown, messages: [foreign] })).toBe(199)
     expect(
       SessionCompaction.estimateContext({
         ...grown,
         messages: [{ ...interrupted, tokens: input(0, contextLimited).messages[0].tokens }],
       }),
-    ).toBe(21)
+    ).toBe(199)
 
     const media = [
       { type: "file", mime: "image/png", uri: `data:image/png;base64,${"a".repeat(100_000)}` },
@@ -525,7 +532,8 @@ it.effect("auto compaction estimates current content against the buffered prompt
         model: { ...grown.model, capabilities: { ...grown.model.capabilities, input: modalities } },
       }
       expect(SessionCompaction.estimateContext({ ...selected, messages: [...messages, user] })).toBe(tokens)
-      expect(SessionCompaction.estimateContext({ ...selected, messages: [user] })).toBe(fallback + 20)
+      // The no-usage baseline covers the identity declaration, system prompt, instructions, and tools.
+      expect(SessionCompaction.estimateContext({ ...selected, messages: [user] })).toBe(fallback + 198)
     }
 
     const checkpoint = Schema.decodeUnknownSync(SessionMessage.CompactionCompleted)({
