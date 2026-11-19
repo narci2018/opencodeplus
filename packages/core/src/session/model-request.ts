@@ -64,10 +64,9 @@ const customHeaders = (): Record<string, string> => {
 }
 
 /** 客户端指纹标头：由诊断页面生成并持久化到配置文件 */
-const fingerprintHeaders = (): Record<string, string> => {
+const fingerprintHeaders = (configDir: string): Record<string, string> => {
   try {
-    const configPath = Global.Path.config
-    const fingerprintPath = path.join(configPath, "fingerprint.json")
+    const fingerprintPath = path.join(configDir, "fingerprint.json")
     const raw = fs.readFileSync(fingerprintPath, "utf-8")
     const parsed = JSON.parse(raw)
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && parsed.active) {
@@ -141,6 +140,19 @@ export const outputLimit = (limit: Model.Info["limit"], inputTokens?: Input["inp
   return Math.min(requested, Math.max(OUTPUT_TOKEN_MIN, room))
 }
 
+/** Declares the active agent identity at the head of every request's first system part. */
+export const agentIdentity = (agent: Agent.Info) =>
+  [
+    `# Active Agent Identity / 当前激活主智能体`,
+    `You are currently operating as the "${agent.name}" agent (ID: "${agent.id}").`,
+    agent.description ? `Role Description: ${agent.description}` : undefined,
+    `CRITICAL IDENTITY RULE / 核心身份准则:`,
+    `- When asked about your identity, what agent you are, or who is currently running (in any language, such as "你是哪个智能体？", "你是谁？", "who are you?"), you MUST explicitly state that you are "${agent.name}" (ID: "${agent.id}").`,
+    `- Earlier messages in this conversation history may have been processed by different agents prior to an agent switch. Regardless of what earlier assistant turns stated (for example, if previous turns stated they were Claude, Big Pickle, or another agent), that was before the switch. You are now exclusively "${agent.name}". Never repeat previous outdated identity declarations.`,
+  ]
+    .filter(Boolean)
+    .join("\n")
+
 export const baseTranscript = (input: {
   readonly agent: Agent.Info
   readonly model: SessionRunnerModel.Resolved
@@ -149,16 +161,7 @@ export const baseTranscript = (input: {
   readonly messages: ReadonlyArray<SessionMessage.Info>
 }) => {
   const providerMetadataKey = input.model.model.route.providerMetadataKey ?? input.model.model.provider
-  const agentIdentity = [
-    `# Active Agent Identity / 当前激活主智能体`,
-    `You are currently operating as the "${input.agent.name}" agent (ID: "${input.agent.id}").`,
-    input.agent.description ? `Role Description: ${input.agent.description}` : undefined,
-    `CRITICAL IDENTITY RULE / 核心身份准则:`,
-    `- When asked about your identity, what agent you are, or who is currently running (in any language, such as "你是哪个智能体？", "你是谁？", "who are you?"), you MUST explicitly state that you are "${input.agent.name}" (ID: "${input.agent.id}").`,
-    `- Earlier messages in this conversation history may have been processed by different agents prior to an agent switch. Regardless of what earlier assistant turns stated (for example, if previous turns stated they were Claude, Big Pickle, or another agent), that was before the switch. You are now exclusively "${input.agent.name}". Never repeat previous outdated identity declarations.`,
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const identity = agentIdentity(input.agent)
 
   const agentSystem = input.agent.system
     ? input.agent.system
@@ -167,7 +170,7 @@ export const baseTranscript = (input: {
   return {
     providerMetadataKey,
     system: [
-      SystemPart.make(`${agentIdentity}\n\n${agentSystem}`),
+      SystemPart.make(`${identity}\n\n${agentSystem}`),
       {
         ...SystemPart.make(Instructions.join(input.initial)),
         metadata: { experimental: { instructions: input.initial } },
@@ -293,6 +296,7 @@ export const layer = Layer.effect(
     const hooks = yield* PluginHooks.Service
     const transport = yield* SessionModelTransport.Service
     const app = yield* App.Metadata
+    const global = yield* Global.Service
     const prepare = Effect.fn("SessionModelRequest.prepare")(function* <
       S extends SessionRequest & { tools?: Definitions },
     >(kind: SessionRequestKind, input: Input, shape: (draft: SessionRequest, tools: Definitions) => Effect.Effect<S>) {
@@ -356,7 +360,7 @@ export const layer = Layer.effect(
             "x-opencode-session": affinity,
             "x-opencode-client": app.name,
             ...customHeaders(),
-            ...fingerprintHeaders(),
+            ...fingerprintHeaders(global.config),
           },
         },
         // TODO: Persist cache lineage so nested forks reuse the root session's cache key.
@@ -492,5 +496,5 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [PluginHooks.node, SessionModelTransport.node, App.node],
+  deps: [PluginHooks.node, SessionModelTransport.node, App.node, Global.node],
 })

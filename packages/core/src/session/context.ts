@@ -7,6 +7,7 @@ import { Agent } from "../agent.js"
 import { CodeModeInstructions } from "../codemode/instructions.js"
 import { Database } from "../database/database.js"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { Global } from "@opencode/util/global"
 import { InstructionDiscovery } from "../instruction-discovery.js"
 import { Instructions } from "../instructions/index.js"
 import { InstructionBuiltIns } from "../instructions/builtins.js"
@@ -16,8 +17,6 @@ import { McpTool } from "../tool/mcp.js"
 import { ReferenceInstructions } from "../reference/instructions.js"
 import { SkillInstructions } from "../skill/instructions.js"
 import { MemoryInstructions } from "../memory/instructions.js"
-import os from "node:os"
-import path from "node:path"
 import { Tool } from "../tool.js"
 import { AgentNotFoundError } from "./error.js"
 import { SessionHistory } from "./history.js"
@@ -77,6 +76,7 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const agents = yield* Agent.Service
+    const global = yield* Global.Service
     const builtins = yield* InstructionBuiltIns.Service
     const model = yield* Model.Service
     const db = (yield* Database.Service).db
@@ -137,10 +137,9 @@ const layer = Layer.effect(
       if (!agent.info) return yield* new AgentNotFoundError({ sessionID: session.id, agent: session.agent ?? agent.id })
       // Session permissions narrow discovery the same way they narrow the tool snapshot.
       const permissions = Permission.merge(agent.info.permissions, session.permissions ?? [])
-      const memorySources = MemoryInstructions.load(
-        path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "opencode"),
-        location.project.canonical,
-      )
+      // Memory files live under the global config directory (XDG-aware) and the project root; the
+      // directory must come from Global.Service, never a hard-coded home path.
+      const memorySources = MemoryInstructions.load(global.config, location.project.canonical)
       const loaded = yield* Effect.all(
         {
           tools: registry.snapshot(permissions),
@@ -216,6 +215,7 @@ export const node = makeLocationNode({
   layer,
   deps: [
     Agent.node,
+    Global.node,
     Model.node,
     Database.node,
     InstructionBuiltIns.node,

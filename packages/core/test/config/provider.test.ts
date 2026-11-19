@@ -1334,6 +1334,12 @@ describe("ConfigProviderPlugin.Plugin", () => {
       expect((yield* providers.get(id))?.name).toBe("Paused")
       expect((yield* providers.available()).map((provider) => provider.id)).not.toContain(id)
       expect((yield* providers.available()).map((provider) => provider.id)).toContain(Provider.ID.make("running"))
+
+      // A disabled provider's models drop out of the model catalog too: the picker and the
+      // models settings page both derive from the provider snapshot's available list.
+      const models = yield* Model.Service
+      expect(yield* models.get(id, Model.ID.make("chat"))).toBeUndefined()
+      expect((yield* models.available()).some((model) => model.providerID === id)).toBe(false)
     }),
   )
 })

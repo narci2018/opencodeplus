@@ -26,6 +26,7 @@ import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
 import { LayerNode } from "@opencode/util/effect/layer-node"
+import { Global } from "@opencode/util/global"
 import { Bus } from "@opencode/core/bus"
 import { Event } from "@opencode/schema/event"
 import { App } from "@opencode/core/app"
@@ -59,8 +60,10 @@ import { OptimizePlugin } from "@opencode/core/plugin/optimize"
 import { IdentityPlugin } from "@opencode/core/plugin/identity"
 import { QuestionTool } from "@opencode/core/tool/plugin/question"
 import { Agent } from "@opencode/core/agent"
+import { SessionModelRequest } from "@opencode/core/session/model-request"
 import { Config } from "@opencode/core/config"
 import { Document, Info } from "@opencode/schema/config"
+import { Agent as AgentSchema } from "@opencode/schema/agent"
 import { ConfigCompaction } from "@opencode/schema/config/compaction"
 import { Tool } from "@opencode/core/tool"
 import type { Info as ToolInfo } from "@opencode/schema/tool"
@@ -125,7 +128,12 @@ const testModel = (id: string, limit: ModelLimit = defaultModelLimit) => {
   return LanguageModel.make({ id, provider: "fake", route: OpenAIChat.route })
 }
 const model = testModel("fake-model")
-const defaultSystem = SessionSystemPrompt.make([])
+// The first system part is the active-agent identity declaration followed by the harness prompt.
+const buildIdentity = SessionModelRequest.agentIdentity(AgentSchema.Info.default(Agent.ID.make("build")))
+const defaultSystem = `${buildIdentity}\n\n${SessionSystemPrompt.make([])}`
+// Agent system overrides keep the identity declaration ahead of the override text.
+const withIdentity = (system: string, name = "build") =>
+  `${SessionModelRequest.agentIdentity(AgentSchema.Info.default(AgentSchema.ID.make(name)))}\n\n${system}`
 const identity = (providerID: string, id: string) =>
   ["# Your Model", `- Name: ${id}`, `- Provider ID: ${providerID}`, `- Model ID: ${id}`].join("\n")
 const fakeIdentity = identity("fake", "fake-model")
@@ -424,6 +432,11 @@ const layer = Layer.unwrap(
     })
     const replacements: LayerNode.Replacements = [
       Snapshot.node.replace(Snapshot.noopLayer),
+      // Isolate the global config directory so memory injection cannot read the developer's real
+      // ~/.config/opencode memory files during tests.
+      Global.node.replace(
+        Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/opencode" })),
+      ),
       LayerNodePlatform.llmClient.replace(testLLM),
       SessionRunnerModel.node.replace(models),
       InstructionBuiltIns.node.replace(systemContext),
@@ -2025,7 +2038,7 @@ describe("SessionRunnerLLM", () => {
     yield* s.resume
 
     expect(s.requests.at(-1)?.system.map((part) => part.text)).toEqual([
-      "Build agent instructions",
+      withIdentity("Build agent instructions"),
       fakeIdentity,
       "Initial context",
     ])
@@ -2050,7 +2063,7 @@ describe("SessionRunnerLLM", () => {
     yield* s.resume
 
     expect(s.requests.at(-1)?.system.map((part) => part.text)).toEqual([
-      "Reviewer instructions",
+      withIdentity("Reviewer instructions", "reviewer"),
       fakeIdentity,
       "Initial context",
     ])
@@ -2077,7 +2090,7 @@ describe("SessionRunnerLLM", () => {
     yield* s.resume
 
     expect(s.requests.at(-1)?.system.map((part) => part.text)).toEqual([
-      "Reviewer instructions",
+      withIdentity("Reviewer instructions", "reviewer"),
       fakeIdentity,
       "Initial context",
     ])
@@ -2123,7 +2136,8 @@ describe("SessionRunnerLLM", () => {
 
     expect(s.requests.map((request) => request.system.map((part) => part.text))).toEqual([
       [defaultSystem, fakeIdentity, "Build skills\n\nInitial context"],
-      [defaultSystem, fakeIdentity, "Build skills\n\nInitial context"],
+      // The identity follows the switched reviewer; the skill baseline catches up on the next reload.
+      [withIdentity(SessionSystemPrompt.make([]), "reviewer"), fakeIdentity, "Build skills\n\nInitial context"],
     ])
     expect(systemTexts(s.requests[1])).toContainEqual(expect.stringContaining("Reviewer skills"))
   })
@@ -2818,7 +2832,7 @@ describe("SessionRunnerLLM", () => {
         ] as const)
           expect(compact[field]).toEqual(normal[field])
         expect(compact.toolChoice).toBeUndefined()
-        expect(compact.system.map((part) => part.text)).toContain("Review the project carefully.")
+        expect(compact.system.map((part) => part.text).join(String.fromCharCode(10))).toContain("Review the project carefully.")
         expect(requestAgents[2]).toBe(agentID)
         expect(s.executions).toEqual(["x".repeat(4_000)])
         const stored = (yield* s.messages).find((message) => message.type === "compaction")
