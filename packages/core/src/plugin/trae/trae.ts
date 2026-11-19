@@ -12,7 +12,12 @@ import ComputerBinding from "./computer-binding.js"
 import systemPrompt from "./system.md" with { type: "text" }
 import traeBaoPrompt from "./trae-bao.md" with { type: "text" }
 
-const require = createRequire(import.meta.url)
+// createRequire needs a file URL, which workerd does not provide for import.meta.url. Resolve it
+// lazily so the packed workerd bundle loads without a Bun/Node-only require at module scope.
+const resolveRequire = () => {
+  if (typeof import.meta.url !== "string") return undefined
+  return createRequire(import.meta.url)
+}
 
 // The TRAE agent is a built-in orchestrator over Code Mode, browser, and desktop tools. The
 // computer-use MCP server rides along: its native binary ships embedded in the CLI (resolved
@@ -87,11 +92,12 @@ export const Plugin = define({
           if (stats.size > 0) return target
         }
 
-        // Read embedded asset via Bun.file
-        // @ts-ignore
-        if (typeof Bun !== "undefined" && typeof Bun.file === "function") {
-          // @ts-ignore
-          const file = Bun.file(binding.path)
+        // In CLI builds `binding.path` is a Bun virtual path that only Bun's file API can read.
+        // Resolve it through globalThis rather than a literal Bun.* reference: the packed workerd
+        // bundle must not contain Bun globals, since workerd has no Bun runtime.
+        const bun = (globalThis as { Bun?: { file?: (path: string) => { arrayBuffer(): Promise<ArrayBuffer> } } }).Bun
+        if (typeof bun?.file === "function") {
+          const file = bun.file(binding.path)
           const arrayBuffer = await file.arrayBuffer()
           const bytes = new Uint8Array(arrayBuffer)
           if (bytes.byteLength > 0) {
@@ -115,7 +121,9 @@ export const Plugin = define({
       }
 
       // Fallback: check node_modules resolution
+      const require = resolveRequire()
       try {
+        if (!require) return existsSync(target) ? target : binding.path
         const manifestPath = require.resolve("open-computer-use/package.json")
         const root = path.dirname(manifestPath)
         const fallbackExe =

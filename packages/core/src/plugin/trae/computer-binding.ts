@@ -19,7 +19,12 @@ export type Binding = {
 // packages/cli/script/build.ts). In a development workspace the binary resolves from the
 // `open-computer-use` dev dependency; with neither present, desktop tools stay unregistered
 // and the TRAE agent reports them as unavailable.
-const require = createRequire(import.meta.url)
+// createRequire needs a file URL, which workerd does not provide for import.meta.url; resolve it
+// lazily so workerd (where desktop automation is never available) loads this module harmlessly.
+const resolveRequire = () => {
+  if (typeof import.meta.url !== "string") return undefined
+  return createRequire(import.meta.url)
+}
 
 const workDirectory = () => {
   const cwd = path.join(os.tmpdir(), "opencode-computer-use")
@@ -29,6 +34,8 @@ const workDirectory = () => {
 
 function resolve(): Binding | undefined {
   try {
+    const require = resolveRequire()
+    if (!require) return undefined
     const manifestPath = require.resolve("open-computer-use/package.json")
     const manifest = require(manifestPath) as { version?: string }
     const root = path.dirname(manifestPath)
