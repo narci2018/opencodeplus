@@ -487,6 +487,7 @@ export const layer = (options?: Options) =>
                       ...(provider.name !== undefined ? { name: provider.name } : {}),
                       ...(provider.settings !== undefined ? { settings: provider.settings } : {}),
                       ...(provider.models !== undefined ? { models: provider.models } : {}),
+                      ...(provider.disabled !== undefined ? { disabled: provider.disabled } : {}),
                     }
                 text = applyEdits(text, modify(text, ["providers", provider.id], value, { formattingOptions }))
                 // Removing the last provider leaves an empty `providers` map; drop the key for a clean document.

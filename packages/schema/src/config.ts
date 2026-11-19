@@ -150,6 +150,8 @@ export const ProviderPatch = Schema.Struct({
     Schema.String,
     Schema.Struct({ name: Schema.String.pipe(optional) }),
   ).pipe(optional),
+  /** Keep the entry in config but exclude it from the available provider catalog. */
+  disabled: Schema.Boolean.pipe(optional),
   /** When true, remove the entry instead of upserting it. */
   remove: Schema.Literal(true).pipe(optional),
 }).annotate({ identifier: "Config.ProviderPatch" })

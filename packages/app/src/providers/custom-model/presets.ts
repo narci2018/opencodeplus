@@ -134,6 +134,9 @@ export type CustomProviderEntry = {
   baseURL?: string
   apiKey?: string
   models?: Record<string, { name?: string }>
+  disabled?: boolean
+  /** True when the entry has no known carrier package, so the protocol picker must not rewrite it. */
+  unmanaged?: boolean
 }
 
 /** The structural shape of a config entry the UI reads; both SDK and schema `Entry` satisfy it. */
@@ -142,38 +145,60 @@ type ConfigEntryLike = {
   info?: { providers?: Record<string, unknown> }
 }
 
-export function readProviderEntries(entries: readonly ConfigEntryLike[]): CustomProviderEntry[] {
+const readEntry = (id: string, value: Record<string, unknown>): CustomProviderEntry => {
+  const packageValue = typeof value.package === "string" ? value.package : undefined
+  const settings = (value.settings ?? {}) as Record<string, unknown>
+  const models: Record<string, { name?: string }> = {}
+  for (const [modelID, model] of Object.entries((value.models ?? {}) as Record<string, unknown>)) {
+    if (typeof model === "object" && model !== null) {
+      const modelValue = model as Record<string, unknown>
+      models[modelID] = { name: typeof modelValue.name === "string" ? modelValue.name : modelID }
+    } else {
+      models[modelID] = { name: modelID }
+    }
+  }
+  return {
+    id,
+    name: typeof value.name === "string" ? value.name : id,
+    package: packageValue,
+    canonical: typeof value.canonical === "string" ? value.canonical : undefined,
+    baseURL: typeof settings.baseURL === "string" ? settings.baseURL : undefined,
+    apiKey: typeof settings.apiKey === "string" ? settings.apiKey : undefined,
+    models: Object.keys(models).length > 0 ? models : undefined,
+    disabled: value.disabled === true,
+    unmanaged: !packageValue || !Object.values(CARRIERS).includes(packageValue as (typeof CARRIERS)[keyof typeof CARRIERS]),
+  }
+}
+
+/** All `providers` entries in config documents, including ones without a known carrier package. */
+export function readAllProviderEntries(entries: readonly ConfigEntryLike[]): CustomProviderEntry[] {
   const result: CustomProviderEntry[] = []
   for (const entry of entries) {
     if (entry.type !== "document") continue
     for (const [id, provider] of Object.entries(entry.info?.providers ?? {})) {
-      if (typeof provider !== "object" || provider === null) continue
-      const value = provider as Record<string, unknown>
-      // Only entries backed by a known carrier package are surfaced as custom models.
-      const packageValue = typeof value.package === "string" ? value.package : undefined
-      if (!packageValue || !Object.values(CARRIERS).includes(packageValue as (typeof CARRIERS)[keyof typeof CARRIERS])) continue
-      const settings = (value.settings ?? {}) as Record<string, unknown>
-      const models: Record<string, { name?: string }> = {}
-      for (const [modelID, model] of Object.entries((value.models ?? {}) as Record<string, unknown>)) {
-        if (typeof model === "object" && model !== null) {
-          const modelValue = model as Record<string, unknown>
-          models[modelID] = { name: typeof modelValue.name === "string" ? modelValue.name : modelID }
-        } else {
-          models[modelID] = { name: modelID }
-        }
-      }
-      result.push({
-        id,
-        name: typeof value.name === "string" ? value.name : id,
-        package: packageValue,
-        canonical: typeof value.canonical === "string" ? value.canonical : undefined,
-        baseURL: typeof settings.baseURL === "string" ? settings.baseURL : undefined,
-        apiKey: typeof settings.apiKey === "string" ? settings.apiKey : undefined,
-        models: Object.keys(models).length > 0 ? models : undefined,
-      })
+      if (typeof provider === "object" && provider !== null) result.push(readEntry(id, provider as Record<string, unknown>))
     }
   }
   // Highest-precedence document wins; later entries in the list are lower priority.
   const seen = new Set<string>()
   return result.filter((entry) => (seen.has(entry.id) ? false : (seen.add(entry.id), true)))
+}
+
+/** Builds a whole-entry config patch from a read-back entry, preserving fields the editor does not own. */
+export function providerEntryPatch(entry: CustomProviderEntry, disabled?: boolean): Config.ProviderPatch {
+  return {
+    id: entry.id,
+    ...(entry.package !== undefined ? { package: entry.package } : {}),
+    ...(entry.canonical !== undefined ? { canonical: entry.canonical } : {}),
+    ...(entry.name !== undefined ? { name: entry.name } : {}),
+    ...(entry.baseURL !== undefined
+      ? { settings: { baseURL: entry.baseURL, ...(entry.apiKey !== undefined ? { apiKey: entry.apiKey } : {}) } }
+      : {}),
+    ...(entry.models !== undefined ? { models: entry.models } : {}),
+    ...(disabled !== undefined ? { disabled } : {}),
+  }
+}
+
+export function readProviderEntries(entries: readonly ConfigEntryLike[]): CustomProviderEntry[] {
+  return readAllProviderEntries(entries).filter((entry) => !entry.unmanaged)
 }

@@ -114,6 +114,8 @@ export class Info extends Schema.Class<Info>("Config.Provider")({
   name: Schema.String.pipe(optional),
   env: Schema.String.pipe(Schema.Array, optional),
   package: Schema.String.pipe(optional),
+  /** Keep the configured entry but exclude it from the available provider catalog (default: false). */
+  disabled: Schema.Boolean.pipe(optional),
   // Defaults for every model of this provider; model compatibility overrides individual fields.
   compatibility: ProviderCompatibility.pipe(optional),
   ...Overlays,

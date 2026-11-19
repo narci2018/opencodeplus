@@ -9,15 +9,22 @@ import { showToast } from "@/shell/notifications/toast"
 import { popularProviders, useProviders } from "@/providers/catalog/providers"
 import { consoleProviderGroup } from "@/providers/catalog/console"
 import { useIntegrations } from "@/providers/catalog/integrations"
-import { createEffect, createMemo, type Component, For, type JSX, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, onMount, type Component, For, type JSX, Show } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK } from "@/runtime/server/client"
+import { useData } from "@/runtime/server/current"
 import { formatServerError } from "@/runtime/server/errors"
 import { CONSOLE_INTEGRATION } from "@/providers/connect/controller"
 import { DialogConnectProvider, useProviderConnectController } from "@/providers/connect/dialog"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
 import { CustomModels } from "@/providers/custom-model"
+import {
+  providerEntryPatch,
+  readAllProviderEntries,
+  type CustomProviderEntry,
+} from "@/providers/custom-model/presets"
+import { ConfiguredProviderDialog } from "./configured-dialog"
 import { SettingsList } from "@/settings/list"
 import { activeProviderAccount, providerAccounts, type ProviderAccount } from "./accounts"
 import { AccountNameInput } from "./account-name"
@@ -48,10 +55,83 @@ export const SettingsProviders: Component<{
   const dialog = useDialog()
   const language = useLanguage()
   const serverSdk = useServerSDK()
+  const data = useData()
   const providers = useProviders(() => props.directory)
   const integrations = useIntegrations(() => props.directory)
   const providerConnect = useProviderConnectController()
   const accountActions = useProviderAccountActions(() => props.directory)
+
+  // All entries authored in config documents, including disabled ones that /api/provider omits.
+  const [configured, setConfigured] = createSignal<CustomProviderEntry[]>([])
+  const loadConfigured = async () => {
+    const list = await serverSdk.api.config.get().catch(() => [])
+    setConfigured(readAllProviderEntries(list))
+  }
+  onMount(() => void loadConfigured())
+
+  const refresh = async () => {
+    await loadConfigured()
+    data.location.provider.invalidate(undefined)
+    data.location.model.invalidate(undefined)
+    await Promise.all([data.location.provider.sync(), data.location.model.sync()]).catch(() => undefined)
+  }
+
+  const configuredEntry = (id: string) => configured().find((entry) => entry.id === id)
+  const disabledConfigured = createMemo(() => configured().filter((entry) => entry.disabled))
+
+  const reportError = (cause: unknown) => {
+    const message = formatServerError(cause, language.t)
+    showToast({ variant: "error", title: language.t("common.requestFailed"), description: message })
+  }
+
+  const editConfigured = (entry: CustomProviderEntry) => {
+    void dialog.show(
+      () => (
+        <ConfiguredProviderDialog
+          entry={entry}
+          onSaved={() => void refresh()}
+          onClose={() => dialog.close()}
+        />
+      ),
+      () => undefined,
+    )
+  }
+
+  /** Upserts a whole provider entry: config.update replaces the entry, so every field must be carried. */
+  const patchConfigured = async (entry: CustomProviderEntry, disabled: boolean) => {
+    try {
+      await serverSdk.api.experimental.config.update({ provider: providerEntryPatch(entry, disabled) })
+      await refresh()
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t(
+          disabled ? "settings.providers.configured.disabled.title" : "settings.providers.configured.enabled.title",
+        ),
+        description: language.t(
+          disabled ? "settings.providers.configured.disabled.description" : "settings.providers.configured.enabled.description",
+          { name: entry.name ?? entry.id },
+        ),
+      })
+    } catch (cause) {
+      reportError(cause)
+    }
+  }
+
+  const removeConfigured = async (entry: CustomProviderEntry) => {
+    try {
+      await serverSdk.api.experimental.config.update({ provider: { id: entry.id, remove: true } })
+      await refresh()
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("settings.providers.configured.removed.title"),
+        description: language.t("settings.providers.configured.removed.description", { name: entry.name ?? entry.id }),
+      })
+    } catch (cause) {
+      reportError(cause)
+    }
+  }
 
   const [state, setState] = createStore<{
     disconnecting: Record<string, "removing" | "removed" | "absent" | undefined>
@@ -285,6 +365,41 @@ export const SettingsProviders: Component<{
     setState({ credentialID: undefined, held: undefined })
   }
 
+  function ConfiguredProviderMenu(menuProps: { entry: CustomProviderEntry }) {
+    const disabled = () => menuProps.entry.disabled === true
+    return (
+      <Menu placement="bottom-end" gutter={6}>
+        <Menu.Trigger
+          as={Button}
+          size="normal"
+          variant="ghost-muted"
+          aria-label={language.t("settings.providers.configured.manage", { provider: menuProps.entry.name ?? menuProps.entry.id })}
+        >
+          <Icon name="outline-dots" size="small" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Content>
+            <Menu.Item onSelect={() => editConfigured(menuProps.entry)}>
+              <Icon name="pencil" size="small" />
+              {language.t("common.edit")}
+            </Menu.Item>
+            <Menu.Item onSelect={() => void patchConfigured(menuProps.entry, !disabled())}>
+              <Icon name={disabled() ? "circle-check" : "circle-ban-sign"} size="small" />
+              {disabled()
+                ? language.t("settings.providers.configured.enable")
+                : language.t("settings.providers.configured.disable")}
+            </Menu.Item>
+            <Menu.Separator />
+            <Menu.Item onSelect={() => void removeConfigured(menuProps.entry)}>
+              <Icon name="trash" size="small" />
+              {language.t("common.delete")}
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu>
+    )
+  }
+
   function AccountMenu(menuProps: { provider: ProviderItem; name?: string }) {
     const accounts = () => providerAccounts(integration(menuProps.provider))
     const active = () => activeProviderAccount(integration(menuProps.provider))
@@ -436,20 +551,27 @@ export const SettingsProviders: Component<{
                             when={canManageAccounts(item)}
                             fallback={
                               <Show
-                                when={canDisconnect(item)}
+                                when={configuredEntry(item.id)}
                                 fallback={
-                                  <span class="settings-provider-env-hint">
-                                    {language.t("settings.providers.connected.environmentDescription")}
-                                  </span>
+                                  <Show
+                                    when={canDisconnect(item)}
+                                    fallback={
+                                      <span class="settings-provider-env-hint">
+                                        {language.t("settings.providers.connected.environmentDescription")}
+                                      </span>
+                                    }
+                                  >
+                                    <Button
+                                      size="normal"
+                                      variant="ghost-muted"
+                                      onClick={() => void disconnect(item, item.name)}
+                                    >
+                                      {language.t("common.disconnect")}
+                                    </Button>
+                                  </Show>
                                 }
                               >
-                                <Button
-                                  size="normal"
-                                  variant="ghost-muted"
-                                  onClick={() => void disconnect(item, item.name)}
-                                >
-                                  {language.t("common.disconnect")}
-                                </Button>
+                                {(entry) => <ConfiguredProviderMenu entry={entry()} />}
                               </Show>
                             }
                           >
@@ -554,6 +676,29 @@ export const SettingsProviders: Component<{
             </Show>
           </SettingsList>
         </div>
+
+        <Show when={disabledConfigured().length > 0}>
+          <div class="settings-section" data-component="disabled-providers-section">
+            <h3 class="settings-section-title">{language.t("settings.providers.section.disabled")}</h3>
+            <p class="settings-provider-disabled-hint">{language.t("settings.providers.disabled.hint")}</p>
+            <SettingsList variant="catalog">
+              <For each={disabledConfigured()}>
+                {(entry) => (
+                  <div class="settings-provider-row group">
+                    <div class="settings-provider-lead">
+                      <Icon name="circle-ban-sign" size="small" class="settings-provider-icon shrink-0" />
+                      <div class="settings-provider-main">
+                        <span class="settings-provider-name truncate">{entry.name ?? entry.id}</span>
+                        <Badge>{language.t("settings.providers.tag.disabled")}</Badge>
+                      </div>
+                    </div>
+                    <ConfiguredProviderMenu entry={entry} />
+                  </div>
+                )}
+              </For>
+            </SettingsList>
+          </div>
+        </Show>
 
         <div class="settings-section">
           <h3 class="settings-section-title">{language.t("settings.providers.section.popular")}</h3>

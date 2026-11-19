@@ -192,7 +192,9 @@ function overlayProvider(
         integrationID: provider.integrationID,
       })
     if (integrationID) provider.integrationID = integrationID
-    provider.activation = "enabled"
+    // A disabled config entry stays in the document but drops out of the available catalog, so the
+    // settings UI can keep listing it for edit or restore without exposing its models.
+    provider.activation = item.disabled ? "disabled" : "enabled"
     if (item.canonical !== undefined) provider.canonical = item.canonical
     if (item.name) provider.name = item.name
     if (item.package !== undefined) provider.package = item.package

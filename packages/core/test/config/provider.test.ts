@@ -1305,4 +1305,35 @@ describe("ConfigProviderPlugin.Plugin", () => {
       }),
     ),
   )
+
+  it.effect("a disabled config entry stays defined but drops out of the available catalog", () =>
+    Effect.gen(function* () {
+      const providers = yield* Provider.Service
+      const id = Provider.ID.make("paused")
+      const entry = (disabled?: boolean) =>
+        new Document({
+          type: "document",
+          info: decode({
+            providers: {
+              paused: {
+                package: "@opencode/ai/providers/openai/chat",
+                name: "Paused",
+                models: { chat: {} },
+                ...(disabled ? { disabled: true } : {}),
+              },
+              running: { package: "@opencode/ai/providers/openai/chat", models: { chat: {} } },
+            },
+          }),
+        })
+
+      yield* addPlugin([entry()])
+      expect((yield* providers.available()).map((provider) => provider.id)).toContain(id)
+
+      yield* addPlugin([entry(true)])
+      // The entry is still defined (its config is kept), only availability is withdrawn.
+      expect((yield* providers.get(id))?.name).toBe("Paused")
+      expect((yield* providers.available()).map((provider) => provider.id)).not.toContain(id)
+      expect((yield* providers.available()).map((provider) => provider.id)).toContain(Provider.ID.make("running"))
+    }),
+  )
 })
