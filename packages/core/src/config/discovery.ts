@@ -149,20 +149,25 @@ export const discover = Effect.fn("ConfigDiscovery.discover")(function* (options
           : fs.isDir(entry.item).pipe(Effect.map((present) => ({ path: entry.item, present }))),
       { concurrency: "unbounded" },
     ),
+    // With global disabled, home-level directories are excluded even when the project walk
+    // reaches them (an upward walk passes the user's home, whose .claude/.agents are global
+    // config, not project sources).
     claude:
-      options?.claude === false
+      options?.claude === false || !globalEnabled
         ? []
         : [
             ...new Set([
-              ...(globalEnabled ? [globalClaudeDirectory] : []),
+              ...[globalClaudeDirectory],
               ...visible.filter((item) => path.basename(item) === ".claude").toReversed(),
             ]),
           ],
-    agents: [
-      ...new Set([
-        ...(globalEnabled ? [globalAgentsDirectory] : []),
-        ...visible.filter((item) => path.basename(item) === ".agents").toReversed(),
-      ]),
-    ],
+    agents: !globalEnabled
+      ? []
+      : [
+          ...new Set([
+            ...[globalAgentsDirectory],
+            ...visible.filter((item) => path.basename(item) === ".agents").toReversed(),
+          ]),
+        ],
   } satisfies Sources
 })

@@ -3,6 +3,8 @@ import path from "path"
 import fs from "fs/promises"
 import { Effect, Exit, Fiber, Stream, Tracer } from "effect"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
+import { canSymlink } from "./fixture/symlink"
+
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { Project } from "@opencode/core/project"
 import { ProjectIcon } from "@opencode/core/project/icon"
@@ -16,11 +18,15 @@ import { tmpdirScoped } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(AppNodeBuilder.build(LayerNode.group([Project.node, Database.node, Bus.node, FSUtil.node])))
+// Symbolic-link driven scenarios require the privilege to create links.
+const symlinkIt = canSymlink() ? it.live : it.live.skip
+
 const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>'
 const url = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`
 
 for (const kind of ["ranked appiconset", "escaping symlink", "oversized file"] as const) {
-  it.live(`discovers the expected icon with a ${kind}`, () =>
+  // Only the escaping-symlink scenario needs the privilege to create symbolic links.
+  (kind === "escaping symlink" ? symlinkIt : it.live)(`discovers the expected icon with a ${kind}`, () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped()
       const root = path.join(tmp.path, "project")
@@ -126,7 +132,8 @@ for (const fixture of [
   )
 }
 
-it.live("Composer backgrounds stay inert and malformed, oversized or escaping manifests fall through", () =>
+// Creating symbolic links on Windows requires administrator or developer-mode privileges.
+symlinkIt("Composer backgrounds stay inert and malformed, oversized or escaping manifests fall through", () =>
   Effect.gen(function* () {
     const tmp = yield* tmpdirScoped()
     const filesystem = yield* FSUtil.Service

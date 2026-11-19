@@ -5,6 +5,10 @@ import { Cause, Effect, Exit, Layer, Option, PlatformError, Stream } from "effec
 import { FSUtil } from "@opencode/util/fs-util"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { FileSystem } from "@opencode/core/filesystem"
+import { canSymlink } from "./fixture/symlink"
+
+// Symbolic-link driven scenarios require the privilege to create links.
+const symlinkIt = canSymlink() ? it.live : it.live.skip
 import { Location } from "@opencode/core/location"
 import { AbsolutePath, RelativePath } from "@opencode/core/schema"
 import { Workspace } from "@opencode/core/workspace"
@@ -184,7 +188,8 @@ describe("FileSystem", () => {
     ),
   )
 
-  it.live("canonicalizes local symlinked directories", () =>
+  // Creating symbolic links on Windows requires administrator or developer-mode privileges.
+  symlinkIt("canonicalizes local symlinked directories", () =>
     withTmp((directory) =>
       Effect.gen(function* () {
         const real = path.join(directory, "real")

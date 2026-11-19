@@ -110,10 +110,14 @@ describe("Config", () => {
         ).pipe(
           Effect.andThen(
             Effect.gen(function* () {
-              // The fixture is real: with global enabled the walk finds both.
+              // The fixture is real: with global enabled the walk finds both. The upward walk also
+              // passes real ancestors (a developer's home can hold its own .claude/.agents), so
+              // assert on the fixture directories instead of an exact total.
               const config = yield* Config.Service
               const compatibility = yield* config.compatibility!()
-              expect([...compatibility.claude, ...compatibility.agents]).toHaveLength(2)
+              const found = [...compatibility.claude, ...compatibility.agents]
+              expect(found).toContain(AbsolutePath.make(path.join(home, ".claude")))
+              expect(found).toContain(AbsolutePath.make(path.join(home, ".agents")))
             }).pipe(Effect.provide(testLayer(project, global))),
           ),
           Effect.andThen(
@@ -1508,8 +1512,14 @@ describe("Config", () => {
             Effect.provide(testLayer(project, global)),
           )
 
-          expect(compatibility.claude).toEqual([AbsolutePath.make(path.join(home, ".claude"))])
-          expect(compatibility.agents).toEqual([AbsolutePath.make(path.join(home, ".agents"))])
+          // The upward walk can surface real ecosystem directories from the developer's home; the
+          // dedup contract is that the fixture's global home directories appear exactly once.
+          expect(compatibility.claude.filter((item) => inFixture(tmp.path, item))).toEqual([
+            AbsolutePath.make(path.join(home, ".claude")),
+          ])
+          expect(compatibility.agents.filter((item) => inFixture(tmp.path, item))).toEqual([
+            AbsolutePath.make(path.join(home, ".agents")),
+          ])
         }),
       ),
     ),
