@@ -77,7 +77,7 @@ export const SettingsModels: Component<{
       .filter((item) => item.provider.id === providerID)
       .forEach((item) => models.setVisibility({ providerID, modelID: item.id }, visible))
 
-  function ModelRows(props: { items: ModelItem[] }) {
+  function ModelRows(props: { items: ModelItem[]; providerOff?: boolean }) {
     return (
       <SettingsList variant="catalog">
         <For each={props.items}>
@@ -88,8 +88,9 @@ export const SettingsModels: Component<{
               <SettingsRow title={item.name} description="">
                 <div>
                   <Switch
-                    checked={models.visible(key)}
+                    checked={!props.providerOff && models.visible(key)}
                     onChange={(checked) => models.setVisibility(key, checked)}
+                    disabled={props.providerOff === true}
                     hideLabel
                   >
                     {item.name}
@@ -188,6 +189,8 @@ export const SettingsModels: Component<{
               disabled={searching()}
               onExpandedChange={(key, value) => setStore("collapsed", key, !value)}
               onSetVisibility={setProviderVisibility}
+              providerDisabled={models.providerDisabled}
+              onSetProviderDisabled={models.setProviderDisabled}
               ref={(providerID, element) => sections.set(providerID, element)}
               rows={(items) => <ModelRows items={items} />}
             />

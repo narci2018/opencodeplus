@@ -1274,6 +1274,7 @@ export const dict = {
   "settings.subagents.access.saved.description": "Updated availability for {{id}}.",
   "settings.subagents.editPrompt": "Edit prompt",
   "settings.models.description": "Choose which models appear in model picker",
+  "settings.models.provider.toggle": "Toggle {{provider}} models",
   "settings.models.enableAll": "Enable all models",
   "settings.models.disableAll": "Disable all models",
   "settings.models.custom.add": "Add custom model",

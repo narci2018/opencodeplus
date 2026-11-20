@@ -569,7 +569,7 @@ const clamp = (value: number) => Math.max(0, Math.min(1, value))
 
 const round = (value: number) => Math.round(value * 1000) / 1000
 
-type ModelRow = { id: string; item: ModelItem; group: ModelGroup }
+type ModelRow = { id: string; item: ModelItem; group: ModelGroup; hidden?: boolean }
 
 function createChatgptPlan(current: () => string | undefined) {
   const data = useData()
@@ -628,6 +628,7 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
     navigated: false,
     warm: false,
     position: { left: 0, top: 0 },
+    collapsed: {} as Record<string, boolean>,
   })
 
   const [staged, setStaged] = createStore<Record<string, string | null>>({})
@@ -636,6 +637,9 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
   let flyoutRef: HTMLDivElement | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   onCleanup(() => clearTimeout(timer))
+
+  // A search lists every match; without one, collapsed providers keep only their header.
+  const expanded = (provider: string) => store.search.trim().length > 0 || !store.collapsed[provider]
 
   const groups = createMemo((): ModelGroup[] => {
     const providers = controller.groups(controller.models(store.search))
@@ -650,9 +654,22 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
     })
   })
 
-  const rows = createMemo(() =>
-    groups().flatMap((group) => group.items.map((item): ModelRow => ({ id: modelKey(item), item, group }))),
-  )
+  const rows = createMemo(() => {
+    const search = store.search.trim().length > 0
+    const counts = new Map<string, number>()
+
+    return groups().flatMap((group) =>
+      group.items.map((item): ModelRow => {
+        const index = counts.get(group.category) ?? 0
+        counts.set(group.category, index + 1)
+        // A collapsed provider keeps its first row as a hidden header anchor, so the sticky
+        // header stays clickable while the rest of its models stay out of the list.
+        const hidden = !search && group.title === undefined && index > 0 && !expanded(group.category)
+
+        return { id: modelKey(item), item, group, hidden }
+      }),
+    )
+  })
 
   const rowItem = (id: string) => rows().find((row) => row.id === id)?.item
   const flyoutItem = () => (store.flyout ? rowItem(store.flyout) : undefined)
@@ -1010,19 +1027,51 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
             items={rows()}
             key={(row) => row.id}
             section={(row) => row.group.category}
-            header={(row) => (
-              <span data-slot="model-dialog-header-label" class="flex min-w-0 items-center gap-1.5">
-                <span class="min-w-0 truncate">{row.group.title ?? labels.name(row.item.provider)}</span>
-                <Show when={!row.group.title && labels.workspace(row.item.provider)}>
-                  {(workspace) => <Badge class="shrink-0">{workspace()}</Badge>}
-                </Show>
-              </span>
-            )}
+            header={(row) => {
+              // Favorites and Recent are plain labels; provider headers toggle their model list.
+              if (row.group.title !== undefined) {
+                return (
+                  <span data-slot="model-dialog-header-label" class="flex min-w-0 items-center gap-1.5">
+                    <span class="min-w-0 truncate">{row.group.title}</span>
+                  </span>
+                )
+              }
+
+              const collapsed = !expanded(row.group.category)
+
+              return (
+                <button
+                  type="button"
+                  class="model-dialog-header-toggle"
+                  aria-expanded={!collapsed}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setStore("collapsed", row.group.category, collapsed)
+                  }}
+                >
+                  <span data-slot="model-dialog-header-label" class="flex min-w-0 items-center gap-1.5">
+                    <span class="min-w-0 truncate">{labels.name(row.item.provider)}</span>
+                    <Show when={!row.group.title && labels.workspace(row.item.provider)}>
+                      {(workspace) => <Badge class="shrink-0">{workspace()}</Badge>}
+                    </Show>
+                    <Icon
+                      name="chevron-down"
+                      size="small"
+                      classList={{ "model-dialog-header-chevron": true, collapsed }}
+                    />
+                  </span>
+                </button>
+              )
+            }}
             empty={language.t("dialog.model.empty")}
             onSelect={(row) => choose(row.item)}
             onKeyDown={onKeyDown}
           >
-            {(row, attrs) => <Row model={row()} attrs={attrs} />}
+            {(row, attrs) => (
+              <div classList={{ "model-dialog-collapsed-anchor": row().hidden === true }} aria-hidden={row().hidden === true || undefined}>
+                <Row model={row()} attrs={attrs} />
+              </div>
+            )}
           </SearchList>
         </div>
         <Show when={chatgptPlan()}>

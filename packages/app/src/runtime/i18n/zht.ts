@@ -550,6 +550,7 @@ export const dict = {
   "settings.providers.configured.enabled.description": "「{{name}}」已重新可用。",
   "settings.providers.configured.removed.title": "提供者已刪除",
   "settings.providers.configured.removed.description": "「{{name}}」已從設定中刪除。",
+  "settings.models.provider.toggle": "切換 {{provider}} 模型顯示",
   "settings.models.title": "模型",
   "settings.models.description": "模型設定將在此處可設定。",
   "settings.models.custom.fetch.button": "獲取模型",

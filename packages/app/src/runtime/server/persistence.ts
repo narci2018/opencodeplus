@@ -69,6 +69,10 @@ export const ModelState = Persistence.struct({
       Schema.UndefinedOr(Schema.String).pipe(Schema.catchDecoding(() => Effect.succeed(Option.none()))),
     ),
   ),
+  // A disabled provider hides every model it carries from the session model picker.
+  disabledProviders: Persistence.record(
+    Schema.Boolean.pipe(Schema.catchDecoding(() => Effect.succeed(Option.none()))),
+  ),
 })
 
 export const VcsState = Persistence.struct({

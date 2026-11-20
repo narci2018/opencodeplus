@@ -562,6 +562,7 @@ export const dict = {
   "settings.providers.configured.removed.title": "提供商已删除",
   "settings.providers.configured.removed.description": "「{{name}}」已从配置中删除。",
 
+  "settings.models.provider.toggle": "切换 {{provider}} 模型显示",
   "settings.models.title": "模型",
   "settings.models.description": "可在此处配置模型设置。",
   "settings.models.custom.fetch.button": "获取模型",

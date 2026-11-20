@@ -239,3 +239,33 @@
     user-select: none;
   }
 }
+
+/* A collapsed provider keeps only its sticky header; the hidden anchor row holds the header's
+   SearchList section alive so clicking the header expands the group again. */
+.model-dialog-collapsed-anchor {
+  display: none;
+}
+
+button.model-dialog-header-toggle {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+.model-dialog-header-chevron {
+  margin-left: auto;
+  transition: transform 120ms ease;
+}
+
+.model-dialog-header-chevron.collapsed {
+  transform: rotate(-90deg);
+}

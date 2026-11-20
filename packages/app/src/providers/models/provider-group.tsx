@@ -8,6 +8,7 @@ import type { JSX } from "solid-js"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 import { consoleProviderGroup, consoleProviderName } from "@/providers/catalog/console"
 import { OpenCodeLogo } from "@/providers/opencode-logo"
+import { ProviderDisableSwitch } from "./provider-switch"
 import { useLanguage } from "@/runtime/i18n/language"
 import customManagedProvider from "@/providers/custom-managed-provider.svg"
 import "@/settings/settings.css"
@@ -63,6 +64,9 @@ export function ProviderModelSections<T extends ModelItem>(props: {
   /** Trailing control in a direct provider's header. */
   action?: (group: ModelGroup<T>) => JSX.Element
   onSetVisibility?: (providerID: string, visible: boolean) => void
+  /** A provider-level disable hides every model the provider carries from the session picker. */
+  providerDisabled?: (providerID: string) => boolean
+  onSetProviderDisabled?: (providerID: string, disabled: boolean) => void
   ref?: (providerID: string, element: HTMLElement) => void
 }) {
   type Section = {
@@ -137,9 +141,30 @@ export function ProviderModelSections<T extends ModelItem>(props: {
                     id={group().category}
                     icon={<ProviderModelIcon provider={group().items[0].provider} class="shrink-0" />}
                     title={name(group())}
-                    action={props.action?.(group())}
+                    action={
+                      <>
+                        <Show
+                          when={props.onSetProviderDisabled}
+                          keyed
+                        >
+                          {(item: (providerID: string, disabled: boolean) => void) => (
+                            <ProviderDisableSwitch
+                              providerID={group().category}
+                              providerName={name(group())}
+                              disabled={props.providerDisabled?.(group().category) === true}
+                              onChange={(disabled) => item(group().category, disabled)}
+                            />
+                          )}
+                        </Show>
+                        {props.action?.(group())}
+                      </>
+                    }
                   />
-                  <Show when={props.expanded(group().category)}>{props.rows(group().items)}</Show>
+                  <Show
+                    when={props.expanded(group().category) && props.providerDisabled?.(group().category) !== true}
+                  >
+                    {props.rows(group().items)}
+                  </Show>
                 </section>
               )}
             </Show>
@@ -167,6 +192,12 @@ export function ProviderModelSections<T extends ModelItem>(props: {
                         name={consoleProviderName(managed().group, group.items[0].provider.name)}
                         expanded={props.expanded(group.category)}
                         disabled={props.disabled}
+                        providerDisabled={props.providerDisabled?.(group.category)}
+                        onSetProviderDisabled={
+                          props.onSetProviderDisabled
+                            ? (value) => props.onSetProviderDisabled?.(group.category, value)
+                            : undefined
+                        }
                         onSetVisibility={
                           props.onSetVisibility
                             ? (visible) => props.onSetVisibility?.(group.category, visible)
@@ -194,6 +225,8 @@ export function ProviderModelGroup(props: {
   expanded: boolean
   disabled?: boolean
   onSetVisibility?: (visible: boolean) => void
+  providerDisabled?: boolean
+  onSetProviderDisabled?: (disabled: boolean) => void
   children: JSX.Element
   ref?: (element: HTMLElement) => void
   onExpandedChange: (expanded: boolean) => void

@@ -140,6 +140,7 @@ function createGlobalModels() {
     recent: [],
     favorite: [],
     variant: {},
+    disabledProviders: {},
   })
 
   // Suspend readers only until persisted state loads. Refetching on every change would put the

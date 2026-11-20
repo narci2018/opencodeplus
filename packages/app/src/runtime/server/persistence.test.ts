@@ -80,15 +80,16 @@ describe("server persistence schema", () => {
 describe("model persistence schema", () => {
   test("defaults missing state and keeps valid entries beside malformed entries", () => {
     const decode = Schema.decodeUnknownSync(
-      Persistence.withInitial(ModelState, { user: [], recent: [], favorite: [], variant: {} }),
+      Persistence.withInitial(ModelState, { user: [], recent: [], favorite: [], variant: {}, disabledProviders: {} }),
     )
 
-    expect(decode({})).toEqual({ user: [], recent: [], favorite: [], variant: {} })
-    expect(decode({ user: null, recent: 1, favorite: "x", variant: [] })).toEqual({
+    expect(decode({})).toEqual({ user: [], recent: [], favorite: [], variant: {}, disabledProviders: {} })
+    expect(decode({ user: null, recent: 1, favorite: "x", variant: [], disabledProviders: [] })).toEqual({
       user: [],
       recent: [],
       favorite: [],
       variant: {},
+      disabledProviders: {},
     })
 
     const state = decode({
@@ -101,6 +102,7 @@ describe("model persistence schema", () => {
       recent: [false, { providerID: "provider", modelID: "model" }, { providerID: "missing-model" }],
       favorite: [{ providerID: "provider", modelID: "model" }, { modelID: "missing-provider" }],
       variant: { model: "high" },
+      disabledProviders: { provider: true },
     })
 
     expect(state).toEqual({
@@ -111,6 +113,7 @@ describe("model persistence schema", () => {
       recent: [{ providerID: "provider", modelID: "model" }],
       favorite: [{ providerID: "provider", modelID: "model" }],
       variant: { model: "high" },
+      disabledProviders: { provider: true },
     })
     expect(Schema.encodeSync(ModelState)(state)).toEqual(state)
   })

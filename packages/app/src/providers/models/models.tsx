@@ -127,6 +127,10 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
 
   const visible = (model: ModelKey) => {
     const key = modelKey(model)
+
+    // A provider-level disable hides every model it carries, whatever each model's own state is.
+    if (store.disabledProviders[model.providerID]) return false
+
     const state = visibility().get(key)
 
     if (state === "hide") return false
@@ -137,6 +141,12 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
 
     // Models without a parseable release date stay visible.
     return !Number.isFinite(release().get(key) ?? NaN)
+  }
+
+  const providerDisabled = (providerID: string) => store.disabledProviders[providerID] === true
+
+  const setProviderDisabled = (providerID: string, disabled: boolean) => {
+    setStore("disabledProviders", providerID, disabled)
   }
 
   const setVisibility = (model: ModelKey, state: boolean) => {
@@ -184,6 +194,8 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
     find,
     visible,
     setVisibility,
+    providerDisabled,
+    setProviderDisabled,
     recent: {
       list: models.recent,
       push,
