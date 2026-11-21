@@ -1111,6 +1111,36 @@ test("lists OpenCode's free models in the model picker however old they are", as
   await expect(models.locator('[data-option-key="opencode:old-paid"]')).toHaveCount(0)
 })
 
+test("collapses a provider's models when its header is clicked and expands them again", async ({ page }) => {
+  await page.clock.setFixedTime(T0)
+  const year = { released: T0 - 365 * 24 * 60 * 60 * 1000 }
+  await openSession(page, {
+    name: "ComposerModelCollapse",
+    provider: provider(
+      { id: "new-paid", name: "New Paid", cost: { input: 1, output: 1 }, time: { released: T0 } },
+      { id: "big-pickle", name: "Big Pickle", cost: { input: 0, output: 0 }, time: year },
+      { id: "beam-free", name: "Beam Free", cost: { input: 0, output: 0 }, time: year },
+      { id: "flint", name: "Flint 40B Free", cost: { input: 0, output: 0 }, time: year },
+    ),
+  })
+
+  await page.locator('[data-component="composer"] [data-action="composer-model"]').click()
+  const models = page.getByRole("dialog", { name: "Select model", exact: true })
+  const header = models.locator('[data-slot="search-list-header"] button.model-dialog-header-toggle')
+  await expect(header).toHaveCount(1)
+  await expect(header).toHaveAttribute("aria-expanded", "true")
+  await expect(models.locator('[data-option-key="opencode:big-pickle"]')).toBeVisible()
+
+  await header.click()
+  await expect(header).toHaveAttribute("aria-expanded", "false")
+  await expect(models.locator('[data-option-key="opencode:big-pickle"]')).not.toBeVisible()
+  await expect(models.locator('[data-option-key="opencode:flint"]')).not.toBeVisible()
+
+  await header.click()
+  await expect(header).toHaveAttribute("aria-expanded", "true")
+  await expect(models.locator('[data-option-key="opencode:big-pickle"]')).toBeVisible()
+})
+
 test("lists slash commands in their built-in order", async ({ page }) => {
   const { editor } = await openSession(page, {
     name: "ComposerSlash",

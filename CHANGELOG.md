@@ -61,6 +61,7 @@ Release notes for OpenCode V2, newest first.
 
 #### Bug fixes
 
+- Fixed the session model picker's provider headers ignoring clicks, so collapsing a provider's models never worked: the toggle stored the inverted flag, leaving the group permanently expanded. A collapsed provider now hides all of its models (the header stays clickable to expand them again), and a regression test covers the toggle round-trip.
 - Fixed SubAgents settings tab list overflowing and clipping: enabled responsive flex wrapping (`flex-wrap: wrap !important`, `height: auto !important`, `overflow: visible !important`, `gap: 8px 6px !important`) and eliminated fixed line constraints, ensuring all 8 subagent suite tabs (内置, 反重力, TRAE, Claude, Codex, DSH, ZCode, 其他) wrap seamlessly and remain fully visible and clickable even in narrow windows.
 - Fixed deformed and collapsed action buttons in the MCP server dialog (`McpServerDialog` and `SourceAddDialog`): added defensive fallback translations for `common.confirm`, assigned consistent minimum widths, and ensured proper flex alignment.
 - Fixed "新建自动化流水线" (New Automation Pipeline) dialog content clipping: added window maximize (`maximizable`) and corner resize (`resizable`) capabilities, expanded default dimensions to 720×660px, made dialog body scrollable, and updated the prompt textarea styling.

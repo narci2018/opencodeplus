@@ -656,15 +656,12 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
 
   const rows = createMemo(() => {
     const search = store.search.trim().length > 0
-    const counts = new Map<string, number>()
 
     return groups().flatMap((group) =>
       group.items.map((item): ModelRow => {
-        const index = counts.get(group.category) ?? 0
-        counts.set(group.category, index + 1)
-        // A collapsed provider keeps its first row as a hidden header anchor, so the sticky
-        // header stays clickable while the rest of its models stay out of the list.
-        const hidden = !search && group.title === undefined && index > 0 && !expanded(group.category)
+        // A collapsed provider keeps every row as a hidden anchor, so the sticky header stays
+        // clickable and its SearchList section survives while all of its models stay out of the list.
+        const hidden = !search && group.title === undefined && !expanded(group.category)
 
         return { id: modelKey(item), item, group, hidden }
       }),
@@ -1046,7 +1043,9 @@ export function DialogSelectModel(props: { provider?: string; model?: ModelState
                   aria-expanded={!collapsed}
                   onClick={(event) => {
                     event.stopPropagation()
-                    setStore("collapsed", row.group.category, collapsed)
+                    // The stored flag is "collapsed": storing whether the group is expanded now
+                    // collapses an expanded group and re-expands a collapsed one.
+                    setStore("collapsed", row.group.category, expanded(row.group.category))
                   }}
                 >
                   <span data-slot="model-dialog-header-label" class="flex min-w-0 items-center gap-1.5">
