@@ -256,6 +256,7 @@ export const dict = {
 
   "ui.sessionTurn.retry.attemptWaiting.one": "嘗試 {{attempt}} - 在 {{count}} 秒內重試",
   "ui.sessionTurn.retry.attemptWaiting.other": "嘗試 {{attempt}} - 在 {{count}} 秒內重試",
+  "ui.sessionTurn.retry.attemptWaitingLong": "嘗試 {{attempt}} - 約 {{duration}} 後重試",
   "ui.sessionTurn.retry.attemptRetryingNow": "試 {{attempt}} - 重試",
   "ui.messagePart.compaction.started": "工作階段壓縮已開始",
   "ui.messagePart.compaction.running": "正在壓縮",

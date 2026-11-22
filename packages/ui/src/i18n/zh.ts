@@ -261,6 +261,7 @@ export const dict = {
 
   "ui.sessionTurn.retry.attemptWaiting.one": "尝试 {{attempt}} - 在 {{count}} 秒内重试",
   "ui.sessionTurn.retry.attemptWaiting.other": "尝试 {{attempt}} - 在 {{count}} 秒内重试",
+  "ui.sessionTurn.retry.attemptWaitingLong": "尝试 {{attempt}} - 约 {{duration}} 后重试",
   "ui.sessionTurn.retry.attemptRetryingNow": "尝试 {{attempt}} - 重试",
   "ui.messagePart.compaction.started": "会话压缩已开始",
   "ui.messagePart.compaction.running": "正在压缩",

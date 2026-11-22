@@ -81,6 +81,7 @@ const source = {
   "ui.sessionTurn.retry.attemptRetrying": "Attempt {{attempt}} - {{line}}",
   "ui.sessionTurn.retry.attemptWaiting.one": "Attempt {{attempt}} - retrying in {{count}}s",
   "ui.sessionTurn.retry.attemptWaiting.other": "Attempt {{attempt}} - retrying in {{count}}s",
+  "ui.sessionTurn.retry.attemptWaitingLong": "Attempt {{attempt}} - retrying in {{duration}}",
   "ui.sessionTurn.retry.attemptRetryingNow": "Attempt {{attempt}} - retrying",
   "ui.sessionTurn.retry.geminiHot": "gemini is way too hot right now",
   "ui.sessionTurn.freeLimit.title": "You've used today's free messages.",

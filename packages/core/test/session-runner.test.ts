@@ -13,6 +13,7 @@ import {
   TransportError,
   InvalidProviderOutputError,
   InvalidRequestError,
+  QuotaExceededError,
   RateLimitError,
   UnknownProviderError,
 } from "@opencode/ai/effect"
@@ -627,7 +628,8 @@ const scenario = (
   )
 
 // Nominal retry gaps: exponential from 2s capped at 10s, for 10 retries.
-const RETRY_GAPS = [2_000, 4_000, 8_000, ...Array<number>(7).fill(10_000)]
+// The session schedule: exponential from 2s, settling at the five-minute gap cap, and never running out.
+const RETRY_GAPS = [2_000, 4_000, 8_000, 16_000, 32_000, 64_000, 128_000, 256_000, 300_000, 300_000]
 // Longest possible gap per retry (+20% jitter); advancing the clock by these always fires the retry.
 const RETRY_GAPS_MAX = RETRY_GAPS.map((gap) => gap * 1.2)
 const RETRY_ATTEMPTS = RETRY_GAPS.map((_, index) => index + 2)
@@ -713,6 +715,11 @@ const payloadTooLarge = () =>
 const rateLimited = (retryAfterMs?: number) =>
   new AIError({
     reason: new RateLimitError({ message: "Rate limited", retryAfterMs }),
+  })
+
+const quotaExceeded = (retryAfterMs?: number) =>
+  new AIError({
+    reason: new QuotaExceededError({ message: "Insufficient balance or no resource package", retryAfterMs }),
   })
 
 const setupOverflowRecovery = Effect.fnUntraced(function* (s: Scenario) {
@@ -2987,8 +2994,12 @@ describe("SessionRunnerLLM", () => {
     yield* hooks.register("session", "retry", (event) =>
       Effect.sync(() => {
         attempts.push(event.attempt)
-        expect(event.decision).toMatchObject({ retry: true })
-        event.decision = { retry: true, delay: 0 }
+        // Session retries are unbounded; the hook is how a caller bounds them.
+        if (event.attempt > RETRY_ATTEMPTS.length + 1) event.decision = { retry: false }
+        else {
+          expect(event.decision).toMatchObject({ retry: true })
+          event.decision = { retry: true, delay: 0 }
+        }
       }),
     )
     yield* s.llm.push(Stream.fail(providerUnavailable()), TestLLM.text("Not a summary", "invalid"))
@@ -2996,7 +3007,7 @@ describe("SessionRunnerLLM", () => {
     const compaction = yield* s.session.compact({ sessionID })
     yield* s.resume
 
-    expect(attempts).toEqual(RETRY_ATTEMPTS)
+    expect(attempts).toEqual([...RETRY_ATTEMPTS, RETRY_ATTEMPTS.length + 2])
     expect(s.requests).toHaveLength(RETRY_ATTEMPTS.length + 2)
     expect((yield* s.messages).find((message) => message.id === compaction.id)).toMatchObject({
       status: "failed",
@@ -5948,19 +5959,38 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests).toHaveLength(2)
   })
 
-  scenario("caps an excessive provider retry-after delay at fifteen minutes", function* (s) {
+  scenario("caps an excessive provider retry-after delay at a day", function* (s) {
     yield* s.admit("Retry capped rate limit")
-    yield* s.llm.push(Stream.fail(rateLimited(3_600_000)))
+    yield* s.llm.push(Stream.fail(rateLimited(30 * 60 * 60 * 1000)))
     yield* s.llm.push(TestLLM.text("Recovered", "retry-cap-success"))
 
     const scheduled = yield* subscribeRetries(s)
     const run = yield* s.resume.pipe(Effect.forkChild)
     yield* Queue.take(scheduled)
-    yield* TestClock.adjust("899999 millis")
+    yield* TestClock.adjust("86399999 millis")
     expect(s.requests).toHaveLength(1)
     yield* TestClock.adjust("1 millis")
     yield* Fiber.join(run)
     expect(s.requests).toHaveLength(2)
+  })
+
+  scenario("waits out an hour-long quota retry-after delay", function* (s) {
+    yield* s.admit("Retry quota window")
+    yield* s.llm.push(Stream.fail(quotaExceeded(3_600_000)))
+    yield* s.llm.push(TestLLM.text("Recovered", "quota-window-success"))
+
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("3599999 millis")
+    expect(s.requests).toHaveLength(1)
+    yield* TestClock.adjust("1 millis")
+    yield* Fiber.join(run)
+    expect(s.requests).toHaveLength(2)
+    expect(yield* s.context).toMatchObject([
+      { type: "user" },
+      Expected.assistant({ finish: "stop" }, [Expected.text("Recovered")]),
+    ])
   })
 
   for (const type of ["text", "reasoning"] as const) {
@@ -6381,16 +6411,18 @@ describe("SessionRunnerLLM", () => {
         LLMEvent.textStart({ id: "mixed-partial" }),
         LLMEvent.textDelta({ id: "mixed-partial", text: "Partial" }),
       )
-      // Alternate transparent failures and partial continuations until the retry allowance is spent.
+      // Alternate transparent failures and partial continuations past the old ten-attempt allowance:
+      // session retries are unbounded, so the loop is ended by interrupting the waiting drain.
       const outcomes = RETRY_GAPS.map((_, index) => (index % 2 === 0 ? Stream.fail(failure) : partial))
-      yield* s.llm.push(...outcomes, partial)
+      yield* s.llm.push(...outcomes, Stream.fail(failure))
       const run = yield* s.resume.pipe(Effect.forkChild)
       const identities: SessionMessage.ID[] = []
       for (const delay of RETRY_GAPS_MAX) {
         identities.push(yield* Queue.take(scheduled))
         yield* TestClock.adjust(delay)
       }
-      expect(yield* Fiber.join(run).pipe(Effect.flip)).toBe(failure)
+      identities.push(yield* Queue.take(scheduled))
+      yield* Fiber.interrupt(run)
       expect(s.requests).toHaveLength(RETRY_GAPS.length + 1)
       // A transparent retry keeps the assistant identity; a partial continuation starts a new one.
       for (const [index, identity] of identities.entries()) {
@@ -6400,15 +6432,23 @@ describe("SessionRunnerLLM", () => {
       }
       const partials = outcomes.filter((outcome) => outcome === partial).length
       const messages = yield* s.context
+      // Each partial continuation fails its assistant; the interrupted transparent retry leaves an
+      // empty one behind, projected for the retry state.
       expect(messages.filter((message) => message.type === "assistant")).toHaveLength(partials + 1)
       expect(messages.filter((message) => message.type === "synthetic")).toHaveLength(partials)
       const events = yield* recordedEventTypes(sessionID)
-      expect(events.filter((type) => type === "session.retry.scheduled.1")).toHaveLength(RETRY_GAPS.length)
-      expect(events.filter((type) => type === "session.step.failed.1")).toHaveLength(partials + 1)
+      expect(events.filter((type) => type === "session.retry.scheduled.1")).toHaveLength(RETRY_GAPS.length + 1)
+      expect(events.filter((type) => type === "session.step.failed.1")).toHaveLength(partials)
     },
   )
 
-  scenario("stops incomplete stream continuations once the retry allowance is spent", function* (s) {
+  scenario("stops incomplete stream continuations when a plugin vetoes the retry", function* (s) {
+    const hooks = yield* PluginHooks.Service
+    yield* hooks.register("session", "retry", (event) =>
+      Effect.sync(() => {
+        if (event.attempt > RETRY_GAPS.length + 1) event.decision = { retry: false }
+      }),
+    )
     yield* s.admit("Exhaust partial continuations")
     const failure = incompleteStream()
     yield* s.llm.always(
@@ -6433,7 +6473,38 @@ describe("SessionRunnerLLM", () => {
     expect(context.filter((message) => message.type === "synthetic")).toHaveLength(RETRY_GAPS.length)
   })
 
-  scenario("stops once the retry allowance is spent", function* (s) {
+  scenario("keeps retrying a quota failure past the old ten-attempt allowance until it recovers", function* (s) {
+    yield* s.admit("Retry exhausted quota")
+    const failure = quotaExceeded()
+    // Twelve failures: two past the schedule the session used to stop after.
+    yield* s.llm.push(...Array.from({ length: 12 }, () => Stream.fail(failure)), TestLLM.text("Recovered", "quota-12"))
+
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    // Exponential from 2s settling at the five-minute cap; +20% jitter always fires the retry.
+    const gaps = [2_000, 4_000, 8_000, 16_000, 32_000, 64_000, 128_000, 256_000, 300_000, 300_000, 300_000, 300_000]
+    for (const gap of gaps) {
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust(gap * 1.2)
+    }
+    yield* Fiber.join(run)
+    expect(s.requests).toHaveLength(13)
+    expect(yield* s.context).toMatchObject([
+      { type: "user" },
+      Expected.assistant({ finish: "stop" }, [Expected.text("Recovered")]),
+    ])
+    const events = yield* recordedEventTypes(sessionID)
+    expect(events.filter((type) => type === "session.retry.scheduled.1")).toHaveLength(12)
+    expect(events.filter((type) => type === "session.step.failed.1")).toHaveLength(0)
+  })
+
+  scenario("stops when a plugin vetoes the retry", function* (s) {
+    const hooks = yield* PluginHooks.Service
+    yield* hooks.register("session", "retry", (event) =>
+      Effect.sync(() => {
+        if (event.attempt > RETRY_GAPS.length + 1) event.decision = { retry: false }
+      }),
+    )
     yield* s.admit("Exhaust retries")
     const failure = providerUnavailable()
     yield* s.llm.always(Stream.fail(failure))
@@ -6523,7 +6594,7 @@ describe("SessionRunnerLLM", () => {
     expect(yield* recordedEventTypes(sessionID)).not.toContain("session.retry.scheduled.1")
   })
 
-  scenario("records OpenCode Console's Go usage limit 429 as a typed step failure without retrying", function* (s) {
+  scenario("retries OpenCode Console's Go usage limit 429 until its window passes", function* (s) {
     // The exact refusal Console sends a Go subscriber at a limit.
     const body = JSON.stringify({
       type: "error",
@@ -6538,27 +6609,41 @@ describe("SessionRunnerLLM", () => {
       responseBody: body,
     })
     yield* s.llm.push(Stream.fail(failure))
+    yield* s.llm.push(TestLLM.text("Recovered", "go-limit-success"))
 
-    expect(yield* s.runPrompt("Hit the Go limit").pipe(Effect.flip)).toBe(failure)
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("3599999 millis")
     expect(s.requests).toHaveLength(1)
-    expect(yield* recordedEventTypes(sessionID)).not.toContain("session.retry.scheduled.1")
-    const assistant = requireAssistant(yield* s.context)
-    expect(yield* recordedStepSettlementEvents(sessionID, assistant.id)).toMatchObject([
-      { type: "session.step.started.1" },
-      {
-        type: "session.step.failed.1",
-        data: {
-          error: {
-            type: "provider.go-limit",
-            message:
-              "OpenCode Go 5 hour usage limit reached. Switch to a free model, or turn on Extra Usage on the Go page in OpenCode Console to keep going.",
-            status: 429,
-            response: { body },
-            retryAfterMs: 3_600_000,
-          },
-        },
-      },
-    ])
+    yield* TestClock.adjust("1 millis")
+    yield* Fiber.join(run)
+    expect(s.requests).toHaveLength(2)
+
+    // The typed limit mapping survives: the retry scheduled event carries the curated Go-limit error.
+    const [scheduledEvent] = yield* s.db
+      .select({ data: EventTable.data })
+      .from(EventTable)
+      .where(eq(EventTable.type, "session.retry.scheduled.1"))
+      .orderBy(asc(EventTable.seq))
+      .limit(1)
+      .all()
+      .pipe(Effect.orDie)
+    expect(scheduledEvent?.data.error).toMatchObject({
+      type: "provider.go-limit",
+      message:
+        "OpenCode Go 5 hour usage limit reached. Switch to a free model, or turn on Extra Usage on the Go page in OpenCode Console to keep going.",
+      status: 429,
+      response: { body },
+      retryAfterMs: 3_600_000,
+    })
+    expect(yield* s.context).toContainEqual(
+      expect.objectContaining({
+        type: "assistant",
+        finish: "stop",
+        content: expect.arrayContaining([expect.objectContaining({ type: "text", text: "Recovered" })]),
+      }),
+    )
   })
 
   scenario("settles malformed streamed tool input before the provider failure", function* (s) {

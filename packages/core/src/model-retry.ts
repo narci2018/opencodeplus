@@ -65,6 +65,43 @@ export const policy = Effect.gen(function* () {
     })
 })
 
+// Session steps never give up on an unavailable provider on their own: a quota window ("resets at
+// 08:43") or an outage outlives any bounded schedule, so retries run forever until the call
+// succeeds, the failure is deterministic, or the user interrupts. Gaps grow exponentially from 2s
+// and settle at SESSION_MAX_DELAY per attempt; a provider retry-after raises the gap, capped so a
+// hostile header still cannot stall a session past a day. `OPENCODE_SESSION_RETRY_ATTEMPTS` is an
+// emergency brake that restores a bounded count.
+const SESSION_MAX_DELAY = envNumber("OPENCODE_SESSION_RETRY_MAX_DELAY_MS", Duration.toMillis("5 minutes"))
+const SESSION_RETRY_AFTER_MAX = envNumber("OPENCODE_SESSION_RETRY_AFTER_MAX_MS", Duration.toMillis("24 hours"))
+
+const sessionSchedule = Schedule.max([
+  Schedule.min([Schedule.exponential("2 seconds"), Schedule.spaced(Duration.millis(SESSION_MAX_DELAY))]),
+  Schedule.recurs(envNumber("OPENCODE_SESSION_RETRY_ATTEMPTS", Number.POSITIVE_INFINITY)),
+]).pipe(
+  Schedule.jittered,
+  Schedule.setInputType<Input>(),
+  Schedule.modifyDelay(({ input, duration: delay }) => {
+    const retryAfter = input.cause.retryAfterMs
+    const minimum = retryAfter === undefined ? undefined : Math.min(retryAfter, SESSION_RETRY_AFTER_MAX)
+    const duration = minimum === undefined ? delay : Duration.max(delay, Duration.millis(minimum))
+    return Effect.succeed(Duration.millis(Math.ceil(Duration.toMillis(duration))))
+  }),
+)
+
+export const sessionPolicy = Effect.gen(function* () {
+  const step = yield* Schedule.toStep(sessionSchedule)
+  let attempt = 1
+  return (input: Input) =>
+    Effect.gen(function* () {
+      const now = yield* Clock.currentTimeMillis
+      const next = yield* step(now, input).pipe(Pull.catchDone(() => Effect.succeed(undefined)))
+      if (!next) return undefined
+      const [, duration] = next
+      attempt++
+      return { attempt, delay: Math.ceil(Duration.toMillis(duration)), retry: input.retry }
+    })
+})
+
 /** Retry a buffered model call from scratch; failed attempts never contribute to its returned output. */
 export const retry = <A, R>(effect: Effect.Effect<A, AIError, R>) =>
   Effect.gen(function* () {

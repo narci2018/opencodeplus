@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
 import type { SessionStatus } from "@opencode/client/promise"
+import { duration } from "@opencode/util/duration"
 import { useI18n } from "@opencode/ui/context/i18n"
 import { Card } from "@opencode/ui/card"
 import { Icon } from "@opencode/ui/icon"
@@ -53,6 +54,14 @@ export function SessionRetry(props: { status: SessionStatus; show?: boolean }) {
 
     if (!current) return ""
     const count = Math.max(0, seconds())
+
+    // Quota windows and outages can wait out hours, so past a minute the gap is humanized
+    // ("12h 0m") instead of ticking thousands of seconds.
+    if (count >= 60)
+      return i18n.t("ui.sessionTurn.retry.attemptWaitingLong", {
+        attempt: current.attempt,
+        duration: duration(count * 1000),
+      })
 
     if (count > 0) return i18n.plural("ui.sessionTurn.retry.attemptWaiting", count, { attempt: current.attempt })
 

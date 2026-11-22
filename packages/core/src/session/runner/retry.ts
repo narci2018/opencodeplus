@@ -14,6 +14,40 @@ import { SessionSchema } from "../schema.js"
 
 export { isRetryable }
 
+// A session step retries every failure that can resolve itself: provider outages and rate limits,
+// exhausted quotas (a top-up or a daily reset ends the outage), authentication (credentials or
+// billing can be fixed while the session waits), timeouts, and transport drops. Deterministic
+// failures repeat the same outcome on every attempt, so they end the session instead. The
+// `x-should-retry` header overrides either way.
+export const isWorthRetrying = (error: AIError): boolean => {
+  const override = error.reason.http?.headers["x-should-retry"]
+  if (override === "true") return true
+  if (override === "false") return false
+  switch (error.reason._tag) {
+    case "RateLimit":
+    case "QuotaExceeded":
+    case "ProviderInternal":
+    case "Authentication":
+    case "Timeout":
+    case "UnknownProvider":
+      return true
+    case "Transport":
+      return (
+        error.reason.delivery !== "rejected" && (error.reason.delivery !== "accepted" || error.reason.operation === "read")
+      )
+    case "InvalidProviderOutput":
+      return error.reason.classification === "incomplete-stream"
+    case "InvalidRequest":
+    case "ContentPolicy":
+    case "UnsupportedOperation":
+      return false
+    default: {
+      const exhaustive: never = error.reason
+      return exhaustive
+    }
+  }
+}
+
 interface Input {
   readonly cause: AIError
   readonly error: SessionError.Error
@@ -31,7 +65,7 @@ export interface Decision {
 
 export const policy = (sessionID: SessionSchema.ID) =>
   Effect.gen(function* () {
-    const decide = yield* ModelRetry.policy
+    const decide = yield* ModelRetry.sessionPolicy
     return (input: Input) =>
       Effect.gen(function* () {
         const next = yield* decide(input)
