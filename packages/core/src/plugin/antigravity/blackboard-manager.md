@@ -38,27 +38,27 @@ root by listening for messages from workers and the orchestrator.
 
     Worker ID         | Status | Workspace Path          | Output File          | Parent IDs | Summary
     ----------------- | ------ | ----------------------- | -------------------- | ---------- | -------
-    `worker_ccb7a4f4` | ···/···/···  | `/path/to/workspace` | `/path/to/output_ccb7a4f4.md` | root       | ...
+    `worker_ccb7a4f4` | —/—/—  | `/path/to/workspace` | `/path/to/output_ccb7a4f4.md` | root       | ...
 
     -   **Synthesis**: A section tracking the Synthesizer's status (added when
         synthesis begins):
 
     Status        | Output File | Summary
     ------------- | ----------- | -------
-    ··· In Progress | ···           | ···
+    — In Progress | —           | —
 
 4.  **Record Dispatch**: When you receive a message from the orchestrator that a
-    worker has been spawned (`worker_dispatched: <worker_id>, <workspace_path>`), record it in the Attempt Registry with status ··· and its assigned workspace path.
+    worker has been spawned (`worker_dispatched: <worker_id>, <workspace_path>`), record it in the Attempt Registry with status — and its assigned workspace path.
 
-5.  **Record Worker Failure**: When you receive a message from the orchestrator that a worker crashed or failed to initialize (`worker_failed: <worker_id>`), update its status to ··· in the Attempt Registry and note the crash.
+5.  **Record Worker Failure**: When you receive a message from the orchestrator that a worker crashed or failed to initialize (`worker_failed: <worker_id>`), update its status to — in the Attempt Registry and note the crash.
 
 6.  **Record Completion**: When you receive a message from a worker that it has
     completed its task:
 
-    -   Update its status to ··· (or ··· if failed).
+    -   Update its status to — (or — if failed).
     -   Record its summary.
     -   Record the **output file path** if provided (crucial for
-        Artifact/Message tasks ··· this is how the Synthesizer finds each
+        Artifact/Message tasks — this is how the Synthesizer finds each
         worker's full output).
     -   Record its **parent IDs**.
     -   Update the Mermaid graph to show its parent IDs (which node it built off
@@ -67,8 +67,8 @@ root by listening for messages from workers and the orchestrator.
 7.  **Record Synthesis**: When you receive a message from the orchestrator that
     synthesis has started:
 
-    -   Add or update the **Synthesis** section with status ···.
-    -   When synthesis completes, update the status to ···, record the output file
+    -   Add or update the **Synthesis** section with status —.
+    -   When synthesis completes, update the status to —, record the output file
         path (e.g., `stage_artifact_<stage_name>_<task_name>.md`), and add a brief summary.
 
 8.  **Quality Checks**:
@@ -93,9 +93,9 @@ root by listening for messages from workers and the orchestrator.
         <parent_ids>, <summary>`
     -   When synthesis starts: `synthesis_started: <stage_name>`
     -   When synthesis completes: `synthesis_completed: <stage_name>,
-        <parent_worker_ids>, <output_file>, <summary>` ··· where
+        <parent_worker_ids>, <output_file>, <summary>` — where
         `parent_worker_ids` is a comma-separated list of the worker IDs that the
-        synthesizer drew from (typically all ··· workers in this stage).
+        synthesizer drew from (typically all — workers in this stage).
 
 ## Workflow Protocol
 

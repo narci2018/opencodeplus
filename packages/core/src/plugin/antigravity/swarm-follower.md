@@ -14,7 +14,7 @@ contributions and consolidate the best elements into a single coherent result.
 
 ### Build Tasks (Workspace: branch)
 
-You are in a **real, branched workspace** ··· a git worktree of
+You are in a **real, branched workspace** — a git worktree of
 the user's repository at its last commit. This means:
 
 -   **Edit real source files directly.** Modify the actual code the user cares
@@ -32,7 +32,7 @@ the user's repository at its last commit. This means:
 
 ### Artifact Tasks (Workspace: inherit)
 
-You share the user's workspace. Create **new files only** ··· never modify
+You share the user's workspace. Create **new files only** — never modify
 existing files. Use a unique prefix based on your conversation ID (first 8
 chars) to avoid collisions with other workers.
 
@@ -46,7 +46,7 @@ You share the user's workspace. Your contribution is **text**, not files or code
 edits.
 
 You MUST write your **complete, polished response** to an `output_<worker_short_id>.md` file at the workspace
-root. This is NOT a summary ··· it is your full answer, analysis, explanation, or
+root. This is NOT a summary — it is your full answer, analysis, explanation, or
 response as if you were directly answering the user. The Synthesizer will read
 this file to evaluate and consolidate all workers' responses.
 
@@ -118,3 +118,58 @@ set -e
 # TODO(phadte): Add versioning so this script doesn't always point to latest.
 TARBALL="/google/data/ro/teams/jetski-fix/glinux-insiders/latest/linux-x64/Jetski - Insiders-linux-x64.tar.gz"
 EXTRACT_DIR="${HOME}/.cache/jetski-ins
+
+<!-- Appended from Google Antigravity 44.9.1 language_server: Branched Workspace Collaboration
+     skill, now injected into swarm workers. Adapted: the worker creates its own git worktree for
+     Build tasks (Antigravity's runtime did it); side files stay task-scoped at the workspace root. -->
+
+# Branched Workspace Collaboration
+
+Use this skill when you are deployed as a Swarm Worker.
+
+## Core Principle
+
+Your job is to make a focused, non-redundant contribution toward the Global Goal.
+A Synthesizer agent will later review all workers' contributions and consolidate
+the best elements into a single coherent result.
+
+## Workspace Behavior by Task Type
+
+### Build Tasks (Workspace: branch)
+
+Before editing, create your own git worktree of the user's repository so
+parallel workers never collide:
+
+```bash
+git worktree add ../<repo>-agy-<worker_short_id> -b agy/<task_name>-<worker_short_id>
+```
+
+Work inside that worktree for every edit, build, and test. This means:
+
+-   **Edit real source files directly.** Modify the actual code the user cares
+    about. Do NOT create side files in `/tmp/` or other workaround
+    directories.
+-   **Build and test normally.** The worktree holds committed files only:
+    uncommitted changes and git-ignored files (installed dependencies, build
+    outputs) are absent, so set up what the build needs first.
+-   **Your edits are isolated.** Nothing you do affects the user's workspace or
+    other workers. The Synthesizer will later read your branch diff and decide
+    what to keep. Report your branch name in `output_<worker_short_id>.md`.
+
+### Artifact Tasks (Workspace: inherit)
+
+You share the user's workspace. Create **new files only** — never modify
+existing files. Use a unique prefix based on your worker short ID to avoid
+collisions with other workers.
+
+You MUST also write an `output_<worker_short_id>.md` file summarizing your
+contribution and listing all files you created.
+
+### Message Tasks (Workspace: inherit)
+
+You share the user's workspace. Your contribution is **text**, not files or code
+edits. Write your **complete, polished response** to your
+`output_<worker_short_id>.md` file at the workspace root — NOT a summary, but
+your full answer as if you were directly answering the user.
+
+**This file is the ONLY way the Synthesizer can see your work.**

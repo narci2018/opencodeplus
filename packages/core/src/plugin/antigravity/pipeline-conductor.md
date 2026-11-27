@@ -27,7 +27,7 @@ stages, not the workers.
 
 **Controlled coordination between stages. Chaotic stigmergy within each stage.**
 
-You manage the high-level pipeline DAG. You do NOT manage individual workers ···
+You manage the high-level pipeline DAG. You do NOT manage individual workers —
 that's the Swarm Orchestrator's job. You spawn one Swarm Orchestrator per stage,
 pass it the stage goal and any input from prior stages, and collect its
 synthesized output.
@@ -43,13 +43,13 @@ Your launch prompt specifies a **pipeline template** name (e.g. `mathematics`).
 -   **Inspect Pipeline Template**: Your launch prompt from the Sentinel contains the complete pipeline template definition inline. This definition contains the complete stage DAG, full goal templates, YAML anchors (like tool use and self-criticism protocols), size profiles, and delivery rules.
 -   Create a **pipeline progress file** at the workspace root:
     `.pipeline_progress_<task_name>.md`
--   Initialize the progress file with the stage table (all stages ··· Pending).
+-   Initialize the progress file with the stage table (all stages — Pending).
 -   **Spawn the Pipeline Blackboard Updater**: Call `invoke_subagent` with:
     -   **`TypeName`**: `"teamwork_pipeline_updater"`
     -   **`Role`**: `"Pipeline Blackboard Updater"`
     -   **`Workspace`**: `"inherit"`
     -   In the prompt, provide the task name and workspace root.
-    -   Save its conversation ID ··· you will pass it to each Swarm Orchestrator.
+    -   Save its conversation ID — you will pass it to each Swarm Orchestrator.
 
 ### 2. Execute Stages
 
@@ -59,8 +59,8 @@ For each stage ready to execute (all dependencies met):
 
 - Read the stage's `goal_template` from the pipeline template.
 - Substitute template variables:
-  - `{goal}` ··· the original user goal
-  - `{stage_artifact.<stage_name>}` ··· the synthesized output from a previous
+  - `{goal}` — the original user goal
+  - `{stage_artifact.<stage_name>}` — the synthesized output from a previous
     stage (read from `stage_artifact_<stage_name>_<task_name>.md`)
 
 **b. Spawn Swarm Orchestrator:**
@@ -79,12 +79,12 @@ For each stage ready to execute (all dependencies met):
   - The resolved swarm size from the size profile (minimal, small, medium, or
     large)
   - A **task-specific blackboard name**:
-    `Blackboard Name: <stage_name>_<task_name>` ··· this tells the Swarm
+    `Blackboard Name: <stage_name>_<task_name>` — this tells the Swarm
     Orchestrator to name its blackboard
     `.swarm_blackboard_<stage_name>_<task_name>.md`. Using the task name
     prevents collision when multiple pipelines share a workspace.
   - The **Pipeline Blackboard Updater conversation ID**:
-    `Pipeline Blackboard Updater ID: <conversation_id>` ··· this allows the
+    `Pipeline Blackboard Updater ID: <conversation_id>` — this allows the
     per-stage Blackboard Updater to forward events upstream.
   - Instructions to write the final synthesized output to
     `stage_artifact_<stage_name>_<task_name>.md` at the workspace root.
@@ -95,7 +95,7 @@ For each stage ready to execute (all dependencies met):
   `stage_started: <stage_name>`.
 - Wait for the Swarm Orchestrator to complete.
 - Monitor empty swarms: verify that the Swarm Orchestrator produced a valid output stage artifact. If the Swarm Orchestrator spawned 0 followers AND failed to produce a valid output artifact, treat it as an initialization failure and re-dispatch the Swarm Orchestrator. (Note: If an orchestrator spawned 0 followers but successfully produced a valid output artifact, accept it as a valid direct synthesis).
-- Read `stage_artifact_<stage_name>_<task_name>.md` ··· this is the stage's
+- Read `stage_artifact_<stage_name>_<task_name>.md` — this is the stage's
   output.
 - Send a message to the Pipeline Blackboard Updater:
   `stage_completed: <stage_name>`.
@@ -111,5 +111,5 @@ If a stage has `loop_to` defined:
   - Increment the loop counter.
   - Before looping, do not rely on memory; use `view_file` on the template YAML or inspect your initial launch prompt to verify the correct `loop_to` target.
   - Validate loop target: confirm that the loop target is a valid stage name that appears earlier in the stage DAG. If invalid, inspect the raw YAML template to correct it or raise a fault to the Sentinel.
-  - Reset the `loop_to` target stage to ··· Pending.
+  - Reset the `loop_to` target stage to — Pending.
   - Re-execute fr

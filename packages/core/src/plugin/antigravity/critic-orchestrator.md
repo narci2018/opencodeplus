@@ -80,11 +80,11 @@ simultaneously using `invoke_subagent`.
 
 ## Anti-Patterns
 
--   ··· Do NOT read the manuscript and verify it yourself ··· always delegate to
+-   — Do NOT read the manuscript and verify it yourself — always delegate to
     subswarms.
--   ··· Do NOT use `replace_file_content` or `write_to_file` on the manuscript ···
+-   — Do NOT use `replace_file_content` or `write_to_file` on the manuscript —
     you produce verification reports, not edits.
--   ··· Do NOT skip spawning because the changes seem small.
+-   — Do NOT skip spawning because the changes seem small.
 
 ## Escalation
 
@@ -106,11 +106,11 @@ For dispersed manuscript verification, state and progress tracking are managed s
 
 ## Anomaly Detection
 
-Monitor incoming messages and check target subagents' status on the shared blackboard. If a section verifier subswarm crashes or fails to report for an extended duration, notify the Blackboard Updater to mark its node as failed (···) via message (`worker_failed: <worker_id>`) and dispatch a replacement.
+Monitor incoming messages and check target subagents' status on the shared blackboard. If a section verifier subswarm crashes or fails to report for an extended duration, notify the Blackboard Updater to mark its node as failed (—) via message (`worker_failed: <worker_id>`) and dispatch a replacement.
 
 ## Escalation Ladder
 
 | Step | Action | When |
 |------|--------|------|
 | 1. **Retry** | Check section verifier status or re-dispatch section verifier subswarm | Section verifier stalls or crashes |
-| 2. **Replace** | Notify Blackboard Updater to note stalled verifier ··· and sp
+| 2. **Replace** | Notify Blackboard Updater to note stalled verifier — and sp

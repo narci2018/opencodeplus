@@ -31,8 +31,12 @@ import PROMPT_TEAMWORK_EXPLORER from "./teamwork-explorer.md" with { type: "text
 import PROMPT_TEAMWORK_INTERVIEWER from "./teamwork-interviewer.md" with { type: "text" }
 import PROMPT_TEAMWORK_SPECIALIST from "./teamwork-specialist.md" with { type: "text" }
 import PROMPT_TEST_WRITER from "./test-writer.md" with { type: "text" }
-import PROMPT_TOOL_CALLING_AGENT from "./tool-calling-agent.md" with { type: "text" }
 import PROMPT_AGY_MAIN from "./agy-main.md" with { type: "text" }
+import PROMPT_ADVISOR from "./advisor.md" with { type: "text" }
+import PROMPT_PACING_SUPERVISOR from "./pacing-supervisor.md" with { type: "text" }
+import PROMPT_PIPELINE_BLACKBOARD_UPDATER from "./pipeline-blackboard-updater.md" with { type: "text" }
+import PROMPT_CREATIVE_WORKER from "./creative-worker.md" with { type: "text" }
+import PROMPT_LEAD_WORKER from "./lead-worker.md" with { type: "text" }
 
 export const Plugin = define({
   id: "opencode.antigravity",
@@ -176,7 +180,7 @@ export const Plugin = define({
 
       editor.update(Agent.ID.make("agy-reviewer"), (item) => {
         item.name = Agent.Name.make("Reviewer")
-        item.description = "判断重跑在更强模型上是否可能产出实质更好的结果，输出 ACCEPT/REJECT。"
+        item.description = "独立验证并挑战前一个 worker 的结论（非橡皮图章），输出 ACCEPT/CORRECTED/ESCALATE。"
         item.system = PROMPT_REVIEWER
         item.mode = "subagent"
         item.native = true
@@ -270,15 +274,48 @@ export const Plugin = define({
         item.native = true
       })
 
-      editor.update(Agent.ID.make("agy-tool-calling-agent"), (item) => {
-        item.name = Agent.Name.make("Tool Calling Agent")
-        item.description = "按 <tools> 签名调用函数以协助用户查询。"
-        item.system = PROMPT_TOOL_CALLING_AGENT
+
+
+
+      editor.update(Agent.ID.make("agy-advisor"), (item) => {
+        item.name = Agent.Name.make("Advisor")
+        item.description = "强模型顾问：只读执行轨迹，在提交方案/卡住/宣布完成前被咨询，返回建议而非代码。"
+        item.system = PROMPT_ADVISOR
         item.mode = "subagent"
         item.native = true
       })
 
+      editor.update(Agent.ID.make("agy-pacing-supervisor"), (item) => {
+        item.name = Agent.Name.make("Pacing Supervisor")
+        item.description = "节奏督导：识别绕圈/犹豫/收不了尾三种空转，返回 JSON 判定是否需要纠偏推送。"
+        item.system = PROMPT_PACING_SUPERVISOR
+        item.mode = "subagent"
+        item.native = true
+      })
 
+      editor.update(Agent.ID.make("agy-pipeline-blackboard-updater"), (item) => {
+        item.name = Agent.Name.make("Pipeline Blackboard Updater")
+        item.description = "管线级黑板：维护单文件 mega mermaid 图，展示全管线信息流与阶段汇总。"
+        item.system = PROMPT_PIPELINE_BLACKBOARD_UPDATER
+        item.mode = "subagent"
+        item.native = true
+      })
+
+      editor.update(Agent.ID.make("agy-creative-worker"), (item) => {
+        item.name = Agent.Name.make("Creative Worker")
+        item.description = "创意 worker：按 Build（自建 git worktree 大胆改）/ Artifact / Message 三类工作区行为产出，Synthesizer 事后择优合并。"
+        item.system = PROMPT_CREATIVE_WORKER
+        item.mode = "subagent"
+        item.native = true
+      })
+
+      editor.update(Agent.ID.make("agy-lead-worker"), (item) => {
+        item.name = Agent.Name.make("Lead Worker")
+        item.description = "lead 指挥下的全工具 worker：任务即权威请求，Outcome/What changed/Verification/Open items 四段式报告。"
+        item.system = PROMPT_LEAD_WORKER
+        item.mode = "subagent"
+        item.native = true
+      })
     })
   }),
 })

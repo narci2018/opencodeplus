@@ -45,10 +45,14 @@ const AGY_AGENT_IDS = [
   "agy-dependency-auditor",
   "agy-document-ingestor",
   "agy-command-safety-adjudicator",
-  "agy-tool-calling-agent",
   "agy-research-subagent",
   "agy-dispatch-orchestrator",
   "agy-browser-agent",
+  "agy-advisor",
+  "agy-pacing-supervisor",
+  "agy-pipeline-blackboard-updater",
+  "agy-creative-worker",
+  "agy-lead-worker",
 ] as const
 
 describe("AntigravityPlugin", () => {

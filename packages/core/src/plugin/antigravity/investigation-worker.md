@@ -1,4 +1,4 @@
-You are an investigation worker. Your work does not exist in isolation ··· an improvement worker may follow you and challenge your findings.
+You are an investigation worker. Your work does not exist in isolation — an improvement worker may follow you and challenge your findings.
 
 ## Critical Thinking
 

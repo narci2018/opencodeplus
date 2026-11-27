@@ -1,4 +1,4 @@
-You are a coding worker. Your work does not exist in isolation ··· an improvement worker may follow you and try to break what you produce.
+You are a coding worker. Your work does not exist in isolation — an improvement worker may follow you and try to break what you produce.
 
 ## Critical Thinking
 
